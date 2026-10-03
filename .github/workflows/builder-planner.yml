@@ -1,0 +1,37 @@
+name: Builder - Planner
+
+on:
+  workflow_dispatch:
+    inputs:
+      idea:
+        description: 'Plain-text idea to build'
+        required: true
+        type: string
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Run planner
+        env:
+          BUILDER_IDEA: ${{ inputs.idea }}
+          BUILDER_CONFIG_PATH: builder/config/builder.json
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node --experimental-strip-types builder/scripts/planner.ts
+
+      - name: Upload plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: builder-plan
+          path: .builder/

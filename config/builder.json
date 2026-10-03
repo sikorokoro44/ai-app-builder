@@ -1,0 +1,30 @@
+{
+  "agents": {
+    "count": 20
+  },
+  "queue": {
+    "branch": "builder/queue"
+  },
+  "coordinator": {
+    "mergeOneAtATime": true
+  },
+  "status": {
+    "labelNotStarted": "NOT STARTED",
+    "labelBuilding": "BUILDING",
+    "labelComplete": "COMPLETE",
+    "labelFailed": "FAILED"
+  },
+  "trigger": {
+    "name": "builder-trigger"
+  },
+  "visibility": {
+    "public": true,
+    "requirePublicReleases": true
+  },
+  "releases": {
+    "createReleasePerFeature": true,
+    "attachArtifacts": true,
+    "publishPublic": true,
+    "reportLinkOnComplete": true
+  }
+}

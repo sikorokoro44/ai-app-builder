@@ -1,0 +1,23 @@
+name: Builder - Coordinator
+
+on:
+  workflow_dispatch:
+
+jobs:
+  coordinate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Run coordinator
+        env:
+          BUILDER_CONFIG_PATH: builder/config/builder.json
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node --experimental-strip-types builder/scripts/coordinator.ts

@@ -1,0 +1,11 @@
+{
+  "name": "ai-app-builder",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --experimental-strip-types --test \"test/**/*.test.ts\"",
+    "validate": "node --experimental-strip-types scripts/validateState.ts",
+    "view": "node --experimental-strip-types opencode/live-view-visual.ts"
+  }
+}

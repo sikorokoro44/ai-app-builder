@@ -1,0 +1,33 @@
+name: Builder - Workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      agentCount:
+        description: 'Number of worker agents (config-driven override optional)'
+        required: false
+        default: '20'
+        type: string
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    strategy:
+      matrix:
+        agent_id: [01,02,03,04,05,06,07,08,09,10,11,12,13,14,15,16,17,18,19,20]
+      max-parallel: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Run worker
+        env:
+          BUILDER_WORKER_ID: agent-${{ matrix.agent_id }}
+          BUILDER_CONFIG_PATH: builder/config/builder.json
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node --experimental-strip-types builder/scripts/worker.ts

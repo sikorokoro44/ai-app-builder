@@ -1,0 +1,7 @@
+{
+  "name": "builder-scripts",
+  "type": "module",
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {}
+}
