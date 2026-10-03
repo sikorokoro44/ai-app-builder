@@ -1,18 +1,16 @@
-# Builder (Autonomous Cloud Builder)
+# AI App Builder
 
-Self-contained module for the Autonomous Cloud Builder system. Everything under `/builder/`.
+Autonomous cloud builder creating real Android apps from plain-text ideas.
 
-## Purpose
-- Takes a plain-text idea, breaks into features, builds them in parallel on GitHub Actions (Gradle only).
-- 20 worker agents, single config value (`builder/config/builder.json` → `agents.count`).
-- Status tracked in GitHub Issues. Coordinator merges passing feature branches into `main` one-at-a-time.
-- Zero user interaction after submission.
-- All apps must be public (repo/releases). Every completed build produces a public GitHub Releases asset URL, automatically reported on the status board.
+## Key Principles
+- Public only: all apps and releases are public
+- Cloud-only builds via GitHub Actions (Gradle)
+- 20 worker agents, single config value (builder/config/builder.json)
+- Truthful live progress (visual-only to user): overall + current stage, 0-100%, never simulated
+- Real artifacts only: public GitHub release URLs, verified before marking DOWNLOAD_READY/COMPLETED
 
-## Structure
-- `config/builder.json` — single source of truth for agent count, labels, visibility, releases
-- `actions/` — reusable composite actions/workflow templates
-- `scripts/` — Node/TS scripts (planner, worker, coordinator, status, release)
-- `gradle/` — minimal Gradle config for cloud builds
-- `.github/workflows/` (added) — planner, workers (20), coordinator
-- `opencode/` — Termux/OpenCode polling UI/view
+## Flow
+IDEA → ANALYZE → DESIGN → PLAN → BUILDING → TESTING → CLOUD_BUILDING → VERIFYING → RELEASING → DOWNLOAD_READY → COMPLETED
+
+## Usage
+Submit idea via GitHub Actions workflow (planner), workers build in parallel, coordinator merges on green. Monitor visual progress.

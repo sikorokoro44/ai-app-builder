@@ -1,0 +1,48 @@
+export const PROJECT_STATES = [
+  'NOT_STARTED',
+  'QUEUED',
+  'ANALYZING',
+  'DESIGNING',
+  'PLANNING',
+  'WAITING',
+  'READY',
+  'BUILDING',
+  'TESTING',
+  'REPAIRING',
+  'CLOUD_BUILDING',
+  'VERIFYING',
+  'RELEASING',
+  'DOWNLOAD_READY',
+  'COMPLETED',
+  'BLOCKED',
+  'FAILED',
+  'PAUSED'
+] as const;
+
+export const AGENT_STATES = [
+  'IDLE',
+  'SELECTING_TASK',
+  'WAITING',
+  'WORKING',
+  'REVIEWING',
+  'TESTING',
+  'REPAIRING',
+  'BLOCKED',
+  'FAILED',
+  'COMPLETED'
+] as const;
+
+export const TASK_STATES = [
+  'NOT_STARTED',
+  'WAITING',
+  'BLOCKED',
+  'READY',
+  'CLAIMED',
+  'WORKING',
+  'REVIEWING',
+  'TESTING',
+  'FAILED',
+  'REPAIRING',
+  'VERIFIED',
+  'COMPLETE'
+] as const;
