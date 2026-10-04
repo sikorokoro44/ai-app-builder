@@ -23,7 +23,7 @@ import { validateGeneratedProject } from './live/projectValidator.ts';
 import { assertRepoSafety, assertNoSecretsInFiles } from './live/repoGuard.ts';
 import { ProjectStates, Events } from '../shared/types.ts';
 
-const WORKFLOW = process.env.BUILDER_WORKFLOW || '.github/workflows/builder-android-build.yml';
+const WORKFLOW = process.env.BUILDER_WORKFLOW || '374268791';
 const MAX_ATTEMPTS = Number(process.env.BUILDER_MAX_ATTEMPTS || '3');
 const POLL_INTERVAL_MS = Number(process.env.BUILDER_POLL_INTERVAL_MS || '15000');
 const POLL_TIMEOUT_MS = Number(process.env.BUILDER_POLL_TIMEOUT_MS || String(45 * 60 * 1000));
