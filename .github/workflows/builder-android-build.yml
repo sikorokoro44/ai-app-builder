@@ -1,0 +1,41 @@
+name: Builder - Android Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      idea:
+        description: 'App idea'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Generate Android app
+        run: node --experimental-strip-types scripts/generateAndroidApp.ts
+      - name: Copy generated to android-build
+        run: |
+          mkdir -p android-build/app
+          cp -r .builder/generated/android/* android-build/ 2>/dev/null || true
+          cp -r .builder/generated/android/app/* android-build/app/ 2>/dev/null || true
+      - name: Make gradlew executable
+        run: chmod +x android-build/gradlew 2>/dev/null || true
+      - name: Build debug APK
+        run: cd android-build && ./gradlew --no-daemon assembleDebug
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android-build/app/build/outputs/apk/debug/*.apk
