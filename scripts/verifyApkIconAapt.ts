@@ -170,6 +170,12 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
   const { icon, roundIcon } = parseApplicationIcons(manifestTree);
   if (icon === undefined) {
     errors.push('aapt2 reports no android:icon on <application>');
+    // debug
+    const lines = manifestTree.split('\n');
+    const start = lines.findIndex((l) => /^\s*E:\s*application\b/.test(l));
+    if (start >= 0) {
+      errors.push('application context: ' + lines.slice(start, Math.min(start+10, lines.length)).join(' | '));
+    }
     return audit;
   }
   audit.iconResourceId = `0x${icon.toString(16)}`;
