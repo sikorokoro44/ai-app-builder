@@ -37,18 +37,38 @@ if (secrets.length > 0) {
   process.exit(1);
 }
 
-const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf-8' }).trim();
-if (!dirty) {
-  console.log(JSON.stringify({ ok: true, pushed: false, reason: 'working tree already clean', headSha: guard.headSha }, null, 2));
-  process.exit(0);
-}
-
 try {
   assertValidTransition(s.projectState, ProjectStates.BUILDING);
 } catch (e: any) {
   console.error(`Refusing out-of-order push: ${e.message}`);
   process.exit(2);
 }
+
+const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf-8' }).trim();
+
+// A clean tree is not the same thing as a pushed branch. Counting the commits
+// that never reached the remote keeps "nothing to commit" from reporting success
+// while the branch is still ahead of origin.
+let unpushed = 1;
+try {
+  unpushed = Number(execFileSync('git', ['rev-list', '--count', `origin/${guard.branch}..HEAD`], { encoding: 'utf-8' }).trim()) || 0;
+} catch {
+  // No usable upstream ref: assume work is unpushed so we go round the push path.
+  unpushed = 1;
+}
+
+if (!dirty && unpushed === 0) {
+  // The implementation is already on the remote, which is exactly the fact the
+  // IMPLEMENT link asserts. Recording it here is what makes the completion gate
+  // reachable for a resumed run; skipping it left the gate permanently open.
+  s.cloudBuild.headSha = guard.headSha;
+  recordStage(s, 'IMPLEMENT', `implementation already pushed at ${guard.headSha.slice(0, 7)} (clean tree, branch in sync with origin)`);
+  appendEvent({ type: Events.BUILD_STAGE_CHANGED, stage: 'PUSH', headSha: guard.headSha });
+  writeState(s);
+  console.log(JSON.stringify({ ok: true, pushed: false, reason: 'working tree clean and branch in sync with origin', headSha: guard.headSha }, null, 2));
+  process.exit(0);
+}
+
 s.projectState = ProjectStates.BUILDING;
 s.latestActivity = 'Pushing generated sources to GitHub';
 persistCheckpoint('pre-push', s);

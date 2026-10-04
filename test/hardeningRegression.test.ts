@@ -799,3 +799,73 @@ describe('generated project is valid and buildable inputs only', () => {
     assert.ok(r.errors.length > 0);
   });
 });
+
+describe('a real pipeline run produces the evidence the completion gate demands', () => {
+  // seedFullyEvidenced() hand-writes the entire chain, so it passes no matter how
+  // little the production scripts actually record. It hid the fact that nothing
+  // ever recorded IDEA, ANALYZE, DESIGN, PLAN, SCAFFOLD or TESTGEN, which left
+  // DOWNLOAD_READY unreachable for any genuine run. This block runs the scripts.
+  function runStage(script: string, env: Record<string, string> = {}) {
+    try {
+      const out = execFileSync('node', ['--experimental-strip-types', join(REPO, 'scripts', script)], {
+        // Run from the temp dir so ideaInput/scaffold write their byproducts
+        // outside the repository instead of overwriting tracked files.
+        cwd: TMP,
+        encoding: 'utf-8',
+        env: { ...process.env, ...env, BUILDER_STATE_DIR: STATE_DIR, BUILDER_CHECKPOINT_DIR: CP_DIR },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      return { code: 0, out, err: '' };
+    } catch (e: any) {
+      return { code: typeof e.status === 'number' ? e.status : 1, out: e.stdout || '', err: e.stderr || '' };
+    }
+  }
+
+  test('each design stage records its own evidence link', async () => {
+    rmSync(STATE_DIR, { recursive: true, force: true });
+    rmSync(CP_DIR, { recursive: true, force: true });
+
+    // The order matters: each script also advances projectState, so running them
+    // out of order would be refused as an illegal transition.
+    const chain: Array<[string, Record<string, string>?]> = [
+      ['ideaInput.ts', { BUILDER_IDEA: 'Todo App' }],
+      ['analyze.ts', undefined],
+      ['design.ts', undefined],
+      ['plan.ts', undefined],
+      ['scaffold.ts', undefined],
+      ['implement.ts', undefined],
+      ['testgen.ts', undefined],
+    ];
+    for (const [script, env] of chain) {
+      const res = runStage(script, env);
+      assert.strictEqual(res.code, 0, `${script} did not run cleanly:\n${res.err}`);
+    }
+
+    const { LifecycleStages } = await import('../scripts/live/evidenceChain.ts');
+    const recorded = stateOnDisk().evidence.stages.map((st: any) => st.stage);
+    for (const stage of ['IDEA', 'ANALYZE', 'DESIGN', 'PLAN', 'SCAFFOLD', 'TESTGEN']) {
+      assert.ok(recorded.includes(stage),
+        `${stage} was never recorded by the pipeline; recorded: ${recorded.join(', ') || '(nothing)'}`);
+    }
+    // recordStage inserts by canonical position, so the chain must stay in
+    // lifecycle order no matter which order the scripts were run in. IMPLEMENT is
+    // absent here on purpose: it is asserted when the sources are actually pushed.
+    assert.deepStrictEqual(recorded, (LifecycleStages as string[]).filter((s) => recorded.includes(s)),
+      'the pipeline must record evidence in canonical lifecycle order');
+  });
+
+  test('running the pipeline does not write to tracked repository files', () => {
+    const dirty = execFileSync('git', ['status', '--porcelain', '--', '.builder/idea.txt', '.builder/out'],
+      { cwd: REPO, encoding: 'utf-8' }).trim();
+    assert.strictEqual(dirty, '',
+      `the pipeline leaked byproducts into tracked files:\n${dirty}`);
+  });
+
+  test('the push step records IMPLEMENT even when there is nothing left to push', () => {
+    const src = readFileSync(join(REPO, 'scripts', 'githubPush.ts'), 'utf-8');
+    const alreadyPushed = src.slice(src.indexOf('if (!dirty && unpushed === 0) {'));
+    assert.ok(alreadyPushed.includes("recordStage(s, 'IMPLEMENT'"),
+      'a resumed run has nothing to commit, so the already-pushed path must record IMPLEMENT itself; '
+      + 'otherwise the gate can never be satisfied');
+  });
+});

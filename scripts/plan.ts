@@ -2,6 +2,7 @@
 import { initStateStore, readState, writeState, appendEvent } from './live/stateStore.ts';
 import { advanceTo } from './orchestrator/lifecycle.ts';
 import { ProjectStates, TaskStates, Events } from '../shared/types.ts';
+import { recordStage } from './live/evidenceChain.ts';
 
 initStateStore();
 let s = readState();
@@ -22,5 +23,6 @@ if (!s.features[fid]) {
 // implementation. Leaving it at PLANNING would make the next stage (BUILDING)
 // an illegal skip, since READY is the state that actually means "plan accepted".
 advanceTo(s, ProjectStates.READY, 'Plan ready for implementation');
+recordStage(s, 'PLAN', `planned feature ${fid} with ${s.features[fid].tasks.length} tasks; state READY`);
 writeState(s);
 console.log('Planning complete');
