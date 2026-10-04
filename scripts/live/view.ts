@@ -10,6 +10,8 @@ function bar(pct: number) {
 }
 
 const s = enrichWithProgress(readState());
-const stagePct = s.currentStagePct === null ? 0 : s.currentStagePct;
+// Derived value; treat a missing/undefined stage pct as 0 rather than
+// rendering a NaN bar.
+const stagePct = Number(s.currentStagePct ?? 0);
 console.log(bar(s.overallProgressPct) + ' ' + s.overallProgressPct + '%');
 console.log(bar(stagePct) + ' ' + s.currentStageName + ': ' + stagePct + '%');

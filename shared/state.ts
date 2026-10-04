@@ -75,6 +75,16 @@ export interface CloudBuild {
   failedReason?: string;
   startedAt?: string;
   finishedAt?: string;
+  runId?: string;
+  headSha?: string;
+  workflowFile?: string;
+  attempt?: number;
+  failureClass?: string;
+  retryable?: boolean;
+  artifactSha256?: string;
+  artifactSize?: number;
+  conclusion?: string;
+  logsFetched?: boolean;
 }
 
 export interface Release {
@@ -82,6 +92,26 @@ export interface Release {
   assetUrl?: string;
   assetName?: string;
   failedReason?: string;
+  repo?: string;
+  tag?: string;
+  releaseUrl?: string;
+  assetSha256?: string;
+  runId?: string;
+  verifiedAt?: string;
+}
+
+export interface StageEvidence {
+  stage: string;
+  evidence: string;
+  at: string;
+  runId?: string;
+}
+
+export interface EvidenceChain {
+  stages: StageEvidence[];
+  publicDownloadVerified?: boolean;
+  publicDownloadUrl?: string;
+  finalVerifyAt?: string;
 }
 
 export interface FailureRepairView {
@@ -117,11 +147,18 @@ export interface LiveState {
   githubStatus: 'unknown' | 'ok' | 'degraded' | 'error';
   cloudBuild: CloudBuild;
   apkVerification: 'idle' | 'verifying' | 'passed' | 'failed';
+  apkVerificationErrors?: string[];
+  apkPath?: string;
+  apkSha256?: string;
+  apkPackageId?: string;
   release: Release;
   failureRepair: FailureRepairView;
   buildLogs: BuildOutput[];
   lastUpdated: string;
   finalDownloadUrl?: string;
+  evidence?: EvidenceChain;
+  idea?: string;
+  attempt?: number;
 }
 
 export function createInitialState(): LiveState {
@@ -149,6 +186,7 @@ export function createInitialState(): LiveState {
     release: { status: 'idle' },
     failureRepair: { state: 'idle' },
     buildLogs: [],
+    evidence: { stages: [] },
     lastUpdated: new Date().toISOString()
   };
 }

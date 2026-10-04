@@ -5,12 +5,6 @@ import { ProjectStates, AgentStates, TaskStates, CloudBuildStages, Events } from
 initStateStore();
 let state = readState();
 
-function updateProjectState(s: typeof ProjectStates[keyof typeof ProjectStates], activity: string) {
-  state.projectState = s;
-  state.latestActivity = activity;
-  appendEvent({ type: Events.PROJECT_STATUS_CHANGED, projectState: s, activity });
-}
-
 function ensureAgent(id: string, name: string) {
   if (!state.agents[id]) {
     state.agents[id] = {
@@ -54,12 +48,11 @@ for (let i = 1; i <= agentCount; i++) {
   ensureAgent(`agent-${String(i).padStart(2, '0')}`, `Worker ${i}`);
 }
 
-updateProjectState(ProjectStates.READY, 'Orchestrator ready');
-state.overallProgressPct = 0;
-state.totalFeatures = 0;
-state.totalTasks = 0;
-state.completedFeatures = 0;
-state.completedTasks = 0;
-
+// Orchestrating is not a lifecycle stage of its own. This script used to force
+// the project to READY and zero every progress counter, which both destroyed
+// real work in progress and attempted an illegal transition whenever the build
+// was already running (CLOUD_BUILDING -> READY). Leaving projectState alone and
+// only registering agents means starting the orchestrator is now safe to do at
+// any point in a run.
 writeState(state);
 console.log('Orchestrator initialized', { agents: agentCount, state: state.projectState });

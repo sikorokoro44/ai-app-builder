@@ -7,35 +7,135 @@ on:
         description: 'App idea'
         required: true
         type: string
+      head_sha:
+        description: 'Commit that must be built (optional pin)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # One build per commit. A second dispatch for the same commit queues behind the
+  # first instead of racing it, which is what keeps duplicate artifacts from
+  # appearing for identical input.
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
+    name: Assemble debug APK
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      package_id: ${{ steps.identity.outputs.package_id }}
+      apk_sha256: ${{ steps.identity.outputs.apk_sha256 }}
+      apk_size: ${{ steps.identity.outputs.apk_size }}
+      head_sha: ${{ steps.identity.outputs.head_sha }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Setup Node
-        uses: actions/setup-node@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Generate Android app
-        run: node --experimental-strip-types scripts/generateAndroidApp.ts
-      - name: Copy generated to android-build
+
+      # The generated `gradlew` is a thin shim that execs a system `gradle`
+      # (there is no wrapper jar in the tree), so Gradle has to be provisioned
+      # here. The version must match the distributionUrl the generator pins in
+      # gradle/wrapper/gradle-wrapper.properties; test/hardeningRegression.test.ts
+      # fails if the two drift apart.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Verify the workflow ran for the commit that was requested
         run: |
-          mkdir -p android-build/app
-          cp -r .builder/generated/android/* android-build/ 2>/dev/null || true
-          cp -r .builder/generated/android/app/* android-build/app/ 2>/dev/null || true
-      - name: Make gradlew executable
-        run: chmod +x android-build/gradlew 2>/dev/null || true
-      - name: Build debug APK
-        run: cd android-build && ./gradlew --no-daemon assembleDebug
-      - name: Upload APK artifact
+          set -euo pipefail
+          head="$(git rev-parse HEAD)"
+          echo "head_sha=$head" >> "$GITHUB_OUTPUT"
+          if [ -n "${{ inputs.head_sha }}" ] && [ "${{ inputs.head_sha }}" != "$head" ]; then
+            echo "::error::This run built $head but ${{ inputs.head_sha }} was requested."
+            exit 1
+          fi
+
+      - name: Generate the Android project from the idea
+        env:
+          BUILDER_IDEA: ${{ inputs.idea }}
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/generateAndroidApp.ts
+
+      - name: Validate the generated project before building
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/cloudBuildExecute.ts --prepare
+
+      - name: Run the JVM unit tests for the generated data layer
+        working-directory: .builder/generated/android
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace testDebugUnitTest
+
+      - name: Assemble the debug APK
+        working-directory: .builder/generated/android
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Record the APK identity and checksum
+        id: identity
+        run: |
+          set -euo pipefail
+          apk="$(find .builder/generated/android/app/build/outputs/apk/debug -name '*.apk' | head -n 1)"
+          if [ -z "$apk" ]; then
+            echo "::error::assembleDebug produced no APK"
+            exit 1
+          fi
+          sha="$(sha256sum "$apk" | cut -d' ' -f1)"
+          size="$(stat -c %s "$apk")"
+          pkg="$(node --experimental-strip-types -e "
+            import { verifyApkFile } from './scripts/live/apkValidator.ts';
+            const r = verifyApkFile('$apk');
+            if (!r.valid) { console.error(r.errors.join('\n')); process.exit(1); }
+            process.stdout.write(r.packageId || '');
+          ")"
+          echo "apk_path=$apk" >> "$GITHUB_OUTPUT"
+          echo "apk_sha256=$sha" >> "$GITHUB_OUTPUT"
+          echo "apk_size=$size" >> "$GITHUB_OUTPUT"
+          echo "package_id=$pkg" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Android build artifact"
+            echo ""
+            echo "- package: \`$pkg\`"
+            echo "- sha256: \`$sha\`"
+            echo "- bytes: \`$size\`"
+            echo "- commit: \`$head\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the verified APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: android-build/app/build/outputs/apk/debug/*.apk
+          path: ${{ steps.identity.outputs.apk_path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload unit test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: |
+            .builder/generated/android/app/build/reports/
+          if-no-files-found: ignore
+          retention-days: 7

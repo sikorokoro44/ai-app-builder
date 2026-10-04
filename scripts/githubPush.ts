@@ -1,16 +1,66 @@
 #!/usr/bin/env node
-import { execSync } from 'child_process';
-import { initStateStore, readState, writeState } from './live/stateStore.ts';
-import { ProjectStates } from '../shared/types.ts';
+import { execFileSync } from 'child_process';
+import { initStateStore, readState, writeState, appendEvent } from './live/stateStore.ts';
+import { persistCheckpoint } from './live/checkpointStore.ts';
+import { assertRepoSafety, assertNoSecretsInFiles, REQUIRED_REPO } from './live/repoGuard.ts';
+import { recordStage } from './live/evidenceChain.ts';
+import { assertValidTransition } from './live/stateValidator.ts';
+import { ProjectStates, Events } from '../shared/types.ts';
 
+/**
+ * The builder only ever operates on sikorokoro44/ai-app-builder, on the
+ * expected branch, with no secrets in the committed tree. Any deviation aborts
+ * before a single byte is pushed.
+ */
 initStateStore();
-let s = readState();
-s.projectState = ProjectStates.BUILDING;
-s.latestActivity = 'Pushing to GitHub';
-try {
-  execSync('git rev-parse --abbrev-ref HEAD', { stdio: 'ignore' });
-} catch (e) {
-  // ignore if not git repo
+const s = readState();
+
+const guard = assertRepoSafety(process.cwd());
+if (!guard.ok) {
+  console.error(`Repository safety check failed:\n - ${guard.errors.join('\n - ')}`);
+  process.exit(1);
 }
+if (guard.repo !== REQUIRED_REPO) {
+  console.error(`Refusing to operate on ${guard.repo}; required repository is ${REQUIRED_REPO}`);
+  process.exit(1);
+}
+
+const expectedBranch = process.env.BUILDER_BRANCH || 'main';
+if (guard.branch !== expectedBranch) {
+  console.error(`Unexpected branch ${guard.branch}; expected ${expectedBranch}`);
+  process.exit(1);
+}
+
+const secrets = assertNoSecretsInFiles(process.cwd(), ['scripts', 'shared', 'config', 'test', '.github']);
+if (secrets.length > 0) {
+  console.error(`Refusing to push: possible secrets detected:\n - ${secrets.join('\n - ')}`);
+  process.exit(1);
+}
+
+const dirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf-8' }).trim();
+if (!dirty) {
+  console.log(JSON.stringify({ ok: true, pushed: false, reason: 'working tree already clean', headSha: guard.headSha }, null, 2));
+  process.exit(0);
+}
+
+try {
+  assertValidTransition(s.projectState, ProjectStates.BUILDING);
+} catch (e: any) {
+  console.error(`Refusing out-of-order push: ${e.message}`);
+  process.exit(2);
+}
+s.projectState = ProjectStates.BUILDING;
+s.latestActivity = 'Pushing generated sources to GitHub';
+persistCheckpoint('pre-push', s);
 writeState(s);
-console.log('GitHub push prepared');
+
+execFileSync('git', ['add', '-A'], { stdio: 'inherit' });
+execFileSync('git', ['commit', '-m', process.env.BUILDER_COMMIT_MESSAGE || 'builder: generated app sources'], { stdio: 'inherit' });
+execFileSync('git', ['push', 'origin', guard.branch], { stdio: 'inherit' });
+
+const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
+s.cloudBuild.headSha = headSha;
+recordStage(s, 'IMPLEMENT', `pushed commit ${headSha.slice(0, 7)}`);
+appendEvent({ type: Events.BUILD_STAGE_CHANGED, stage: 'PUSH', headSha });
+writeState(s);
+console.log(JSON.stringify({ ok: true, pushed: true, headSha, branch: guard.branch }, null, 2));

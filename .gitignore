@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+.builder/generated/android/app/build/
+.builder/generated/android/build/
+.builder/generated/android/.gradle/
+.builder/generated/android/local.properties
+dist/
+*.apk
+*.aab
+
+# Runtime recovery snapshots.
+# `.builder/live/state.json` and `.builder/live/events.jsonl` are deliberately NOT
+# ignored: they are tracked so an interrupted run can be resumed in a later
+# session. Checkpoints are throwaway snapshots taken during a run, so committing
+# them just adds noise and lets a test run's recovery data leak into history.
+.builder/checkpoints/
+
+# Atomic-write backups and other transient siblings of tracked files
+*.bak
+*.tmp
+
+# Local environment overrides
+.env
+.env.*
+!.env.example

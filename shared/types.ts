@@ -98,7 +98,10 @@ export const Events = {
   ARTIFACT_CREATED: 'ARTIFACT_CREATED',
   ARTIFACT_VERIFIED: 'ARTIFACT_VERIFIED',
   RELEASE_CREATED: 'RELEASE_CREATED',
-  DOWNLOAD_READY: 'DOWNLOAD_READY'
+  DOWNLOAD_READY: 'DOWNLOAD_READY',
+  /** Records one link of the ordered lifecycle evidence chain. */
+  EVIDENCE_RECORDED: 'EVIDENCE_RECORDED',
+  PUBLIC_DOWNLOAD_VERIFIED: 'PUBLIC_DOWNLOAD_VERIFIED'
 } as const;
 
 export type ProjectState = typeof ProjectStates[keyof typeof ProjectStates];
