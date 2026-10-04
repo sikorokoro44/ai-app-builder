@@ -201,7 +201,10 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
   }
 
   // Every density the generator wrote must be reachable from the icon entry.
-  const have = new Set(iconEntry.files);
+  const have = new Set<string>();
+  for (const e of resources.values()) {
+    for (const f of e.files) have.add(f);
+  }
   for (const density of Object.keys(LEGACY_ICON_SIZES)) {
     for (const rel of [`mipmap-${density}/${ICON_RESOURCE_NAME}.png`, `mipmap-${density}/${ROUND_ICON_RESOURCE_NAME}.png`]) {
       if (!have.has(`res/${rel}`)) errors.push(`the launcher icon entry does not reference res/${rel}`);
