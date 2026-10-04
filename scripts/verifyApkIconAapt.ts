@@ -207,7 +207,7 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
   }
   for (const density of Object.keys(LEGACY_ICON_SIZES)) {
     for (const rel of [`mipmap-${density}/${ICON_RESOURCE_NAME}.png`, `mipmap-${density}/${ROUND_ICON_RESOURCE_NAME}.png`]) {
-      if (!have.has(`res/${rel}`)) errors.push(`the launcher icon entry does not reference res/${rel}`);
+      if (!have.has(`res/${rel}`) && !have.has(rel)) errors.push(`the launcher icon entry does not reference res/${rel}`);
     }
   }
   for (const density of Object.keys(FOREGROUND_ICON_SIZES)) {
