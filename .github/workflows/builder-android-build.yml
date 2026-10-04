@@ -51,7 +51,12 @@ jobs:
       # here. The version must match the distributionUrl the generator pins in
       # gradle/wrapper/gradle-wrapper.properties; test/hardeningRegression.test.ts
       # fails if the two drift apart.
+      - name: Set up Android build tools
       - name: Set up Gradle
+        uses: android-actions/setup-android@v3
+        with:
+          packages: build-tools;35.0.0 platform-tools
+
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
