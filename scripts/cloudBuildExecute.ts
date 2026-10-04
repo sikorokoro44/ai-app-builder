@@ -75,7 +75,7 @@ if (process.argv.includes('--prepare')) {
     fail(`Refusing to build: possible secrets in tracked files\n - ${secretProblems.join('\n - ')}`);
   }
   const projectDir = process.env.BUILDER_PROJECT_DIR || '.builder/generated/android';
-  const validation = validateGeneratedProject(projectDir);
+  const validation = validateGeneratedProject(projectDir, IDEA);
   if (!validation.valid) {
     s.latestActivity = 'Generated project failed pre-build validation';
     s.failureRepair = { state: 'FAILURE_DETECTED', rootCause: validation.errors.join('; ') };
@@ -85,6 +85,32 @@ if (process.argv.includes('--prepare')) {
     fail(`Refusing to build an invalid generated project:\n - ${validation.errors.join('; ')}`);
   }
   recordStage(s, 'VALIDATE', `project validated, packageId=${validation.packageId}`);
+
+  /*
+   * Record what the generator decided for the launcher icon before anything is
+   * built. The compiled check in apkVerify.ts then has an expectation to compare
+   * against, and the completion chain can show how the icon was chosen.
+   */
+  if (!validation.launcherIcon?.valid) {
+    const iconErrors = validation.launcherIcon?.errors || ['launcher icon was not validated'];
+    s.latestActivity = 'Generated project has no valid launcher icon';
+    s.failureRepair = { state: 'FAILURE_DETECTED', rootCause: iconErrors.join('; ') };
+    s.projectState = ProjectStates.REPAIRING;
+    s.icon = { ...(s.icon || { status: 'idle' }), status: 'failed', errors: iconErrors };
+    appendEvent({ type: Events.BUILD_FAILED, stage: 'VALIDATE', errors: iconErrors });
+    writeState(s);
+    fail(`Refusing to build a project without a real launcher icon:\n - ${iconErrors.join('\n - ')}`);
+  }
+  s.icon = {
+    ...(s.icon || { status: 'idle' }),
+    status: 'generated',
+    category: validation.launcherIcon.category,
+    fingerprint: validation.launcherIcon.fingerprint,
+    manifestIcon: validation.launcherIcon.manifestIcon,
+    manifestRoundIcon: validation.launcherIcon.manifestRoundIcon,
+    errors: undefined
+  };
+
   s.cloudBuild.stage = 'QUEUED';
   s.cloudBuild.status = 'running';
   s.cloudBuild.state = 'running';

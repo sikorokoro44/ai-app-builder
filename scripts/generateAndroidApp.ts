@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
 import { validateGeneratedProject } from './live/projectValidator.ts';
+import { writeLauncherIcon, validateLauncherIcon } from './live/launcherIcon.ts';
 import { specForIdea, numericRoles, type EntitySpec, type EntityField } from './domainModels.ts';
 
 export interface GenerateOptions {
@@ -511,11 +512,10 @@ export function generateAndroidApp(opts: GenerateOptions) {
   const javaRoot = `${out}/app/src/main/java/${pkgPath}`;
   const testRoot = `${out}/app/src/test/java/${pkgPath}`;
   const resValues = `${out}/app/src/main/res/values`;
-  const resDrawable = `${out}/app/src/main/res/drawable`;
   const manifestDir = `${out}/app/src/main`;
 
   if (existsSync(out)) rmSync(out, { recursive: true, force: true });
-  for (const d of [javaRoot, testRoot, resValues, resDrawable, `${out}/gradle/wrapper`]) {
+  for (const d of [javaRoot, testRoot, resValues, `${out}/gradle/wrapper`]) {
     mkdirSync(d, { recursive: true });
   }
 
@@ -606,7 +606,8 @@ dependencies {
     <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:allowBackup="true"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Builder">
@@ -663,16 +664,15 @@ ${strings.join('\n')}
 </resources>
 `);
 
-  writeFileSync(`${resDrawable}/ic_launcher.xml`, `<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="48dp"
-    android:height="48dp"
-    android:viewportWidth="48"
-    android:viewportHeight="48">
-    <path android:fillColor="#3F51B5" android:pathData="M0,0h48v48h-48z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M14,22l7,7l14,-14l3,3l-17,17l-10,-10z" />
-</vector>
-`);
+  // The launcher icon is generated from the app's purpose rather than shipped as
+  // a fixed asset: one hardcoded vector for every app made "the icon exists" true
+  // while saying nothing about whether it suited the app. Density-complete PNGs
+  // plus a v26 adaptive icon are written, because minSdk 24 means both are used.
+  const icon = writeLauncherIcon(out, idea, appName);
+  const iconCheck = validateLauncherIcon(out);
+  if (!iconCheck.valid) {
+    throw new Error(`Generated launcher icon failed validation:\n - ${iconCheck.errors.join('\n - ')}`);
+  }
 
   // The package is prepended explicitly for every file rather than substituted
   // into a `package PKG` placeholder. activitySource() never emitted that
@@ -696,7 +696,19 @@ exec gradle "$@"
 `);
   writeFileSync(`${out}/app/proguard-rules.pro`, `# Generated app: keep the data model used via serialization-free reflection-free code.\n`);
 
-  return { out, packageId, appName, spec: spec.className };
+  return {
+    out,
+    packageId,
+    appName,
+    spec: spec.className,
+    icon: {
+      category: icon.category,
+      purpose: icon.purpose,
+      reason: icon.reason,
+      fingerprint: icon.fingerprint,
+      files: icon.files
+    }
+  };
 }
 
 const isMain = (() => {
@@ -714,5 +726,17 @@ if (isMain) {
     for (const e of validation.errors) console.error(` - ${e}`);
     process.exit(1);
   }
-  console.log(JSON.stringify({ generated: result.out, packageId: validation.packageId, model: result.spec, valid: true }));
+  console.log(JSON.stringify({
+    generated: result.out,
+    packageId: validation.packageId,
+    model: result.spec,
+    icon: {
+      category: result.icon.category,
+      purpose: result.icon.purpose,
+      reason: result.icon.reason,
+      fingerprint: result.icon.fingerprint,
+      resourceCount: result.icon.files.length
+    },
+    valid: true
+  }));
 }

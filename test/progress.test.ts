@@ -21,6 +21,7 @@ describe('Progress truthfulness', () => {
     s.projectState = ProjectStates.DOWNLOAD_READY;
     s.overallProgressPct = 100;
     s.apkVerification = 'passed';
+    s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
     s.release.status = 'created';
     s.release.assetUrl = 'https://github.com/owner/repo/releases/download/v1/app.apk';
     const e = enrichWithProgress(s as any);

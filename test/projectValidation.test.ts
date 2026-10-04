@@ -4,6 +4,7 @@ import { mkdirSync, rmSync, writeFileSync, existsSync, unlinkSync, appendFileSyn
 import { join } from 'path';
 import { validateGeneratedProject } from '../scripts/live/projectValidator.ts';
 import { generateAndroidApp, derivePackageId, deriveAppName } from '../scripts/generateAndroidApp.ts';
+import { writeLauncherIcon } from '../scripts/live/launcherIcon.ts';
 import { specForIdea, allSpecs, normalizeSpec, numericRoles } from '../scripts/domainModels.ts';
 import { lintGeneratedSources, errorsOf } from '../scripts/live/kotlinLint.ts';
 
@@ -53,13 +54,16 @@ dependencies { implementation("androidx.core:core-ktx:1.13.1") }
 `);
   writeFileSync(join(root, 'app/src/main/AndroidManifest.xml'), `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <application android:label="X">
+  <application android:label="X" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round">
     <activity android:name=".MainActivity" android:exported="true">
       <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
     </activity>
   </application>
 </manifest>
 `);
+  // A project is only valid if it also carries a real launcher icon, so the
+  // fixture generates the same icon set the generator would.
+  writeLauncherIcon(root, 'A todo list app', 'X');
   writeFileSync(join(root, 'app/src/main/java/com/x/y/MainActivity.kt'), 'package com.x.y\nclass MainActivity\n');
   writeFileSync(join(root, 'app/src/test/java/com/x/y/MainTest.kt'), 'package com.x.y\nclass MainTest\n');
   writeFileSync(join(root, 'app/src/main/res/values/strings.xml'), '<resources><string name="app_name">X</string></resources>');

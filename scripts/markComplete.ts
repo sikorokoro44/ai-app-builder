@@ -36,6 +36,7 @@ try {
     currentStagePct: staged.currentStagePct,
     cloudBuild: staged.cloudBuild,
     apkVerification: staged.apkVerification,
+    iconVerification: staged.icon?.status,
     apkPath: staged.apkPath,
     apkSha256: staged.apkSha256,
     apkPackageId: staged.apkPackageId,

@@ -114,6 +114,50 @@ export interface EvidenceChain {
   finalVerifyAt?: string;
 }
 
+/**
+ * Evidence that the app's launcher icon was generated from the idea and really
+ * shipped inside the built APK.
+ *
+ * The two halves are deliberately separate. `decision`/`fingerprint` describe
+ * what the generator produced, which the pre-build validation checks. The
+ * remaining fields are only filled in by inspecting the compiled artifact, and
+ * `status` only becomes `passed` there - a source tree that merely contains a
+ * PNG proves nothing about what the APK ships.
+ */
+export interface IconVerificationState {
+  status: 'idle' | 'generated' | 'verifying' | 'passed' | 'failed';
+  /** Category the idea was mapped to, e.g. `tasks`. */
+  category?: string;
+  /** What that category is for, in words. */
+  purpose?: string;
+  /** Why this category was chosen. */
+  reason?: string;
+  /** Stable identity of the generated icon resource set. */
+  fingerprint?: string;
+  /** Project-relative resource paths that were generated. */
+  files?: string[];
+  /** Manifest values the generated project declares. */
+  manifestIcon?: string;
+  manifestRoundIcon?: string;
+  /** Resource id the compiled manifest points the launcher icon at. */
+  manifestIconResourceId?: string;
+  manifestIconType?: string;
+  /** Densities whose compiled pixels matched the generated icon. */
+  matchedDensities?: string[];
+  /** Compiled resource path used for the pixel comparison. */
+  matchedPath?: string;
+  /** Mean per-channel signature distance; 0 means identical. */
+  similarity?: number;
+  byteIdentical?: boolean;
+  iconSignatureSha256?: string;
+  /** Cloud build the verified APK came from, so stale evidence cannot pass. */
+  runId?: string;
+  /** SHA-256 of the APK the icon was verified inside. */
+  apkSha256?: string;
+  verifiedAt?: string;
+  errors?: string[];
+}
+
 export interface FailureRepairView {
   state: string;
   failureDetectedAt?: string;
@@ -151,6 +195,7 @@ export interface LiveState {
   apkPath?: string;
   apkSha256?: string;
   apkPackageId?: string;
+  icon: IconVerificationState;
   release: Release;
   failureRepair: FailureRepairView;
   buildLogs: BuildOutput[];
@@ -183,6 +228,7 @@ export function createInitialState(): LiveState {
     githubStatus: 'unknown',
     cloudBuild: { state: 'idle', stage: CloudBuildStages.QUEUED, status: 'idle', output: [] },
     apkVerification: 'idle',
+    icon: { status: 'idle' },
     release: { status: 'idle' },
     failureRepair: { state: 'idle' },
     buildLogs: [],

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync, readdirSync } from 'fs';
 import { lintGeneratedSources, errorsOf, type LintFinding } from './kotlinLint.ts';
+import { validateLauncherIcon, type LauncherIconValidation } from './launcherIcon.ts';
 
 export interface ProjectValidationResult {
   valid: boolean;
@@ -8,6 +9,7 @@ export interface ProjectValidationResult {
   packageId?: string;
   lint?: LintFinding[];
   sourceFiles?: string[];
+  launcherIcon?: LauncherIconValidation;
 }
 
 function readStringNames(xml: string): Set<string> {
@@ -18,7 +20,12 @@ function readStringNames(xml: string): Set<string> {
   return names;
 }
 
-export function validateGeneratedProject(root: string): ProjectValidationResult {
+/**
+ * @param idea the idea the project was generated from, used only to report the
+ *   launcher icon decision. Icon *validity* never depends on it, so a caller that
+ *   does not know the idea still gets a full icon check.
+ */
+export function validateGeneratedProject(root: string, idea = ''): ProjectValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -196,13 +203,22 @@ export function validateGeneratedProject(root: string): ProjectValidationResult 
     }
   }
 
+  // The launcher icon is part of a shippable app, so it is checked with the same
+  // weight as the manifest and the build files: a missing density, a flat
+  // placeholder or a manifest pointing at a drawable all fail the pre-build gate
+  // rather than producing an APK that shows the system default icon.
+  const launcherIcon = validateLauncherIcon(root, idea);
+  for (const e of launcherIcon.errors) errors.push(`launcher icon: ${e}`);
+  for (const w of launcherIcon.warnings) warnings.push(`launcher icon: ${w}`);
+
   return {
     valid: errors.length === 0,
     errors,
     warnings,
     packageId,
     lint,
-    sourceFiles: sourceFiles.map((f) => f.slice(root.length + 1))
+    sourceFiles: sourceFiles.map((f) => f.slice(root.length + 1)),
+    launcherIcon
   };
 }
 

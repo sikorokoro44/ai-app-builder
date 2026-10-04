@@ -25,6 +25,7 @@ try {
     overallProgressPct: s.overallProgressPct,
     currentStagePct: Number(view.currentStagePct ?? 0),
     apkVerification: s.apkVerification,
+    iconVerification: s.icon?.status,
     releaseStatus: s.release.status,
     releaseAssetUrl: s.release.assetUrl,
     finalDownloadUrl: s.finalDownloadUrl,

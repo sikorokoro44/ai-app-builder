@@ -213,6 +213,7 @@ describe('failure detection at each lifecycle stage', () => {
     const s = freshState();
     s.cloudBuild.status = 'passed';
     s.apkVerification = 'passed';
+    s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
     s.release.status = 'failed';
     assert.strictEqual(rec.detectFailure(s), 'release_failed');
   });
@@ -227,6 +228,7 @@ describe('failure detection at each lifecycle stage', () => {
     const s = freshState();
     s.cloudBuild.status = 'passed';
     s.apkVerification = 'passed';
+    s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
     s.release.status = 'created';
     s.testStats = { discovered: 3, running: 0, passed: 3, failed: 0 };
     assert.strictEqual(rec.detectFailure(s), null);
@@ -244,7 +246,7 @@ describe('stage-scoped repair, not full restart', () => {
     assert.strictEqual(rec.repairPointFor(signal), 'CLOUD_BUILD');
     rec.enterRepair(s, signal);
     assert.strictEqual(s.projectState, ProjectStates.REPAIRING);
-    assert.deepStrictEqual(rec.missingStagesMissing(s), ['CLOUD_BUILD', 'BUILD_SUCCESS', 'REAL_APK', 'APK_VERIFY', 'RELEASE', 'RELEASE_ASSET', 'PUBLIC_HTTPS_URL', 'PUBLIC_DOWNLOAD', 'FINAL_VERIFY']);
+    assert.deepStrictEqual(rec.missingStagesMissing(s), ['CLOUD_BUILD', 'BUILD_SUCCESS', 'REAL_APK', 'APK_VERIFY', 'REAL_ICON_VERIFY', 'RELEASE', 'RELEASE_ASSET', 'PUBLIC_HTTPS_URL', 'PUBLIC_DOWNLOAD', 'FINAL_VERIFY']);
     for (const stage of ['IDEA', 'DESIGN', 'IMPLEMENT', 'VALIDATE'] as const) {
       assert.ok(ev.hasStage(s, stage), `${stage} evidence must be preserved across a build failure`);
     }
@@ -257,6 +259,7 @@ describe('stage-scoped repair, not full restart', () => {
     }
     s.cloudBuild.status = 'passed';
     s.apkVerification = 'passed';
+    s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
     s.release.status = 'failed';
     const signal = rec.buildFailureSignal(s, 'release_failed', 'gh release create failed');
     assert.strictEqual(signal.repairFrom, 'RELEASE');
@@ -287,6 +290,7 @@ describe('stage-scoped repair, not full restart', () => {
   test('a build failure clears prior artifact claims', () => {
     const s = freshState();
     s.apkVerification = 'passed';
+    s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
     s.release.status = 'created';
     s.finalDownloadUrl = 'https://github.com/sikorokoro44/ai-app-builder/releases/download/t/a.apk';
     s.evidence = { stages: [], publicDownloadVerified: true };
@@ -475,6 +479,7 @@ describe('the event log rebuilds the evidence chain, not just the URL', () => {
     s.cloudBuild.runId = 'run-777';
     s.cloudBuild.artifactSha256 = 'a'.repeat(64);
     s.apkVerification = 'passed';
+    s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
     s.apkPath = '/tmp/app.apk';
     s.apkSha256 = 'b'.repeat(64);
     s.apkPackageId = 'com.builder.app';

@@ -15,6 +15,7 @@ export const LifecycleStages = [
   'BUILD_SUCCESS',
   'REAL_APK',
   'APK_VERIFY',
+  'REAL_ICON_VERIFY',
   'RELEASE',
   'RELEASE_ASSET',
   'PUBLIC_HTTPS_URL',
@@ -64,6 +65,7 @@ export interface ChainGateInput {
   currentStagePct: number | null | undefined;
   cloudBuild: { status: string; runId?: string; artifactSha256?: string };
   apkVerification: string;
+  iconVerification?: string;
   apkPath?: string;
   apkSha256?: string;
   apkPackageId?: string;
@@ -84,6 +86,11 @@ export function assertLifecycleEvidence(g: ChainGateInput): void {
   if (!g.cloudBuild.runId) problems.push('cloud build has no run id (build success not proven)');
 
   if (g.apkVerification !== 'passed') problems.push(`apkVerification=${g.apkVerification} (want passed)`);
+  // The launcher icon has to be proven inside the built APK, not merely present
+  // in the generated sources.
+  if (g.iconVerification !== 'passed') {
+    problems.push(`iconVerification=${g.iconVerification ?? 'not recorded'} (want passed; the APK's launcher icon must be verified)`);
+  }
   if (!g.apkPath) problems.push('no APK path recorded');
   if (!g.apkSha256) problems.push('no APK checksum recorded');
   if (!g.apkPackageId) problems.push('no APK package/application id recorded');

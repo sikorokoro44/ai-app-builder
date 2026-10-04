@@ -24,6 +24,7 @@ function fullyEvidenced(overrides: any = {}) {
   s.overallProgressPct = 100;
   s.cloudBuild = { state: 'passed', stage: 'RELEASE', status: 'passed', output: [], runId: '9001', headSha: 'abc', artifactSha256: SHA };
   s.apkVerification = 'passed';
+  s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
   s.apkPath = '/data/data/com.termux/files/usr/tmp/opencode/app-debug.apk';
   s.apkSha256 = SHA;
   s.apkPackageId = 'com.builder.notes';
@@ -155,7 +156,7 @@ describe('a command running is not completion', () => {
     s.cloudBuild.status = 'running';
     assert.throws(() => assertLifecycleEvidence({
       projectState: s.projectState, overallProgressPct: 0, currentStagePct: 0,
-      cloudBuild: s.cloudBuild, apkVerification: 'idle', release: { status: 'idle' },
+      cloudBuild: s.cloudBuild, apkVerification: 'idle', iconVerification: 'idle', release: { status: 'idle' },
       evidence: s.evidence
     }), /cloudBuild.status=running/);
   });
@@ -166,7 +167,7 @@ describe('a command running is not completion', () => {
     s.cloudBuild.conclusion = null;
     assert.throws(() => assertCompleteLifecycle({
       projectState: 'COMPLETED', overallProgressPct: 100, currentStagePct: 100,
-      apkVerification: 'passed', releaseStatus: 'created', releaseAssetUrl: URL,
+      apkVerification: 'passed', iconVerification: 'passed', releaseStatus: 'created', releaseAssetUrl: URL,
       finalDownloadUrl: URL, cloudBuildStatus: 'running'
     }), /cloudBuildStatus is running/);
   });
@@ -178,7 +179,7 @@ describe('a command running is not completion', () => {
     assert.ok(missingStages(s).includes('CLOUD_BUILD'));
     assert.throws(() => assertCompleteLifecycle({
       projectState: 'IMPLEMENT', overallProgressPct: 50, currentStagePct: 50,
-      apkVerification: 'idle', releaseStatus: 'idle', cloudBuildStatus: 'idle'
+      apkVerification: 'idle', iconVerification: 'idle', releaseStatus: 'idle', cloudBuildStatus: 'idle'
     }));
   });
 
@@ -189,7 +190,7 @@ describe('a command running is not completion', () => {
     s.finalDownloadUrl = undefined;
     assert.throws(() => assertDownloadReadyGate({
       projectState: s.projectState, overallProgressPct: s.overallProgressPct, currentStagePct: 100,
-      apkVerification: 'passed', releaseStatus: 'idle', releaseAssetUrl: undefined,
+      apkVerification: 'passed', iconVerification: 'passed', releaseStatus: 'idle', releaseAssetUrl: undefined,
       finalDownloadUrl: undefined, cloudBuildStatus: 'passed'
     }), /release not created/);
   });
@@ -215,6 +216,7 @@ describe('DOWNLOAD_READY gate', () => {
     overallProgressPct: 100,
     currentStagePct: 100,
     apkVerification: 'passed',
+    iconVerification: 'passed',
     releaseStatus: 'created',
     releaseAssetUrl: URL,
     finalDownloadUrl: URL,
@@ -228,6 +230,7 @@ describe('DOWNLOAD_READY gate', () => {
   });
   test('fails when the APK is unverified', () => {
     assert.throws(() => assertDownloadReadyGate({ ...base, apkVerification: 'verifying' }), /APK verification not passed/);
+    assert.throws(() => assertDownloadReadyGate({ ...base, iconVerification: 'failed' }), /icon/i);
   });
   test('fails when there is no URL', () => {
     assert.throws(() => assertDownloadReadyGate({ ...base, releaseAssetUrl: undefined, finalDownloadUrl: undefined }), /no public URL/);
@@ -249,6 +252,7 @@ describe('full lifecycle evidence chain', () => {
       currentStagePct: 100,
       cloudBuild: s.cloudBuild,
       apkVerification: s.apkVerification,
+      iconVerification: s.icon.status,
       apkPath: s.apkPath,
       apkSha256: s.apkSha256,
       apkPackageId: s.apkPackageId,

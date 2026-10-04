@@ -431,6 +431,7 @@ describe('the completion gate can actually be satisfied, not just always refuse'
       runId: '9001', headSha: 'b'.repeat(40), artifactSha256: SHA
     };
     s.apkVerification = 'passed';
+    s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
     s.apkPath = '/data/data/com.termux/files/usr/tmp/opencode/app-debug.apk';
     s.apkSha256 = SHA;
     s.apkPackageId = 'com.builder.todo';
