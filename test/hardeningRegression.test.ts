@@ -2,6 +2,7 @@ import { test, describe, after } from 'node:test';
 import assert from 'node:assert';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
+import { randomBytes } from 'crypto';
 import { execFileSync } from 'child_process';
 import { classifyFailure, isTransientFailure } from '../scripts/live/failureClassifier.ts';
 import { InvalidTransitionError } from '../scripts/live/stateValidator.ts';
@@ -65,6 +66,18 @@ async function seedAt(projectState: string, extra: Record<string, any> = {}) {
   Object.assign(s, extra);
   store.writeState(s);
   return s;
+}
+
+/**
+ * Seeds CLOUD_BUILDING and records `headSha` the way --prepare does. The state is
+ * written first and the commit applied second, because the object literal would
+ * otherwise be evaluated before state.json exists.
+ */
+async function seedCloudBuild(headSha?: string) {
+  await seedAt(ProjectStates.CLOUD_BUILDING);
+  if (headSha === undefined) return;
+  const current = stateOnDisk();
+  await seedAt(ProjectStates.CLOUD_BUILDING, { cloudBuild: { ...current.cloudBuild, headSha } });
 }
 
 after(() => {
@@ -181,6 +194,116 @@ describe('planner reaches READY so the next stage is not a skipped state', () =>
     assert.match(res.err, /Refusing to persist/);
     assert.match(res.err, /ANALYZING/, 'the refusal must name the state it refused to leave');
     assert.match(res.err, /CLOUD_BUILDING/, 'the refusal must name the state it refused to enter');
+  });
+});
+
+/**
+ * Installs a fake `gh` on PATH that answers `run view --json ...` with `json`.
+ * Returning null makes the stub fail like an unauthenticated or offline CLI.
+ */
+function withGhStub(json: Record<string, unknown> | null): { dir: string } {
+  const dir = join(TMP, 'ghstub-' + randomBytes(6).toString('hex'));
+  mkdirSync(dir, { recursive: true });
+
+  const lines = [
+    '#!/bin/sh',
+    'if [ "$1" = "run" ] && [ "$2" = "view" ]; then'
+  ];
+  if (json === null) {
+    lines.push('  echo "gh: not authenticated" >&2', '  exit 1');
+  } else {
+    const payload = JSON.stringify(json);
+    lines.push(
+      '  case "$*" in',
+      "    *jobs*) echo '{\"jobs\":[]}' ;;",
+      "    *) echo '" + payload + "' ;;",
+      '  esac'
+    );
+  }
+  lines.push('fi', 'exit 0', '');
+  writeFileSync(join(dir, 'gh'), lines.join('\n'), { mode: 0o755 });
+  return { dir };
+}
+
+describe('a cloud build result is never invented', () => {
+  // Given only a run id, the old code filled in status "completed" and
+  // conclusion null without asking GitHub, so a real green run was reported as
+  // ok:false with failureClass "unknown" and exit 1, and the guard that rejects
+  // a run belonging to another commit never ran at all.
+  test('a run id alone is resolved against the remote, not assumed', async () => {
+    rmSync(STATE_DIR, { recursive: true, force: true });
+    rmSync(CP_DIR, { recursive: true, force: true });
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf-8' }).trim();
+    await seedCloudBuild(head);
+
+    const stub = withGhStub({
+      databaseId: 4242, status: 'completed', conclusion: 'success', headSha: head, url: 'https://example.invalid/run'
+    });
+    const res = run('cloudBuildExecute.ts', ['--watch'], {
+      BUILDER_RUN_ID: '4242', PATH: `${stub.dir}:${process.env.PATH}`,
+    });
+    assert.strictEqual(res.code, 0, `a green run must exit 0. stdout=${res.out} stderr=${res.err}`);
+    assert.match(res.out, /"ok": true/);
+    assert.match(res.out, /"conclusion": "success"/);
+    const s = stateOnDisk();
+    assert.strictEqual(s.cloudBuild.status, 'passed');
+    assert.strictEqual(s.projectState, ProjectStates.VERIFYING);
+  });
+
+  test('a run id from another commit is refused even when it is green', async () => {
+    rmSync(STATE_DIR, { recursive: true, force: true });
+    rmSync(CP_DIR, { recursive: true, force: true });
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf-8' }).trim();
+    await seedCloudBuild(head);
+
+    const stub = withGhStub({
+      databaseId: 4242, status: 'completed', conclusion: 'success',
+      headSha: '0000000000000000000000000000000000000000', url: 'https://example.invalid/run'
+    });
+    const res = run('cloudBuildExecute.ts', ['--watch'], {
+      BUILDER_RUN_ID: '4242', PATH: `${stub.dir}:${process.env.PATH}`,
+    });
+    assert.notStrictEqual(res.code, 0, 'a green run for another commit must not pass');
+    assert.match(res.err + res.out, /Refusing result for run 4242/);
+    const s = stateOnDisk();
+    assert.notStrictEqual(s.cloudBuild.status, 'passed');
+  });
+
+  test('an unreachable remote is a failure, not a fabricated result', async () => {
+    rmSync(STATE_DIR, { recursive: true, force: true });
+    rmSync(CP_DIR, { recursive: true, force: true });
+    await seedAt(ProjectStates.CLOUD_BUILDING);
+
+    const stub = withGhStub(null);
+    const res = run('cloudBuildExecute.ts', ['--watch'], {
+      BUILDER_RUN_ID: '4242', PATH: `${stub.dir}:${process.env.PATH}`,
+    });
+    assert.notStrictEqual(res.code, 0, 'an unreadable run must not exit 0');
+    assert.doesNotMatch(res.out, /"ok": true/);
+    const s = stateOnDisk();
+    assert.notStrictEqual(s.cloudBuild.status, 'passed');
+  });
+
+  test('a status without a conclusion is not accepted as an injected result', async () => {
+    rmSync(STATE_DIR, { recursive: true, force: true });
+    rmSync(CP_DIR, { recursive: true, force: true });
+    await seedAt(ProjectStates.CLOUD_BUILDING);
+
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf-8' }).trim();
+    await seedCloudBuild(head);
+    const stub = withGhStub({
+      databaseId: 4242, status: 'completed', conclusion: 'failure', headSha: head, url: 'https://example.invalid/run'
+    });
+    // Only the status is injected. The conclusion must come from the remote,
+    // which says failure, so the build must not be recorded as passed.
+    const res = run('cloudBuildExecute.ts', [], {
+      BUILDER_RUN_ID: '4242', BUILDER_RUN_STATUS: 'completed',
+      BUILDER_RUN_LOGS: 'e: x.kt:1 Unresolved reference: y',
+      PATH: `${stub.dir}:${process.env.PATH}`,
+    });
+    assert.notStrictEqual(res.code, 0);
+    const s = stateOnDisk();
+    assert.notStrictEqual(s.cloudBuild.status, 'passed');
   });
 });
 

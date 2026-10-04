@@ -169,7 +169,16 @@ if (process.argv.includes('--dispatch')) {
 
 const watching = process.argv.includes('--watch');
 const runId = process.env.BUILDER_RUN_ID || s.cloudBuild.runId;
-if (!runId && !watching) {
+
+// Offline mode exists so the decision logic can be exercised without a network,
+// and it must be requested explicitly and completely. Both fields are required:
+// a status without a conclusion, or a run id without either, is not an answer,
+// and guessing produced a fabricated result for a real run.
+const injectedStatus = process.env.BUILDER_RUN_STATUS;
+const injectedConclusion = process.env.BUILDER_RUN_CONCLUSION;
+const injected = injectedStatus !== undefined && injectedConclusion !== undefined;
+
+if (!runId && !injected && !watching) {
   fail('No cloud build run id recorded; refusing to report a build result');
 }
 
@@ -177,28 +186,38 @@ let run: RunInfo;
 let jobs: JobInfo[] = [];
 let remote: RemoteRun | undefined;
 
-if (watching && process.env.BUILDER_RUN_ID === undefined) {
+if (!injected) {
   if (!runId) fail('Nothing to watch: no run id recorded and none supplied');
-  const deadline = Date.now() + POLL_TIMEOUT_MS;
-  for (;;) {
-    remote = ghJson<RemoteRun>([
-      'run', 'view', String(runId), '--json', 'databaseId,status,conclusion,headSha,url'
-    ]);
-    if (isTerminal(remote.status)) break;
-    if (Date.now() >= deadline) {
-      console.log(JSON.stringify({
-        ok: false, terminal: false, runId, status: remote.status,
-        note: `still ${remote.status} after ${Math.round(POLL_TIMEOUT_MS / 60000)} minutes; not claiming success`
-      }, null, 2));
-      process.exit(3);
+  remote = ghJson<RemoteRun>([
+    'run', 'view', String(runId), '--json', 'databaseId,status,conclusion,headSha,url'
+  ]);
+
+  // Poll while the run is still open. A run id handed in through the
+  // environment is watched exactly like one discovered from state.
+  if (watching && !isTerminal(remote.status)) {
+    const deadline = Date.now() + POLL_TIMEOUT_MS;
+    for (;;) {
+      if (isTerminal(remote.status)) break;
+      if (Date.now() >= deadline) {
+        console.log(JSON.stringify({
+          ok: false, terminal: false, runId, status: remote.status,
+          note: `still ${remote.status} after ${Math.round(POLL_TIMEOUT_MS / 60000)} minutes; not claiming success`
+        }, null, 2));
+        process.exit(3);
+      }
+      s.cloudBuild.status = 'running';
+      s.cloudBuild.stage = 'COMPILING';
+      s.cloudBuild.runId = runId;
+      s.projectState = ProjectStates.CLOUD_BUILDING;
+      s.latestActivity = `Cloud build ${remote.status} (not finished; not success)`;
+      writeState(s);
+      sleep(POLL_INTERVAL_MS);
+      remote = ghJson<RemoteRun>([
+        'run', 'view', String(runId), '--json', 'databaseId,status,conclusion,headSha,url'
+      ]);
     }
-    s.cloudBuild.status = 'running';
-    s.cloudBuild.stage = 'COMPILING';
-    s.projectState = ProjectStates.CLOUD_BUILDING;
-    s.latestActivity = `Cloud build ${remote.status} (not finished; not success)`;
-    writeState(s);
-    sleep(POLL_INTERVAL_MS);
   }
+
   try {
     jobs = ghJson<JobInfo[]>(['run', 'view', String(runId), '--json', 'jobs']).jobs;
   } catch { /* jobs are a diagnostic aid, not a gate */ }
@@ -206,19 +225,31 @@ if (watching && process.env.BUILDER_RUN_ID === undefined) {
 
 run = {
   id: Number(runId),
-  status: process.env.BUILDER_RUN_STATUS || remote?.status || 'completed',
-  conclusion: process.env.BUILDER_RUN_CONCLUSION ?? remote?.conclusion ?? null,
+  status: injected ? injectedStatus! : remote!.status,
+  conclusion: injected ? injectedConclusion! : remote!.conclusion,
   workflowFile: WORKFLOW
 };
 
 // A run belongs to one commit. Accepting a successful run for a different commit
 // would let an old green build stand in for the code actually on disk.
 const remoteHead = remote?.headSha;
-if (remoteHead && s.cloudBuild.headSha && remoteHead !== s.cloudBuild.headSha) {
-  fail(
-    `Refusing result for run ${runId}: it ran commit ${remoteHead} but this workspace is at ` +
-    `${s.cloudBuild.headSha}. Re-run --prepare and --dispatch for the current commit.`
-  );
+if (remoteHead) {
+  if (!s.cloudBuild.headSha) {
+    // The remote was consulted, so this run really is a GitHub run, and the
+    // workspace has no recorded commit to compare it against. Correlation is
+    // impossible rather than merely unproven, so the run is not accepted. This
+    // also means a hand-supplied run id can no longer skip the check.
+    fail(
+      `Refusing result for run ${runId}: it ran commit ${remoteHead} but no commit was recorded ` +
+      `for this build. Re-run --prepare and --dispatch for the current commit.`
+    );
+  }
+  if (remoteHead !== s.cloudBuild.headSha) {
+    fail(
+      `Refusing result for run ${runId}: it ran commit ${remoteHead} but this workspace is at ` +
+      `${s.cloudBuild.headSha}. Re-run --prepare and --dispatch for the current commit.`
+    );
+  }
 }
 
 let logs: string[] = (process.env.BUILDER_RUN_LOGS || '')
