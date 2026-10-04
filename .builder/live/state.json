@@ -1,0 +1,66 @@
+{
+  "version": 9,
+  "projectState": "TESTING",
+  "overallProgressPct": 0,
+  "elapsedMs": 0,
+  "latestActivity": "Validating tests",
+  "completedFeatures": 0,
+  "totalFeatures": 1,
+  "completedTasks": 2,
+  "totalTasks": 2,
+  "activeAgents": 0,
+  "waitingAgents": 0,
+  "blockedAgents": 0,
+  "agents": {},
+  "tasks": {
+    "task-001": {
+      "id": "task-001",
+      "featureId": "feat-001",
+      "title": "Task task-001",
+      "state": "VERIFIED",
+      "updatedAt": "2026-10-04T00:37:11.139Z"
+    },
+    "task-002": {
+      "id": "task-002",
+      "featureId": "feat-001",
+      "title": "Task task-002",
+      "state": "VERIFIED",
+      "updatedAt": "2026-10-04T00:37:11.141Z"
+    }
+  },
+  "features": {
+    "feat-001": {
+      "id": "feat-001",
+      "title": "Core app",
+      "description": "Generated app",
+      "state": "PLANNING",
+      "tasks": [
+        "task-001",
+        "task-002"
+      ]
+    }
+  },
+  "testStats": {
+    "discovered": 2,
+    "running": 0,
+    "passed": 2,
+    "failed": 0
+  },
+  "repairs": [],
+  "githubStatus": "unknown",
+  "cloudBuild": {
+    "state": "idle",
+    "stage": "QUEUED",
+    "status": "idle",
+    "output": []
+  },
+  "apkVerification": "idle",
+  "release": {
+    "status": "idle"
+  },
+  "failureRepair": {
+    "state": "idle"
+  },
+  "buildLogs": [],
+  "lastUpdated": "2026-10-04T00:37:14.114Z"
+}

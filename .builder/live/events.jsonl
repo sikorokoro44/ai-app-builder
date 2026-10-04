@@ -1,0 +1,13 @@
+{"ts":"2026-10-04T00:06:48.806Z","type":"PROJECT_STATUS_CHANGED","projectState":"ANALYZING","activity":"Analyzing requirements"}
+{"ts":"2026-10-04T00:06:51.792Z","type":"TASK_CREATED","taskId":"task-001","featureId":"feat-001"}
+{"ts":"2026-10-04T00:06:51.796Z","type":"TASK_CREATED","taskId":"task-002","featureId":"feat-001"}
+{"ts":"2026-10-04T00:06:59.233Z","type":"BUILD_STAGE_CHANGED","stage":"CHECKOUT"}
+{"ts":"2026-10-04T00:07:00.712Z","type":"BUILD_STAGE_CHANGED","stage":"ENVIRONMENT_SETUP"}
+{"ts":"2026-10-04T00:07:02.189Z","type":"BUILD_STAGE_CHANGED","stage":"DEPENDENCY_RESOLUTION"}
+{"ts":"2026-10-04T00:07:03.680Z","type":"BUILD_STAGE_CHANGED"}
+{"ts":"2026-10-04T00:07:05.165Z","type":"DOWNLOAD_READY","url":"https://github.com/sikorokoro44/ai-app-builder/releases/download/e2e-real/app-release.apk"}
+{"ts":"2026-10-04T00:20:13.890Z","type":"PROJECT_STATUS_CHANGED","projectState":"ANALYZING","activity":"Build a simple todo app"}
+{"ts":"2026-10-04T00:33:26.711Z","type":"BUILD_STAGE_CHANGED"}
+{"ts":"2026-10-04T00:37:03.593Z","type":"PROJECT_STATUS_CHANGED","projectState":"ANALYZING","activity":"Analyzing requirements"}
+{"ts":"2026-10-04T00:37:06.680Z","type":"TASK_CREATED","taskId":"task-001","featureId":"feat-001"}
+{"ts":"2026-10-04T00:37:06.684Z","type":"TASK_CREATED","taskId":"task-002","featureId":"feat-001"}
