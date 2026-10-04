@@ -96,11 +96,22 @@ jobs:
         id: identity
         run: |
           set -euo pipefail
-          apk="$(find .builder/generated/android/app/build/outputs/apk/debug -name '*.apk' | head -n 1)"
+          root=.builder/generated/android
+          # Search the whole generated project rather than one hardcoded path, so
+          # a change in where AGP writes outputs cannot silently turn into "no
+          # APK". Intermediates hold unpacked classes, not a packageable APK.
+          apk="$(find "$root/app/build/outputs" -name '*.apk' 2>/dev/null | sort | head -n 1 || true)"
           if [ -z "$apk" ]; then
-            echo "::error::assembleDebug produced no APK"
+            echo "::error::assembleDebug reported success but produced no APK"
+            echo "--- APK-shaped directories under $root ---"
+            find "$root" -type d -name 'apk*' 2>/dev/null | head -20 || true
+            echo "--- any .apk anywhere under $root ---"
+            find "$root" -name '*.apk' 2>/dev/null | head -20 || true
+            echo "--- app/build tree (depth 3) ---"
+            find "$root/app/build" -maxdepth 3 -type d 2>/dev/null | head -40 || true
             exit 1
           fi
+          echo "found APK at $apk"
           sha="$(sha256sum "$apk" | cut -d' ' -f1)"
           size="$(stat -c %s "$apk")"
           pkg="$(node --experimental-strip-types -e "
