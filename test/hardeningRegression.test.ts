@@ -570,6 +570,17 @@ describe('the CI build can actually run Gradle', () => {
     assert.match(wf, /apk_sha256/);
   });
 
+  test('the identity step refuses to report success without a package id', () => {
+    // verifyApkFile reported valid=true with packageId undefined because the
+    // extractor could not read a compiled manifest, so the step recorded an
+    // empty package_id and still passed. The run must fail instead.
+    const wf = readFileSync(join(REPO, '.github/workflows/builder-android-build.yml'), 'utf-8');
+    assert.match(wf, /requirePackageId: true/,
+      'the identity step must require a readable package id');
+    assert.match(wf, /produced no package id/,
+      'the identity step must fail when the package id comes back empty');
+  });
+
   test('every variable used in a run step is bound in that step', () => {
     // `set -u` turns an unset variable into a fatal error. The identity step
     // referenced $head, which only existed as a step output in an earlier step,

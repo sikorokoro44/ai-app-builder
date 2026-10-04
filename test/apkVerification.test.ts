@@ -52,12 +52,120 @@ function zip(entries: { name: string; data: Buffer; store?: boolean }[]): Buffer
   return Buffer.concat([...locals, centralBuf, eocd]);
 }
 
-function binaryManifest(pkg: string): Buffer {
-  // AXML string pool fragment: the package name appears as UTF-16 in a real
-  // manifest; the extractor reads the UTF-8 "package" marker plus the value.
-  const head = Buffer.from([0x03, 0x00, 0x08, 0x00, 0x10, 0x00, 0x00, 0x00]);
-  return Buffer.concat([head, Buffer.from('AndroidManifest'), Buffer.from([0, 0, 0, 0]), Buffer.from('package'), Buffer.from([0, 0, 0, 0]), Buffer.from(pkg, 'utf-8')]);
+/**
+ * Builds a genuine compiled AndroidManifest.xml (AXML) so the extractor is
+ * exercised against the real container format: a string pool chunk holding
+ * length-prefixed strings, then a start element whose `package` attribute
+ * references a pool entry.
+ *
+ * The previous fixture was a bare ASCII fragment with "package" followed by the
+ * value. Nothing produces a file like that, so it only ever tested the old
+ * byte-scan heuristic and hid that the extractor could not read a real manifest.
+ */
+function buildAxml(pkg: string, opts: { utf8?: boolean; withPackage?: boolean } = {}): Buffer {
+  const utf8 = opts.utf8 !== false;
+  const withPackage = opts.withPackage !== false;
+  const strings: string[] = ['AndroidManifest'];
+  if (withPackage) strings.push('package', pkg);
+
+  // Variable-length field used by UTF-8 pool entries: high bit set on the first
+  // byte means the value continues in a second byte.
+  const utf8Len = (n: number): Buffer => (n < 0x80 ? Buffer.from([n]) : Buffer.from([0x80 | (n >> 8), n & 0xff]));
+  const encoded: Buffer[] = strings.map((str) => {
+    if (!utf8) {
+      const b = Buffer.from(str, 'utf16le');
+      const out = Buffer.alloc(2 + b.length);
+      out.writeUInt16LE(str.length, 0);
+      b.copy(out, 2);
+      return out;
+    }
+    const b = Buffer.from(str, 'utf8');
+    return Buffer.concat([utf8Len(str.length), utf8Len(b.length), b, Buffer.from([0])]);
+  });
+
+  const offsets: number[] = [];
+  let cursor = 0;
+  for (const e of encoded) {
+    offsets.push(cursor);
+    cursor += e.length;
+  }
+  const headerSize = 28;
+  const dataStart = headerSize + offsets.length * 4;
+  const padTo4 = (n: number) => (n + 3) & ~3;
+  const stringsBlock = Buffer.concat(encoded);
+  const stringsBlockPadded = Buffer.concat([stringsBlock, Buffer.alloc(padTo4(stringsBlock.length) - stringsBlock.length)]);
+  const poolSize = dataStart + stringsBlockPadded.length;
+  const pool = Buffer.alloc(poolSize);
+  pool.writeUInt16LE(0x0001, 0);
+  pool.writeUInt16LE(headerSize, 2);
+  pool.writeUInt32LE(poolSize, 4);
+  pool.writeUInt32LE(strings.length, 8);
+  pool.writeUInt32LE(0, 12);
+  pool.writeUInt32LE(utf8 ? 0x00000100 : 0, 16);
+  pool.writeUInt32LE(dataStart, 20);
+  pool.writeUInt32LE(0, 24);
+  offsets.forEach((o, i) => pool.writeUInt32LE(o, headerSize + i * 4));
+  stringsBlockPadded.copy(pool, dataStart);
+
+  // Start element for <manifest>, carrying a single `package` attribute.
+  const attrCount = withPackage ? 1 : 0;
+  const attrExtSize = 20;
+  const attrSize = 20;
+  const startHeaderSize = 16;
+  const attrStartOffset = attrExtSize;
+  const startSize = startHeaderSize + attrExtSize + attrCount * attrSize;
+  const start = Buffer.alloc(startSize);
+  start.writeUInt16LE(0x0102, 0);
+  start.writeUInt16LE(startHeaderSize, 2);
+  start.writeUInt32LE(startSize, 4);
+  start.writeUInt32LE(1, 8);
+  start.writeUInt32LE(0xffffffff, 12);
+  start.writeUInt32LE(0xffffffff, 16); // ns
+  start.writeUInt32LE(0, 20); // name -> AndroidManifest
+  start.writeUInt16LE(attrStartOffset, 24);
+  start.writeUInt16LE(attrSize, 26);
+  start.writeUInt16LE(attrCount, 28);
+  start.writeUInt16LE(0, 30);
+  start.writeUInt16LE(0, 32);
+  start.writeUInt16LE(0, 34);
+  if (withPackage) {
+    const a = startHeaderSize + attrStartOffset;
+    start.writeUInt32LE(0xffffffff, a); // ns
+    start.writeUInt32LE(1, a + 4); // name -> package
+    start.writeUInt32LE(2, a + 8); // rawValue -> pkg
+    start.writeUInt16LE(8, a + 12);
+    start.writeUInt8(0, a + 14);
+    start.writeUInt8(0x03, a + 15); // TYPE_STRING
+    start.writeUInt32LE(2, a + 16);
+  }
+
+  // Resource map and matching end element keep the document well formed.
+  const resMapSize = 8 + strings.length * 4;
+  const resMap = Buffer.alloc(resMapSize);
+  resMap.writeUInt16LE(0x0180, 0);
+  resMap.writeUInt16LE(8, 2);
+  resMap.writeUInt32LE(resMapSize, 4);
+
+  const endSize = startHeaderSize + 8;
+  const end = Buffer.alloc(endSize);
+  end.writeUInt16LE(0x0103, 0);
+  end.writeUInt16LE(startHeaderSize, 2);
+  end.writeUInt32LE(endSize, 4);
+  end.writeUInt32LE(1, 8);
+  end.writeUInt32LE(0xffffffff, 12);
+  end.writeUInt32LE(0xffffffff, 16);
+  end.writeUInt32LE(0, 20);
+
+  const body = Buffer.concat([pool, resMap, start, end]);
+  const fileHeader = Buffer.alloc(8);
+  fileHeader.writeUInt16LE(0x0003, 0);
+  fileHeader.writeUInt16LE(8, 2);
+  fileHeader.writeUInt32LE(8 + body.length, 4);
+  return Buffer.concat([fileHeader, body]);
 }
+
+/** Kept as the fixture name used by writeApk, now producing real AXML. */
+const binaryManifest = (pkg: string): Buffer => buildAxml(pkg);
 
 const RES = Buffer.alloc(4096, 7);
 const DEX = Buffer.concat([Buffer.from('dex\n035\0'), Buffer.alloc(8000, 1)]);
@@ -325,3 +433,58 @@ describe('zip reading', () => {
     assert.strictEqual(verifyApkFile(deflated, 'com.builder.notes').valid, true);
   });
 });
+
+describe('the package extractor reads the real AXML container', () => {
+  // The shipped extractor scanned raw bytes for an ASCII "package" marker and
+  // read the next 64 bytes for something dotted. Compiled manifests keep every
+  // string in a pool with a length prefix, so that heuristic can never fire on a
+  // real APK: the package id came back undefined and the artifact was still
+  // reported valid.
+  test('reads the package from a UTF-8 string pool', () => {
+    assert.strictEqual(extractPackageIdFromBinaryManifest(buildAxml('com.builder.todo')), 'com.builder.todo');
+  });
+
+  test('reads the package from a UTF-16 string pool', () => {
+    assert.strictEqual(
+      extractPackageIdFromBinaryManifest(buildAxml('com.a.b.c', { utf8: false })),
+      'com.a.b.c');
+  });
+
+  test('a manifest with no package attribute yields null, not a guess', () => {
+    assert.strictEqual(extractPackageIdFromBinaryManifest(buildAxml('com.x', { withPackage: false })), null);
+  });
+
+  test('random bytes are rejected rather than parsed into a package', () => {
+    assert.strictEqual(extractPackageIdFromBinaryManifest(Buffer.alloc(64, 0x41)), null);
+    assert.strictEqual(extractPackageIdFromBinaryManifest(Buffer.from('package com.fake.app', 'utf-8')), null);
+  });
+
+  test('a truncated AXML does not throw', () => {
+    const full = buildAxml('com.builder.todo');
+    for (const n of [1, 3, 7, 8, 12, 20, 27, 30, 40, 64]) {
+      assert.doesNotThrow(() => extractPackageIdFromBinaryManifest(full.subarray(0, n)));
+    }
+  });
+
+  test('requiring a package id fails when the manifest does not carry one', () => {
+    // A namespace-only manifest legitimately has no package attribute, so this
+    // is opt-in rather than always-on. The CI identity step must opt in: its
+    // whole purpose is to record the package id, and it previously recorded an
+    // empty string and still reported success.
+    const entries: { name: string; data: Buffer; store?: boolean }[] = [
+      { name: 'AndroidManifest.xml', data: buildAxml('x', { withPackage: false }), store: true },
+      { name: 'classes.dex', data: DEX },
+      { name: 'resources.arsc', data: RES },
+      { name: 'assets/pad.bin', data: randomBytes(8000) }
+    ];
+    const p = join(TMP, 'requirepkg.apk');
+    writeFileSync(p, zip(entries));
+
+    assert.strictEqual(verifyApkFile(p).valid, true, 'absence alone is not an error by default');
+    const strict = verifyApkFile(p, undefined, { requirePackageId: true });
+    assert.strictEqual(strict.valid, false);
+    assert.ok(strict.errors.some((e: string) => /requirePackageId|Cannot determine the package id/i.test(e)),
+      strict.errors.join('; '));
+  });
+});
+

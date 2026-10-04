@@ -75,18 +75,116 @@ export function inflateRaw(buf: Buffer, offset: number, compressedSize: number):
   }
 }
 
+const AXML_TYPE_STRING_POOL = 0x0001;
+const AXML_TYPE_START_ELEMENT = 0x0102;
+const AXML_UTF8_FLAG = 0x00000100;
+const NO_ENTRY = 0xffffffff;
+
+interface AxmlStringPool {
+  strings: string[];
+  /** Byte length of the pool chunk, so the caller can continue walking chunks. */
+  size: number;
+}
+
 /**
- * Extracts the `package` attribute from a binary AndroidManifest.xml (AXML).
- * Android no longer stores the package name in release manifests for
- * namespace-only projects, so a miss is reported as "not found", not "mismatch".
+ * Reads an AXML string pool chunk (type 0x0001). Both pool encodings are handled:
+ * aapt2 normally emits UTF-8 pools, older tools emit UTF-16.
+ */
+function readAxmlStringPool(axml: Buffer, start: number): AxmlStringPool | null {
+  if (start + 28 > axml.length) return null;
+  const stringCount = axml.readUInt32LE(start + 8);
+  const flags = axml.readUInt32LE(start + 16);
+  const stringsStart = axml.readUInt32LE(start + 20);
+  const chunkSize = axml.readUInt32LE(start + 4);
+  const isUtf8 = (flags & AXML_UTF8_FLAG) !== 0;
+  if (stringCount > 0x10000) return null;
+
+  const strings: string[] = [];
+  const offsetsBase = start + 28;
+  for (let i = 0; i < stringCount; i++) {
+    const offEntry = offsetsBase + i * 4;
+    if (offEntry + 4 > axml.length) return null;
+    let p = start + stringsStart + axml.readUInt32LE(offEntry);
+    if (p < 0 || p >= axml.length) return null;
+
+    if (isUtf8) {
+      // Two variable-length fields precede the bytes: the UTF-16 code unit
+      // count and the byte count. A high bit in either first byte means the
+      // value continues in a second byte.
+      let n = axml[p++];
+      if (n & 0x80) p++;
+      let byteLen = axml[p++];
+      if (byteLen & 0x80) byteLen = ((byteLen & 0x7f) << 8) | axml[p++];
+      if (p + byteLen > axml.length) return null;
+      strings.push(axml.subarray(p, p + byteLen).toString('utf8'));
+    } else {
+      if (p + 2 > axml.length) return null;
+      const units = axml.readUInt16LE(p);
+      p += 2;
+      if (p + units * 2 > axml.length) return null;
+      strings.push(axml.subarray(p, p + units * 2).toString('utf16le'));
+    }
+  }
+  return { strings, size: chunkSize };
+}
+
+/**
+ * Extracts the `package` attribute from a compiled binary AndroidManifest.xml.
+ *
+ * This parses the AXML container properly: the string pool chunk holds every
+ * string in the document, and the value is read from the root element's
+ * `package` attribute. Searching the raw bytes for a literal "package" marker
+ * cannot work on a real manifest, because attribute names and values live in
+ * the pool as UTF-8 or UTF-16 with lengths, so no contiguous ASCII "package"
+ * followed by the value ever appears. That made the package id unreadable for
+ * every genuine APK while still reporting the APK as valid.
+ *
+ * A miss is reported as null rather than a mismatch, since a namespace-only
+ * manifest legitimately carries no package attribute.
  */
 export function extractPackageIdFromBinaryManifest(axml: Buffer): string | null {
-  const needle = Buffer.from('package', 'utf-8');
-  const idx = axml.indexOf(needle);
-  if (idx < 0) return null;
-  const after = axml.subarray(idx + needle.length, idx + needle.length + 64);
-  const m = after.toString('latin1').match(/([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+)/i);
-  return m ? m[1] : null;
+  if (axml.length < 8) return null;
+  // Walk top-level chunks, remembering the string pool for element names.
+  let pool: string[] | null = null;
+  let off = 8;
+  while (off + 8 <= axml.length) {
+    const type = axml.readUInt16LE(off);
+    const size = axml.readUInt32LE(off + 4);
+    if (size < 8 || off + size > axml.length) return null;
+
+    if (type === AXML_TYPE_STRING_POOL) {
+      const parsed = readAxmlStringPool(axml, off);
+      if (!parsed) return null;
+      pool = parsed.strings;
+    } else if (type === AXML_TYPE_START_ELEMENT && pool) {
+      // ResXMLTree_node is a 16 byte header (8 byte chunk header plus
+      // lineNumber and comment); the attribute extension follows it.
+      const attrExt = off + 16;
+      if (attrExt + 20 > axml.length) return null;
+      const attributeStart = axml.readUInt16LE(attrExt + 8);
+      const attributeSize = axml.readUInt16LE(attrExt + 10);
+      const attributeCount = axml.readUInt16LE(attrExt + 12);
+      if (attributeSize < 20) return null;
+
+      for (let i = 0; i < attributeCount; i++) {
+        const a = attrExt + attributeStart + i * attributeSize;
+        if (a + 20 > axml.length) return null;
+        const nameIdx = axml.readUInt32LE(a + 4);
+        const rawValueIdx = axml.readUInt32LE(a + 8);
+        const dataType = axml[a + 15];
+        const data = axml.readUInt32LE(a + 16);
+        if (pool[nameIdx] !== 'package') continue;
+
+        // A raw string reference wins; otherwise fall back to a typed string.
+        const valueIdx = rawValueIdx !== NO_ENTRY ? rawValueIdx : (dataType === 0x03 ? data : NO_ENTRY);
+        if (valueIdx !== NO_ENTRY && pool[valueIdx]) return pool[valueIdx];
+        return null;
+      }
+      return null;
+    }
+    off += size;
+  }
+  return null;
 }
 
 export function extractPackageIdFromManifestXml(xml: string): string | null {
@@ -109,7 +207,7 @@ export function rejectFakeApkUrl(url: string): boolean {
 export function verifyApkFile(
   path: string,
   expectedPackageId?: string,
-  opts: { expectedSha256?: string; requireBuildId?: boolean; allowedHosts?: string[] } = {}
+  opts: { expectedSha256?: string; requireBuildId?: boolean; requirePackageId?: boolean; allowedHosts?: string[] } = {}
 ): ApkVerificationResult {
   const errors: string[] = [];
   if (!path) return { valid: false, errors: ['APK path is empty'] };
@@ -189,6 +287,12 @@ export function verifyApkFile(
     } else if (!verifyPackageIdMatch(packageId, expectedPackageId)) {
       errors.push(`Package ID mismatch: APK declares ${packageId}, expected ${expectedPackageId}`);
     }
+  } else if (opts.requirePackageId && !packageId) {
+    // Opt-in, because a namespace-only manifest legitimately omits the package
+    // attribute. Callers whose job is to record artifact identity must ask for
+    // it: otherwise an APK whose package cannot be determined is reported valid
+    // and the recorded package id is silently empty.
+    errors.push('Cannot determine the package id from the binary manifest (requirePackageId)');
   }
 
   const sha256 = createHash('sha256').update(buf).digest('hex');
