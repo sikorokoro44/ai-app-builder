@@ -123,7 +123,7 @@ jobs:
           pkg="$(APK_FILE="$apk" node --experimental-strip-types -e "
             import { verifyApkFile } from './scripts/live/apkValidator.ts';
             const res = verifyApkFile(process.env.APK_FILE, undefined, { requirePackageId: true });
-            if (!res.valid) { console.error(r.errors.join('\n')); process.exit(1); }
+            if (!res.valid) { console.error(res.errors.join('\n')); process.exit(1); }
             process.stdout.write(r.packageId || '');
           ")"
           if [ -z "$pkg" ]; then
