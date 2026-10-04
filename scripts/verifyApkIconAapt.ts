@@ -124,8 +124,8 @@ export function parseApplicationIcons(xmltree: string): { icon?: number; roundIc
   if (start < 0) return out;
   for (let i = start + 1; i < lines.length; i++) {
     if (/^\s*E:\s/.test(lines[i])) break;   // the next element ends <application>
-    // A: android:icon(0x01010002)=(type 0x12)0x7f010000
-    const m = /^A:\s+(?:[\w-]+:)?(icon|roundIcon)\([^)]*\)=\(type\s+\S+\)(0x[0-9a-fA-F]+)/.exec(lines[i].trim());
+    // A: android:icon(0x01010002)=(type 0x12)0x7f010000 or (type 0x1) etc
+    const m = /A:\s+(?:[\w-]+:)?(icon|roundIcon)[^=]*=\([^)]*\)(0x[0-9a-fA-F]+)/.exec(lines[i].trim());
     if (!m) continue;
     const value = Number.parseInt(m[2], 16);
     if (m[1] === 'icon') out.icon = value;
