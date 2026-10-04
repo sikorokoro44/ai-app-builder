@@ -124,7 +124,7 @@ jobs:
             import { verifyApkFile } from './scripts/live/apkValidator.ts';
             const res = verifyApkFile(process.env.APK_FILE, undefined, { requirePackageId: true });
             if (!res.valid) { console.error(res.errors.join('\n')); process.exit(1); }
-            process.stdout.write(r.packageId || '');
+            process.stdout.write(res.packageId || '');
           ")"
           if [ -z "$pkg" ]; then
             echo "::error::APK verification reported success but produced no package id"
