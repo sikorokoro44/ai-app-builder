@@ -75,6 +75,54 @@ function balance(src: string, open: string, close: string): number {
   return depth;
 }
 
+/**
+ * Returns the text inside the brace pair whose opening brace sits at `openIdx`,
+ * or null when the braces are unbalanced.
+ */
+function braceBody(src: string, openIdx: number): string | null {
+  if (src[openIdx] !== '{') return null;
+  let depth = 0;
+  for (let i = openIdx; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) return src.slice(openIdx + 1, i);
+    }
+  }
+  return null;
+}
+
+/**
+ * Given the index of a `fun` keyword, returns the body of that function, or null
+ * when the declaration cannot be parsed. The parameter list is matched with a
+ * depth counter rather than a regular expression because Kotlin function types
+ * such as `() -> Unit` put nested parentheses inside the parameter list.
+ */
+function functionBody(src: string, funIdx: number): string | null {
+  let i = funIdx;
+  while (i < src.length && src[i] !== '(') {
+    if (src[i] === '{' || src[i] === '\n') return null;
+    i++;
+  }
+  if (i >= src.length) return null;
+  let depth = 0;
+  for (; i < src.length; i++) {
+    if (src[i] === '(') depth++;
+    else if (src[i] === ')') {
+      depth--;
+      if (depth === 0) {
+        i++;
+        break;
+      }
+    }
+  }
+  while (i < src.length && src[i] !== '{') {
+    if (src[i] === '=') return null;
+    i++;
+  }
+  return i < src.length ? braceBody(src, i) : null;
+}
+
 export function lintGeneratedSources(input: LintInput): LintFinding[] {
   const findings: LintFinding[] = [];
   const err = (file: string, message: string) => findings.push({ file, severity: 'error', message });
@@ -118,6 +166,21 @@ export function lintGeneratedSources(input: LintInput): LintFinding[] {
     if (/fun\s+increment\b/.test(code)) {
       if (!/data class/.test(code)) {
         err(file, 'increment() is generated but no data class is declared in this file');
+      }
+    }
+
+    // Scope check for the row composable. It receives its invalidation callback as
+    // the parameter `onChanged`; `refresh` is a member of the enclosing activity
+    // and is not in scope there. A call to `refresh()` inside this function
+    // therefore cannot compile, and no amount of string linting of the call site
+    // can tell, so the function body is checked directly.
+    // The receiver is optional: the row composable is generated as an extension
+    // on LazyListScope so it can be called from inside a LazyColumn.
+    const rowsFn = /\bfun\s+(?:[A-Za-z0-9_]+\.)?[A-Za-z0-9_]*Rows\s*\(/.exec(code);
+    if (rowsFn) {
+      const body = functionBody(code, rowsFn.index);
+      if (body !== null && /\brefresh\s*\(/.test(body)) {
+        err(file, 'row composable calls refresh(), which is out of scope; use onChanged()');
       }
     }
 

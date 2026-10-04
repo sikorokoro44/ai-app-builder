@@ -466,3 +466,74 @@ describe('generated sources declare the package the build needs', () => {
   });
 });
 
+describe('row composable callbacks are in scope', () => {
+  // The row composable is an extension on LazyListScope that receives its
+  // invalidation callback as the parameter `onChanged`. `refresh` belongs to the
+  // enclosing activity and is not in scope there, so a `refresh()` call inside
+  // the rows function cannot compile. The generated activity called it from both
+  // the checkbox and the secondary button; only the Kotlin compiler found it.
+  function rowsBody(src: string): string {
+    const m = /\bfun\s+(?:[A-Za-z0-9_]+\.)?[A-Za-z0-9_]*Rows\s*\(/.exec(src);
+    assert.ok(m, 'generated activity must define a row composable');
+    const header = src.slice(m!.index!);
+    const open = header.indexOf('{', header.indexOf(')'));
+    assert.ok(open > 0);
+    let depth = 0;
+    for (let i = open; i < header.length; i++) {
+      if (header[i] === '{') depth++;
+      else if (header[i] === '}') {
+        depth--;
+        if (depth === 0) return header.slice(open + 1, i);
+      }
+    }
+    throw new Error('unbalanced row composable body');
+  }
+
+  test('no archetype emits refresh() inside the row composable', async () => {
+    const { generateAndroidApp } = await import('../scripts/generateAndroidApp.ts');
+    const { lintGeneratedSources, errorsOf: errs } = await import('../scripts/live/kotlinLint.ts');
+    const ideas = [
+      'A simple todo app',
+      'A fitness tracker to log workouts and keep a streak',
+      'A recipe collection with ratings',
+      'A budget tracker for monthly spending'
+    ];
+    for (const idea of ideas) {
+      const out = join(TMP, 'rows-' + derivePackageId(idea));
+      const r = generateAndroidApp({ idea, outDir: out });
+      const f = join(out, 'app/src/main/java', r.packageId.replace(/\./g, '/'), 'MainActivity.kt');
+      const src = readFileSync(f, 'utf-8');
+
+      assert.ok(!/\brefresh\s*\(/.test(rowsBody(src)),
+        `${idea}: row composable must call onChanged(), not refresh()`);
+
+      const strings = new Set([...src.matchAll(/R\.string\.([A-Za-z0-9_]+)/g)].map((m) => m![1]));
+      const found = errs(lintGeneratedSources({
+        files: { [f]: src },
+        packageId: r.packageId,
+        stringNames: strings
+      })).map((e: { message: string }) => e.message);
+      assert.ok(!found.some((m: string) => /out of scope/.test(m)), `${idea}: ${found.join(' | ')}`);
+    }
+  });
+
+  test('a refresh() call in the row composable is reported by the linter', async () => {
+    const { generateAndroidApp } = await import('../scripts/generateAndroidApp.ts');
+    const { lintGeneratedSources, errorsOf: errs } = await import('../scripts/live/kotlinLint.ts');
+    const out = join(TMP, 'rows-bad');
+    const r = generateAndroidApp({ idea: 'A simple todo app', outDir: out });
+    const f = join(out, 'app/src/main/java', r.packageId.replace(/\./g, '/'), 'MainActivity.kt');
+    const bad = readFileSync(f, 'utf-8')
+      .replace('store.toggle(item.id); onChanged() }', 'store.toggle(item.id); refresh() }');
+    assert.notStrictEqual(bad, readFileSync(f, 'utf-8'), 'regression: fixture did not change');
+
+    const strings = new Set([...bad.matchAll(/R\.string\.([A-Za-z0-9_]+)/g)].map((m) => m![1]));
+    const found = errs(lintGeneratedSources({
+      files: { [f]: bad },
+      packageId: r.packageId,
+      stringNames: strings
+    })).map((e: { message: string }) => e.message);
+    assert.ok(found.some((m: string) => /out of scope/.test(m)), `linter missed it: ${found.join(' | ')}`);
+  });
+});
+

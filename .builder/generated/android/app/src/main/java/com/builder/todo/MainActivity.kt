@@ -118,14 +118,14 @@ private fun LazyListScope.TaskRows(
         ) {
             Checkbox(
                 checked = item.done,
-                onCheckedChange = { store.toggle(item.id); refresh() }
+                onCheckedChange = { store.toggle(item.id); onChanged() }
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.title, style = MaterialTheme.typography.titleMedium)
 
 
             }
-            Button(onClick = { store.toggle(item.id); refresh() }) {
+            Button(onClick = { store.toggle(item.id); onChanged() }) {
                 Text(stringResource(R.string.mark_done))
             }
             Button(onClick = { store.remove(item.id); onChanged() }) {

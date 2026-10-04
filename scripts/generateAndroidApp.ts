@@ -215,7 +215,7 @@ function activitySource(spec: EntitySpec, idea: string): string {
   const rowLeading = boolField
     ? `            Checkbox(
                 checked = item.${boolField.name},
-                onCheckedChange = { store.toggle(item.id); refresh() }
+                onCheckedChange = { store.toggle(item.id); onChanged() }
             )`
     : '';
 
@@ -232,11 +232,11 @@ function activitySource(spec: EntitySpec, idea: string): string {
     : '';
 
   const secondaryButton = spec.actions.includes('increment') && progressField
-    ? `            Button(onClick = { store.increment(item.id); refresh() }) {
+    ? `            Button(onClick = { store.increment(item.id); onChanged() }) {
                 Text(stringResource(R.string.increment))
             }`
     : boolField
-    ? `            Button(onClick = { store.toggle(item.id); refresh() }) {
+    ? `            Button(onClick = { store.toggle(item.id); onChanged() }) {
                 Text(stringResource(R.string.mark_done))
             }`
     : '';
