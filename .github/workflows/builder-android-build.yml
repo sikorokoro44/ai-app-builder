@@ -155,7 +155,7 @@ jobs:
           set -euo pipefail
           if ! command -v aapt2 >/dev/null 2>&1; then
             # Try common locations
-            for p in "${ANDROID_HOME}/build-tools/*/aapt2" "${ANDROID_SDK_ROOT}/build-tools/*/aapt2" /usr/local/lib/android/sdk/build-tools/*/aapt2; do
+            for p in "${ANDROID_HOME}/build-tools/*/aapt2" "${ANDROID_HOME}/build-tools/*/*/aapt2" "${ANDROID_SDK_ROOT}/build-tools/*/aapt2" "${ANDROID_SDK_ROOT}/build-tools/*/*/aapt2" /usr/local/lib/android/sdk/build-tools/*/aapt2 /usr/local/lib/android/sdk/build-tools/*/*/aapt2; do
               if [ -x "$p" ]; then
                 export AAPT2="$p"
                 break
