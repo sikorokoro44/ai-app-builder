@@ -165,12 +165,12 @@ jobs:
             done
           fi
           if [ -z "${AAPT2:-}" ] && ! command -v aapt2 >/dev/null 2>&1; then
-              echo "::error::aapt2 is unavailable, so the compiled launcher icon cannot be verified"
-  echo "Checked PATH and build-tools"
-  find /usr/local/lib/android -name "aapt2" 2>/dev/null | head -10
-  ls "${ANDROID_HOME}/build-tools" 2>/dev/null | head -5
-  find "${ANDROID_HOME}/cmdline-tools" -name "aapt2" 2>/dev/null | head -5
-  exit 1
+            echo "::error::aapt2 is unavailable, so the compiled launcher icon cannot be verified"
+            echo "Checked PATH and build-tools"
+            find /usr/local/lib/android -name "aapt2" 2>/dev/null | head -10
+            ls "${ANDROID_HOME}/build-tools" 2>/dev/null | head -5
+            find "${ANDROID_HOME}/cmdline-tools" -name "aapt2" 2>/dev/null | head -5
+            exit 1
           fi
           node --experimental-strip-types scripts/verifyApkIconAapt.ts "$APK_FILE"
 
