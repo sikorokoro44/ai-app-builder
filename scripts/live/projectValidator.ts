@@ -154,6 +154,24 @@ export function validateGeneratedProject(root: string): ProjectValidationResult 
   ];
   const testSources = existsSync(testDir) ? findSources(testDir) : [];
   if (mainSources.length === 0) errors.push('No .kt/.java source files found');
+
+  // Every generated Kotlin file must declare the package, and it must be the one
+  // the manifest and namespace use. A source file written without a package line
+  // still passes every other structural check here, yet cannot resolve its
+  // sibling classes or the generated R class, so the Kotlin build fails with a
+  // wall of "Unresolved reference" errors that no local check would predict.
+  if (packageId) {
+    for (const f of [...mainSources, ...testSources]) {
+      const src = readFileSync(f, 'utf-8');
+      const m = src.match(/^\s*package\s+([A-Za-z0-9_.]+)/m);
+      if (!m) {
+        errors.push(`${f.slice(root.length + 1)} has no package declaration (expected ${packageId})`);
+      } else if (m[1] !== packageId) {
+        errors.push(`${f.slice(root.length + 1)} declares package ${m[1]}, expected ${packageId}`);
+      }
+    }
+  }
+
   const sourceFiles = [...mainSources, ...testSources];
   for (const f of sourceFiles) {
     files[f.slice(root.length + 1)] = readFileSync(f, 'utf-8');

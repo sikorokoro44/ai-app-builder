@@ -410,3 +410,59 @@ describe('structural lint of generated sources', () => {
     assert.ok(errorsOf(findings).some((f) => /shadows/.test(f.message)));
   });
 });
+
+describe('generated sources declare the package the build needs', () => {
+  // A source file written with no package line passes every other structural
+  // check, then fails the Kotlin build with a wall of "Unresolved reference"
+  // errors for its sibling classes and the generated R class. This is the exact
+  // defect that only GitHub Actions caught, so it is pinned here.
+  test('every generated Kotlin file declares the expected package', async () => {
+    const out = join(TMP, 'pkg-ok');
+    const { generateAndroidApp } = await import('../scripts/generateAndroidApp.ts');
+    const { validateGeneratedProject } = await import('../scripts/live/projectValidator.ts');
+    const r = generateAndroidApp({ idea: 'A simple todo app', outDir: out });
+    assert.ok(r.packageId);
+
+    const kt = [
+      join(out, 'app/src/main/java', r.packageId.replace(/\./g, '/'), 'MainActivity.kt'),
+      join(out, 'app/src/main/java', r.packageId.replace(/\./g, '/'), `${r.spec}Store.kt`),
+      join(out, 'app/src/test/java', r.packageId.replace(/\./g, '/'), `${r.spec}StoreTest.kt`)
+    ];
+    for (const f of kt) {
+      const src = readFileSync(f, 'utf-8');
+      assert.match(src, new RegExp(`^package ${r.packageId.replace(/\./g, '\\.')}\\b`, 'm'),
+        `${f} must declare package ${r.packageId}`);
+    }
+    assert.ok(validateGeneratedProject(out).valid);
+  });
+
+  test('a source file with no package declaration is rejected', async () => {
+    const out = join(TMP, 'pkg-missing');
+    const { generateAndroidApp } = await import('../scripts/generateAndroidApp.ts');
+    const { validateGeneratedProject } = await import('../scripts/live/projectValidator.ts');
+    const r = generateAndroidApp({ idea: 'A simple todo app', outDir: out });
+
+    const f = join(out, 'app/src/main/java', r.packageId.replace(/\./g, '/'), 'MainActivity.kt');
+    writeFileSync(f, readFileSync(f, 'utf-8').replace(`package ${r.packageId}\n\n`, ''));
+
+    const v = validateGeneratedProject(out);
+    assert.strictEqual(v.valid, false, 'a package-less source must be rejected before dispatch');
+    assert.ok(v.errors.some((e: string) => /MainActivity\.kt has no package declaration/.test(e)),
+      `expected a package error, saw: ${v.errors.join(' | ')}`);
+  });
+
+  test('a source file declaring a different package is rejected', async () => {
+    const out = join(TMP, 'pkg-wrong');
+    const { generateAndroidApp } = await import('../scripts/generateAndroidApp.ts');
+    const { validateGeneratedProject } = await import('../scripts/live/projectValidator.ts');
+    const r = generateAndroidApp({ idea: 'A simple todo app', outDir: out });
+
+    const f = join(out, 'app/src/main/java', r.packageId.replace(/\./g, '/'), `${r.spec}Store.kt`);
+    writeFileSync(f, readFileSync(f, 'utf-8').replace(`package ${r.packageId}`, 'package com.other.thing'));
+
+    const v = validateGeneratedProject(out);
+    assert.strictEqual(v.valid, false);
+    assert.ok(v.errors.some((e: string) => /declares package com\.other\.thing/.test(e)));
+  });
+});
+

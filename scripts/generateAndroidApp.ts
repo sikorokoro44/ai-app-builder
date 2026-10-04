@@ -44,6 +44,10 @@ function article(noun: string): string {
   return /^[aeiou]/i.test(noun) ? 'n' : '';
 }
 
+function stripPackagePlaceholder(src: string): string {
+  return src.replace(/^package\s+\S+\n+/, '');
+}
+
 function cap(name: string): string {
   return name ? name[0].toUpperCase() + name.slice(1) : name;
 }
@@ -484,9 +488,7 @@ ${afterThree}
         assertEquals(0, store.count())
     }`);
 
-  return `package PKG
-
-import org.junit.Assert.assertEquals
+  return `import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -672,9 +674,14 @@ ${strings.join('\n')}
 </vector>
 `);
 
+  // The package is prepended explicitly for every file rather than substituted
+  // into a `package PKG` placeholder. activitySource() never emitted that
+  // placeholder, so the string replace silently matched nothing and
+  // MainActivity.kt was written with no package at all: it could not see
+  // TaskStore/Task or the generated R class, and the Kotlin build failed.
   writeFileSync(`${javaRoot}/${cls}Store.kt`, `package ${packageId}\n\n${storeSource(spec, idea)}`);
-  writeFileSync(`${javaRoot}/MainActivity.kt`, activitySource(spec, idea).replace('package ', `package ${packageId}\n`));
-  writeFileSync(`${testRoot}/${cls}StoreTest.kt`, testSource(spec).replace('package ', `package ${packageId}\n`));
+  writeFileSync(`${javaRoot}/MainActivity.kt`, `package ${packageId}\n\n${activitySource(spec, idea)}`);
+  writeFileSync(`${testRoot}/${cls}StoreTest.kt`, `package ${packageId}\n\n${stripPackagePlaceholder(testSource(spec))}`);
 
   writeFileSync(`${out}/gradle/wrapper/gradle-wrapper.properties`, `distributionBase=GRADLE_USER_HOME
 distributionPath=wrapper/dists
