@@ -205,18 +205,16 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
   for (const e of resources.values()) {
     for (const f of e.files) have.add(f);
   }
-  // Fallback: also verify files exist in APK zip entries
+      // Fallback: also verify files exist in APK zip entries
   try {
-    const { spawnSync } = await import('node:child_process');
+    const { spawnSync } = require('node:child_process');
     const unzip = spawnSync('unzip', ['-l', apkPath], { encoding: 'utf8' });
     if (unzip.status === 0) {
       const zipFiles = new Set<string>();
-      for (const line of unzip.stdout.split(/?
-/)) {
+      for (const line of unzip.stdout.split(/\r?\n/)) {
         const m = line.trim().match(/(res\/mipmap-[^ ]+\.png|res\/mipmap-anydpi-v26\/[^ ]+\.xml)$/);
         if (m) zipFiles.add(m[1]);
       }
-      // merge
       for (const f of zipFiles) have.add(f);
       for (const f of zipFiles) {
         if (!f.startsWith('res/')) have.add('res/' + f);
@@ -224,6 +222,8 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
       }
     }
   } catch {}
+
+
   for (const density of Object.keys(LEGACY_ICON_SIZES)) {
     for (const rel of [`mipmap-${density}/${ICON_RESOURCE_NAME}.png`, `mipmap-${density}/${ROUND_ICON_RESOURCE_NAME}.png`]) {
       if (!have.has(`res/${rel}`) && !have.has(rel)) errors.push(`the launcher icon entry does not reference res/${rel}`);
