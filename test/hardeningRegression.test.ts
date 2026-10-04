@@ -508,6 +508,28 @@ describe('the event log can never claim a state the state file never reached', (
   });
 });
 
+/** Splits a workflow into steps, keeping each step's raw text and display name. */
+function splitSteps(wf: string): { name: string; text: string }[] {
+  return wf.split(/^ {6}- (?:name|uses|id|run): /m).slice(1).map((chunk) => {
+    const nl = chunk.indexOf('\n');
+    return { name: chunk.slice(0, nl === -1 ? chunk.length : nl).trim(), text: chunk };
+  });
+}
+
+/**
+ * Extracts a step's `run: |` script and removes the YAML block indentation.
+ * splitSteps has already cut the step out of the workflow, so the script runs to
+ * the end of the chunk; trailing blank lines are dropped.
+ */
+function dedentRun(stepText: string): string {
+  const body = /run: \|\n([\s\S]*)$/.exec(stepText)?.[1];
+  if (!body) return '';
+  const lines = body.replace(/\s+$/, '').split('\n');
+  const indents = lines.filter((l) => l.trim()).map((l) => /^ */.exec(l)![0].length);
+  const n = indents.length ? Math.min(...indents) : 0;
+  return lines.map((l) => l.slice(n)).join('\n');
+}
+
 describe('the CI build can actually run Gradle', () => {
   test('the workflow provisions Gradle at the version the generator pins', () => {
     const wf = readFileSync(join(REPO, '.github/workflows/builder-android-build.yml'), 'utf-8');
@@ -546,6 +568,82 @@ describe('the CI build can actually run Gradle', () => {
     const wf = readFileSync(join(REPO, '.github/workflows/builder-android-build.yml'), 'utf-8');
     assert.match(wf, /sha256sum/);
     assert.match(wf, /apk_sha256/);
+  });
+
+  test('every variable used in a run step is bound in that step', () => {
+    // `set -u` turns an unset variable into a fatal error. The identity step
+    // referenced $head, which only existed as a step output in an earlier step,
+    // so the step died with "head: unbound variable" after the APK had already
+    // been built and checksummed. Each run: script is checked independently, and
+    // only names the runner itself provides are treated as bound.
+    const wf = readFileSync(join(REPO, '.github/workflows/builder-android-build.yml'), 'utf-8');
+    const provided = new Set([
+      'BASH', 'PATH', 'HOME', 'PWD', 'USER', 'SHELL', 'TMPDIR', 'RANDOM', 'IFS',
+      'GITHUB_WORKSPACE', 'GITHUB_OUTPUT', 'GITHUB_STEP_SUMMARY', 'GITHUB_ENV',
+      'GITHUB_PATH', 'GITHUB_STEP_NAME', 'GITHUB_RUN_ID', 'GITHUB_SHA',
+      'RUNNER_OS', 'RUNNER_TEMP', 'CI', 'JAVA_HOME', 'GRADLE_USER_HOME'
+    ]);
+
+    const problems: string[] = [];
+    let checked = 0;
+    for (const step of splitSteps(wf)) {
+      if (!/run: \|\n/.test(step.text)) continue;
+      const code = dedentRun(step.text);
+      if (!/set -[a-z]*u/.test(code)) continue;
+      checked++;
+
+      const bound = new Set(provided);
+      for (const m of code.matchAll(/(?:^|[\s;&|(])([A-Za-z_][A-Za-z0-9_]*)=/g)) bound.add(m[1]);
+      for (const m of code.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\)/gm)) bound.add(m[1]);
+      for (const m of code.matchAll(/\b(?:while\s+)?read\s+(?:-r\s+)?([A-Za-z_][A-Za-z0-9_]*)/g)) bound.add(m[1]);
+      const envBlock = /\n {8}env:\n((?: {10}.*\n)+)/.exec(step.text)?.[1] || '';
+      for (const m of envBlock.matchAll(/^ {10}([A-Za-z_][A-Za-z0-9_]*):/gm)) bound.add(m[1]);
+      // Assignments inside a pipeline segment or a for-list are bound too.
+      for (const m of code.matchAll(/\bfor\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+([^;\n]+)/g)) {
+        for (const w of m[1].split(/\s+/)) if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(w)) bound.add(w);
+      }
+      for (const m of code.matchAll(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g)) {
+        if (!bound.has(m[1])) problems.push(`step "${step.name}" uses unbound $${m[1]}`);
+      }
+    }
+    assert.ok(checked >= 5, `expected several strict-mode steps, checked ${checked}`);
+    assert.deepStrictEqual(problems, [], problems.join('\n'));
+  });
+
+  test('every step output the workflow consumes is produced by that same step', () => {
+    // `head_sha` was declared as a workflow output reading
+    // steps.identity.outputs.head_sha, but the identity step never wrote it, so
+    // the commit sha recorded by the orchestrator was silently empty. Checking
+    // only that some step emits the name is not enough: a different step did.
+    const wf = readFileSync(join(REPO, '.github/workflows/builder-android-build.yml'), 'utf-8');
+
+    const byId = new Map<string, Set<string>>();
+    for (const step of splitSteps(wf)) {
+      const id = /^ {8}id:\s*([A-Za-z0-9_-]+)/m.exec(step.text)?.[1];
+      if (!id) continue;
+      const outputs = new Set<string>();
+      for (const m of step.text.matchAll(/echo "([A-Za-z0-9_]+)=[^"]*" >> "\$GITHUB_OUTPUT"/g)) outputs.add(m[1]);
+      byId.set(id, outputs);
+    }
+
+    const problems: string[] = [];
+    let checked = 0;
+    for (const m of wf.matchAll(/steps\.([A-Za-z0-9_-]+)\.outputs\.([A-Za-z0-9_]+)/g)) {
+      checked++;
+      const [, id, name] = m;
+      if (!byId.has(id)) problems.push(`steps.${id} is referenced but no step has id: ${id}`);
+      else if (!byId.get(id)!.has(name)) {
+        problems.push(`steps.${id}.outputs.${name} is consumed but step ${id} never writes ${name}`);
+      }
+    }
+    assert.ok(checked > 0, 'expected the workflow to consume step outputs');
+    assert.deepStrictEqual(problems, [], problems.join('\n'));
+
+    // The verified commit sha must reach the runner's outputs, since the
+    // orchestrator records it as the provenance of the built artifact.
+    assert.ok(byId.get('commit')?.has('head_sha'), 'the commit step must publish head_sha');
+    assert.ok(byId.get('identity')?.has('head_sha'), 'the identity step must publish head_sha');
+    assert.match(wf, /head_sha: \$\{\{ steps\.identity\.outputs\.head_sha \}\}/);
   });
 });
 

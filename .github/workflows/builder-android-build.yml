@@ -58,6 +58,7 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Verify the workflow ran for the commit that was requested
+        id: commit
         run: |
           set -euo pipefail
           head="$(git rev-parse HEAD)"
@@ -94,6 +95,8 @@ jobs:
 
       - name: Record the APK identity and checksum
         id: identity
+        env:
+          COMMIT_SHA: ${{ steps.commit.outputs.head_sha }}
         run: |
           set -euo pipefail
           root=.builder/generated/android
@@ -114,9 +117,9 @@ jobs:
           echo "found APK at $apk"
           sha="$(sha256sum "$apk" | cut -d' ' -f1)"
           size="$(stat -c %s "$apk")"
-          pkg="$(node --experimental-strip-types -e "
+          pkg="$(APK_FILE="$apk" node --experimental-strip-types -e "
             import { verifyApkFile } from './scripts/live/apkValidator.ts';
-            const r = verifyApkFile('$apk');
+            const r = verifyApkFile(process.env.APK_FILE);
             if (!r.valid) { console.error(r.errors.join('\n')); process.exit(1); }
             process.stdout.write(r.packageId || '');
           ")"
@@ -124,13 +127,14 @@ jobs:
           echo "apk_sha256=$sha" >> "$GITHUB_OUTPUT"
           echo "apk_size=$size" >> "$GITHUB_OUTPUT"
           echo "package_id=$pkg" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
           {
             echo "### Android build artifact"
             echo ""
             echo "- package: \`$pkg\`"
             echo "- sha256: \`$sha\`"
             echo "- bytes: \`$size\`"
-            echo "- commit: \`$head\`"
+            echo "- commit: \`$COMMIT_SHA\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the verified APK
