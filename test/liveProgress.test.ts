@@ -480,8 +480,10 @@ describe('live progress loop', () => {
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const frames = (o: string) => o.split('\x1b[2J\x1b[H').length;
 
-    /** Waits for a predicate over the accumulated output, or gives up. */
-    const until = async (what: (o: string) => boolean, budgetMs = 20000) => {
+    // The child is a node process started under type stripping, and this suite
+    // runs beside every other one, so its startup is measured in seconds under
+    // load and the waits are budgeted for that rather than for an idle machine.
+    const until = async (what: (o: string) => boolean, budgetMs = 60000) => {
       const deadline = Date.now() + budgetMs;
       while (Date.now() < deadline) {
         if (what(out)) return;
@@ -489,6 +491,12 @@ describe('live progress loop', () => {
       }
       assert.fail(`timed out waiting for output; saw:\n${out.slice(0, 400)}`);
     };
+
+    /** The child has to end on its own; a view that never exits is a failure too. */
+    const exitCode = (budgetMs = 60000) => new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`the view did not exit within ${budgetMs}ms`)), budgetMs);
+      child.on('close', (c) => { clearTimeout(timer); resolve(c ?? 0); });
+    });
 
     return (async () => {
       await until((o) => o.includes('Current stage:'));
@@ -509,7 +517,7 @@ describe('live progress loop', () => {
       done.projectState = ProjectStates.COMPLETED;
       seed(done);
 
-      const code = await new Promise<number>((resolve) => child.on('close', (c) => resolve(c ?? 0)));
+      const code = await exitCode();
       assert.strictEqual(code, 0, 'a completed run must exit cleanly');
       assert.match(out, /100%/);
       assert.match(out, new RegExp(`Download: ${DOWNLOAD_URL.replace(/[/.]/g, '\\$&')}`));

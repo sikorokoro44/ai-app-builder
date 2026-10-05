@@ -143,10 +143,13 @@ export const buildVerifierAgent: AgentSpec<void, BuildArtifact> = {
     ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--prepare']);
     ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--dispatch']);
     ctx.activity('waiting for the GitHub Actions build to finish');
-    ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--watch']);
-
-    const prepared = lastJson(ctx.runScriptOrThrow(['scripts/artifactVerify.ts'])) as { runId?: string; headSha?: string } | null;
-    const runId = prepared?.runId || '';
+    // `--watch` reports the run it waited for. Asking artifactVerify.ts for it
+    // was wrong twice over: the gate legitimately refuses before an APK has been
+    // downloaded and verified, so the call threw before the download began, and
+    // using a verification gate to read a field makes the gate depend on the
+    // order it is called in.
+    const watched = lastJson(ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--watch'])) as { runId?: string; headSha?: string } | null;
+    const runId = watched?.runId || '';
     if (!runId) fail('build-verifier', 'the cloud build did not record a run id');
 
     const dir = mkdtempSync(join(tmpdir(), `builder-apk-${runId}-`));
@@ -168,7 +171,7 @@ export const buildVerifierAgent: AgentSpec<void, BuildArtifact> = {
     const out: BuildArtifact = {
       runId,
       conclusion: String(verified?.conclusion ?? ''),
-      headSha: String(verified?.headSha ?? prepared?.headSha ?? ''),
+      headSha: String(verified?.headSha ?? watched?.headSha ?? ''),
       apkPath: apk,
       sha256: String(verified?.sha256 ?? ''),
       packageId: String(verified?.packageId ?? plan.packageId),
