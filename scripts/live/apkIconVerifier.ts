@@ -208,8 +208,10 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
     }
 
     const packageId = arsc.readUInt32LE(off + 8);
-    const typeStringsOffset = arsc.readUInt32LE(off + 268);
-    const keyStringsOffset = arsc.readUInt32LE(off + 276);
+    // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260, lastPublicType
+    // @264, keyStrings @268, lastPublicKey @272.
+    const typeStringsOffset = arsc.readUInt32LE(off + 260);
+    const keyStringsOffset = arsc.readUInt32LE(off + 268);
     const packageEnd = Math.min(off + size, tableSize);
 
     let typeNames: string[] = [];
@@ -342,17 +344,32 @@ export function indexResourceFiles(
       continue;
     }
 
-    let typeNames: string[] = [];
-    let keyNames: string[] = [];
-    const typeStringsOffset = arsc.readUInt32LE(off + 268);
-    const keyStringsOffset = arsc.readUInt32LE(off + 276);
-    if (typeStringsOffset > 0 && off + typeStringsOffset + 8 <= arsc.length) {
-      const p = readStringPool(arsc, off + typeStringsOffset);
-      if (p) typeNames = p.strings;
-    }
-    if (keyStringsOffset > 0 && off + keyStringsOffset + 8 <= arsc.length) {
-      const p = readStringPool(arsc, off + keyStringsOffset);
-      if (p) keyNames = p.strings;
+    // A package stores one key string pool per type, and the header names only
+    // the first. They follow the type chunks in type-id order, preceded by the
+    // type names pool, so the pools are collected by walking the tail.
+    const typeNames: string[] = [];
+    const keyNamesByType = new Map<number, string[]>();
+    // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260,
+    // lastPublicType @264, keyStrings @268, lastPublicKey @272.
+    const typeStringsOffset = arsc.readUInt32LE(off + 260);
+    const packageSize = arsc.readUInt32LE(off + 4);
+    const packageEnd = Math.min(off + packageSize, tableSize);
+    let poolOff = off + typeStringsOffset;
+    let poolIndex = 0;
+    while (poolOff + 8 <= packageEnd) {
+      const poolType = arsc.readUInt16LE(poolOff);
+      const poolSize = arsc.readUInt32LE(poolOff + 4);
+      if (poolSize < 8 || poolOff + poolSize > packageEnd) break;
+      if (poolType !== AXML_TYPE_STRING_POOL) break;
+      const parsed = readStringPool(arsc, poolOff);
+      if (!parsed) break;
+      if (poolIndex === 0) typeNames.push(...parsed.strings);
+      else keyNamesByType.set(poolIndex, parsed.strings);
+      poolIndex++;
+      // Offsets inside a package are aligned relative to its start, so stepping
+      // by the raw size would land inside the next pool's padding and stop the
+      // walk after the first.
+      poolOff = off + ((poolOff - off + poolSize + 3) & ~3);
     }
 
     const add = (typeName: string, keyName: string | undefined, value: string | undefined): void => {
@@ -363,7 +380,6 @@ export function indexResourceFiles(
       out.set(k, list);
     };
 
-    const packageEnd = Math.min(off + size, tableSize);
     let inner = off + arsc.readUInt16LE(off + 2);
     while (inner + 8 <= packageEnd) {
       const innerType = arsc.readUInt16LE(inner);
@@ -372,6 +388,7 @@ export function indexResourceFiles(
       if (innerType === RES_TABLE_TYPE_TYPE) {
         const typeId = arsc[inner + 8];
         const typeName = typeNames[typeId - 1] ?? String(typeId);
+        const keyNames = keyNamesByType.get(typeId) ?? [];
         const entryCount = arsc.readUInt32LE(inner + 12);
         const entriesStart = arsc.readUInt32LE(inner + 16);
         let p = inner + entriesStart;
@@ -382,11 +399,14 @@ export function indexResourceFiles(
               `key=${keyNames[arsc.readUInt32LE(p + 4)] ?? arsc.readUInt32LE(p + 4)}`);
           }
           const flags = arsc.readUInt16LE(p + 2);
-          const keyName = keyNames[arsc.readUInt32LE(p + 4)];
+          // The id comes from the entry's own key index rather than its position
+          // in the chunk, so a name and the id it belongs to can never drift apart.
+          const keyIndex = arsc.readUInt32LE(p + 4);
+          const keyName = keyNames[keyIndex];
           // Only a present entry owns an id. A zero-size gap holds no key, and
           // recording one would claim another resource's id for a stale name.
           if (ids && keyName && entrySize !== 0) {
-            ids.set((arsc.readUInt32LE(off + 8) << 24) | (typeId << 16) | i, `${typeName}/${keyName}`);
+            ids.set((arsc.readUInt32LE(off + 8) << 24) | (typeId << 16) | keyIndex, `${typeName}/${keyName}`);
           }
           // A configuration that does not carry an entry records size 0. Step over
           // the fixed header and keep going: stopping here drops every later entry,
@@ -605,6 +625,12 @@ export function verifyApkLauncherIconFromBuffer(
   const trace: string[] = [];
   const resourceIds = new Map<number, string>();
   const filesByKey = indexResourceFiles(arsc, trace, resourceIds);
+  // Every exit that reports a failure carries the walk, so the next question is
+  // always answerable from the log instead of a guess.
+  const withWalkTrace = (): ApkIconVerification => {
+    if (trace.length > 0) errors.push(`Compiled resource table walk:\n${trace.slice(0, 120).join('\n')}`);
+    return result;
+  };
   const keyFor = {
     legacy: `${iconTypeName}/${ICON_RESOURCE_NAME}`,
     round: `${iconTypeName}/${ROUND_ICON_RESOURCE_NAME}`,
@@ -637,9 +663,7 @@ export function verifyApkLauncherIconFromBuffer(
       );
     }
   }
-  if (errors.length > 0 && trace.length > 0) {
-    errors.push(`Compiled resource table walk:\n${trace.slice(0, 120).join('\n')}`);
-  }
+
   // Resolved the same way as the densities: the adaptive XML is whichever file
   // the icon and round keys actually point at, not a rebuilt `anydpi-v26` path.
   const adaptivePaths = ADAPTIVE_RESOURCE_NAMES.map((name) => xmlsFor(`${iconTypeName}/${name}`));
@@ -652,7 +676,7 @@ export function verifyApkLauncherIconFromBuffer(
       );
     }
   }
-  if (errors.length > 0) return result;
+  if (errors.length > 0) return withWalkTrace();
 
   // 3. Every density must be present, correctly sized, and not a placeholder.
   for (const check of required) {
@@ -774,7 +798,8 @@ export function verifyApkLauncherIconFromBuffer(
   }
 
   result.adaptiveIconsPresent = adaptivePaths.every((p) => p !== undefined && byName.has(p));
-  result.valid = errors.length === 0;
+  if (errors.length > 0) return withWalkTrace();
+  result.valid = true;
   return result;
 }
 

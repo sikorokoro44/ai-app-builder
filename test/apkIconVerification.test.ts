@@ -228,7 +228,8 @@ function buildArsc(opts: {
 
   const global = poolChunk(colours);
   const types = poolChunk([typeName, 'color']);
-  const keys = poolChunk([...opts.keyNames, ICON_BACKGROUND_COLOR_NAME]);
+  const keys = poolChunk(opts.keyNames);
+  const colourKeys = poolChunk([ICON_BACKGROUND_COLOR_NAME]);
 
   const typeSpecSize = 16 + entryCount * 4;
   const typeSpec = Buffer.alloc(typeSpecSize);
@@ -281,14 +282,14 @@ function buildArsc(opts: {
     return e;
   };
 
-  const typeChunkFor = (body: Buffer[], id = typeId): Buffer => {
+  const typeChunkFor = (body: Buffer[], id = typeId, count = entryCount): Buffer => {
     const size = entriesStart + body.reduce((n, e) => n + e.length, 0);
     const c = Buffer.alloc(size);
     c.writeUInt16LE(0x0201, 0);
     c.writeUInt16LE(16, 2);
     c.writeUInt32LE(size, 4);
     c.writeUInt8(id, 8);
-    c.writeUInt32LE(entryCount, 12);
+    c.writeUInt32LE(count, 12);
     c.writeUInt32LE(entriesStart, 16);
     c.writeUInt32LE(configSize, 20);
     let at = entriesStart;
@@ -349,29 +350,31 @@ function buildArsc(opts: {
   const colourEntry = Buffer.alloc(16);
   colourEntry.writeUInt16LE(8, 0);
   colourEntry.writeUInt16LE(0, 2);
-  colourEntry.writeUInt32LE(opts.keyNames.length, 4);      // the colour key's index
+  colourEntry.writeUInt32LE(0, 4);                        // index in the colour key pool
   colourEntry.writeUInt16LE(8, 8);
   colourEntry.writeUInt8(0x03, 11);
   colourEntry.writeUInt32LE(fileIndex.get('res/values/colors.xml')!, 12);
-  chunks.unshift(typeChunkFor([colourEntry], COLOUR_TYPE_ID));
+  chunks.unshift(typeChunkFor([colourEntry], COLOUR_TYPE_ID, 1));
   const allSpecs = [colourSpec, typeSpec];
   const typeBytes = allSpecs.reduce((n, c) => n + c.length, 0) + chunks.reduce((n, c) => n + c.length, 0);
 
   const typeStringsOffset = align4(288 + typeBytes);
   const keyStringsOffset = align4(typeStringsOffset + types.size);
-  const packageSize = keyStringsOffset + keys.size;
+  const colourKeyStringsOffset = align4(keyStringsOffset + keys.size);
+  const packageSize = colourKeyStringsOffset + colourKeys.size;
   const pkg = Buffer.alloc(packageSize);
   pkg.writeUInt16LE(0x0200, 0);
   pkg.writeUInt16LE(288, 2);
   pkg.writeUInt32LE(packageSize, 4);
   pkg.writeUInt32LE(opts.packageId, 8);
-  pkg.writeUInt32LE(typeStringsOffset, 268);
-  pkg.writeUInt32LE(keyStringsOffset, 276);
+  pkg.writeUInt32LE(typeStringsOffset, 260);
+  pkg.writeUInt32LE(keyStringsOffset, 268);
   let chunkAt = 288;
   for (const spec of allSpecs) { spec.copy(pkg, chunkAt); chunkAt += spec.length; }
   for (const c of chunks) { c.copy(pkg, chunkAt); chunkAt += c.length; }
   types.buf.copy(pkg, typeStringsOffset);
   keys.buf.copy(pkg, keyStringsOffset);
+  colourKeys.buf.copy(pkg, colourKeyStringsOffset);
 
   const tableSize = 12 + global.size + packageSize;
   const table = Buffer.alloc(tableSize);
