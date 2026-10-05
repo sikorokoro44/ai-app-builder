@@ -862,7 +862,8 @@ export function verifyApkLauncherIconFromBuffer(
         errors.push(
           `Adaptive icon ${path} does not reference ${needed} ` +
           `(it references ${[...referenced].join(', ') || 'nothing'}; ` +
-          `${resourceIds.size} ids resolved, sample ${JSON.stringify([...resourceIds].slice(0, 4))})`
+          `${resourceIds.size} ids resolved, icon ids ${JSON.stringify([...resourceIds].filter(([, n]) => n.includes('ic_launcher')))}; ` +
+          `${JSON.stringify([...resourceIds].filter(([id]) => (id >>> 16) === 0x7f08).slice(0, 6))})`
         );
       }
     }
