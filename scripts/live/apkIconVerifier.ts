@@ -376,6 +376,12 @@ function readPackagePools(
     if (id !== undefined) keyNamesByType.set(id, pool.strings);
   }
   detail.push(`typeStrings=${namedPool - off} keyStrings=${firstKeyPool - off} typeIds=${typeIdsInOrder.join(',')}`);
+  detail.push(`packageHead=${arsc.subarray(off, off + 8).toString('hex')}`);
+  for (const at of [namedPool - off, firstKeyPool - off]) {
+    const atAbs = off + at;
+    detail.push(`at+${at}=${atAbs + 8 <= packageEnd ? arsc.subarray(atAbs, atAbs + 8).toString('hex') : 'out of range'}`);
+  }
+  detail.push(`types=${JSON.stringify(typeNames.slice(0, 12))}`);
   return { typeNames, typeIds: typeIdsInOrder, keyNamesByType, detail: detail.join('; ') };
 }
 
