@@ -167,13 +167,15 @@ export function extractApplicationIconIds(axml: Buffer): ApplicationIconIds | nu
 
 export interface ArscSummary {
   packageId: number;
-  /** Type names by 1-based type id, e.g. typeNames[3] === 'drawable'. */
+  /** Type names in declaration order, paired with `typeIds`. */
   typeNames: string[];
+  /** Type ids in declaration order, e.g. [4, 8] for colour then mipmap. */
+  typeIds: number[];
   /** Resource key names declared by the package. */
   keyNames: string[];
   /** Every `res/...` path the resource table points at. */
   filePaths: Set<string>;
-  /** Entry counts per 1-based type id, as declared by the type-spec chunks. */
+  /** Entry counts per type id, as declared by the type-spec chunks. */
   typeEntryCounts: Map<number, number>;
 }
 
@@ -210,20 +212,12 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
     const packageId = arsc.readUInt32LE(off + 8);
     // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260, lastPublicType
     // @264, keyStrings @268, lastPublicKey @272.
-    const typeStringsOffset = arsc.readUInt32LE(off + 260);
-    const keyStringsOffset = arsc.readUInt32LE(off + 268);
     const packageEnd = Math.min(off + size, tableSize);
 
-    let typeNames: string[] = [];
-    if (typeStringsOffset > 0 && off + typeStringsOffset + 8 <= arsc.length) {
-      const p = readStringPool(arsc, off + typeStringsOffset);
-      if (p) typeNames = p.strings;
-    }
-    let keyNames: string[] = [];
-    if (keyStringsOffset > 0 && off + keyStringsOffset + 8 <= arsc.length) {
-      const p = readStringPool(arsc, off + keyStringsOffset);
-      if (p) keyNames = p.strings;
-    }
+    const { typeNames, typeIds, keyNamesByType } = readPackagePools(arsc, off, arsc.readUInt16LE(off + 2), packageEnd);
+    // Each type numbers its keys from zero, so these are only meaningful for
+    // display; use readPackagePools' per-type map when resolving an entry.
+    const keyNames = [...keyNamesByType.values()].flat();
 
     const typeEntryCounts = new Map<number, number>();
     let inner = off + arsc.readUInt16LE(off + 2);
@@ -244,6 +238,7 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
     return {
       packageId,
       typeNames,
+      typeIds,
       keyNames,
       filePaths: new Set(globalStrings.filter((s) => s.startsWith('res/'))),
       typeEntryCounts
@@ -304,6 +299,58 @@ export function indexResourceIds(arsc: Buffer): Map<number, string> {
 }
 
 /**
+ * The type names pool and, per type id, that type's key pool.
+ *
+ * A package stores one key string pool per type while its header names only the
+ * first, and the pools follow the type chunks in the order the types appear.
+ * AAPT2 numbers types by the order it meets resources, so those ids are rarely
+ * 1..n and the pools have to be paired against the ids actually present.
+ */
+function readPackagePools(
+  arsc: Buffer,
+  off: number,
+  headerSize: number,
+  packageEnd: number
+): { typeNames: string[]; typeIds: number[]; keyNamesByType: Map<number, string[]> } {
+  const typeIdsInOrder: number[] = [];
+  for (let scan = off + headerSize; scan + 8 <= packageEnd;) {
+    const chunkType = arsc.readUInt16LE(scan);
+    const chunkSize = arsc.readUInt32LE(scan + 4);
+    if (chunkSize < 8 || scan + chunkSize > arsc.length) break;
+    if (chunkType === RES_TABLE_TYPE_TYPE) {
+      const id = arsc[scan + 8];
+      if (!typeIdsInOrder.includes(id)) typeIdsInOrder.push(id);
+    }
+    scan += chunkSize;
+  }
+
+  const typeNames: string[] = [];
+  const keyNamesByType = new Map<number, string[]>();
+  // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260,
+  // lastPublicType @264, keyStrings @268, lastPublicKey @272.
+  let poolOff = off + arsc.readUInt32LE(off + 260);
+  let poolIndex = 0;
+  while (poolOff + 8 <= packageEnd) {
+    const poolType = arsc.readUInt16LE(poolOff);
+    const poolSize = arsc.readUInt32LE(poolOff + 4);
+    if (poolSize < 8 || poolOff + poolSize > packageEnd) break;
+    if (poolType !== AXML_TYPE_STRING_POOL) break;
+    const parsed = readStringPool(arsc, poolOff);
+    if (!parsed) break;
+    if (poolIndex === 0) typeNames.push(...parsed.strings);
+    else {
+      const id = typeIdsInOrder[poolIndex - 1];
+      if (id !== undefined) keyNamesByType.set(id, parsed.strings);
+    }
+    poolIndex++;
+    // Offsets inside a package are aligned relative to its start, so stepping by
+    // the raw size would land inside the next pool's padding and end the walk.
+    poolOff = off + ((poolOff - off + poolSize + 3) & ~3);
+  }
+  return { typeNames, typeIds: typeIdsInOrder, keyNamesByType };
+}
+
+/**
  * Maps `type/key` to the `res/...` files the compiled table points at.
  *
  * Reading this out of `resources.arsc` rather than recomputing a path from the
@@ -344,33 +391,11 @@ export function indexResourceFiles(
       continue;
     }
 
-    // A package stores one key string pool per type, and the header names only
-    // the first. They follow the type chunks in type-id order, preceded by the
-    // type names pool, so the pools are collected by walking the tail.
-    const typeNames: string[] = [];
-    const keyNamesByType = new Map<number, string[]>();
-    // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260,
-    // lastPublicType @264, keyStrings @268, lastPublicKey @272.
-    const typeStringsOffset = arsc.readUInt32LE(off + 260);
     const packageSize = arsc.readUInt32LE(off + 4);
     const packageEnd = Math.min(off + packageSize, tableSize);
-    let poolOff = off + typeStringsOffset;
-    let poolIndex = 0;
-    while (poolOff + 8 <= packageEnd) {
-      const poolType = arsc.readUInt16LE(poolOff);
-      const poolSize = arsc.readUInt32LE(poolOff + 4);
-      if (poolSize < 8 || poolOff + poolSize > packageEnd) break;
-      if (poolType !== AXML_TYPE_STRING_POOL) break;
-      const parsed = readStringPool(arsc, poolOff);
-      if (!parsed) break;
-      if (poolIndex === 0) typeNames.push(...parsed.strings);
-      else keyNamesByType.set(poolIndex, parsed.strings);
-      poolIndex++;
-      // Offsets inside a package are aligned relative to its start, so stepping
-      // by the raw size would land inside the next pool's padding and stop the
-      // walk after the first.
-      poolOff = off + ((poolOff - off + poolSize + 3) & ~3);
-    }
+    const headerSize = arsc.readUInt16LE(off + 2);
+
+    const { typeNames, typeIds, keyNamesByType } = readPackagePools(arsc, off, headerSize, packageEnd);
 
     const add = (typeName: string, keyName: string | undefined, value: string | undefined): void => {
       if (!keyName || typeof value !== 'string' || !value.startsWith('res/')) return;
@@ -387,7 +412,7 @@ export function indexResourceFiles(
       if (innerSize < 8 || inner + innerSize > arsc.length) break;
       if (innerType === RES_TABLE_TYPE_TYPE) {
         const typeId = arsc[inner + 8];
-        const typeName = typeNames[typeId - 1] ?? String(typeId);
+        const typeName = typeNames[typeIds.indexOf(typeId)] ?? String(typeId);
         const keyNames = keyNamesByType.get(typeId) ?? [];
         const entryCount = arsc.readUInt32LE(inner + 12);
         const entriesStart = arsc.readUInt32LE(inner + 16);
@@ -597,7 +622,9 @@ export function verifyApkLauncherIconFromBuffer(
     return result;
   }
 
-  const iconTypeName = table.typeNames[iconTypeId - 1];
+  // Type ids are assigned by the order AAPT2 meets resources, so they are not
+  // 1-based positions in the type names.
+  const iconTypeName = table.typeNames[table.typeIds.indexOf(iconTypeId)];
   result.manifestIconType = iconTypeName;
   if (!iconTypeName) {
     errors.push(`Manifest icon references resource type id ${iconTypeId}, which the package does not declare`);

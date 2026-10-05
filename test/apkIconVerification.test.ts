@@ -221,13 +221,15 @@ function buildArsc(opts: {
   configChunks?: Record<string, Record<string, string[]>>;
 }): Buffer {
   const typeName = opts.typeName || 'mipmap';
-  const typeId = 1;
+  const typeId = TYPE_ID;
   const colours = [...opts.filePaths, 'res/values/colors.xml'];
   const fileIndex = new Map(colours.map((p, i) => [p, i]));
   const entryCount = Math.max(opts.entriesPerFile || opts.keyNames.length, opts.keyNames.length);
 
   const global = poolChunk(colours);
-  const types = poolChunk([typeName, 'color']);
+  // Type names follow the same order as the chunks and the key pools: colour
+  // first, then mipmap.
+  const types = poolChunk(['color', typeName]);
   const keys = poolChunk(opts.keyNames);
   const colourKeys = poolChunk([ICON_BACKGROUND_COLOR_NAME]);
 
@@ -359,9 +361,11 @@ function buildArsc(opts: {
   const typeBytes = allSpecs.reduce((n, c) => n + c.length, 0) + chunks.reduce((n, c) => n + c.length, 0);
 
   const typeStringsOffset = align4(288 + typeBytes);
+  // Key pools follow the type chunks in type-id order, which is how a reader
+  // pairs them back to their type.
   const keyStringsOffset = align4(typeStringsOffset + types.size);
-  const colourKeyStringsOffset = align4(keyStringsOffset + keys.size);
-  const packageSize = colourKeyStringsOffset + colourKeys.size;
+  const mipmapKeyStringsOffset = align4(keyStringsOffset + colourKeys.size);
+  const packageSize = mipmapKeyStringsOffset + keys.size;
   const pkg = Buffer.alloc(packageSize);
   pkg.writeUInt16LE(0x0200, 0);
   pkg.writeUInt16LE(288, 2);
@@ -373,8 +377,8 @@ function buildArsc(opts: {
   for (const spec of allSpecs) { spec.copy(pkg, chunkAt); chunkAt += spec.length; }
   for (const c of chunks) { c.copy(pkg, chunkAt); chunkAt += c.length; }
   types.buf.copy(pkg, typeStringsOffset);
-  keys.buf.copy(pkg, keyStringsOffset);
-  colourKeys.buf.copy(pkg, colourKeyStringsOffset);
+  colourKeys.buf.copy(pkg, keyStringsOffset);
+  keys.buf.copy(pkg, mipmapKeyStringsOffset);
 
   const tableSize = 12 + global.size + packageSize;
   const table = Buffer.alloc(tableSize);
@@ -431,8 +435,11 @@ function buildAdaptiveXml(): Buffer {
 /* -------------------------------------------------- icon fixtures ---- */
 
 const PACKAGE_ID = 0x7f;
-const TYPE_ID = 1;
-const COLOUR_TYPE_ID = 2;
+// AAPT2 assigns type ids by the order it meets resources, so a real table does
+// not number them from 1. Using non-trivial ids keeps every test honest about
+// mapping key pools back to the right type.
+const TYPE_ID = 8;
+const COLOUR_TYPE_ID = 4;
 const ICON_ENTRY = 0;
 const ROUND_ENTRY = 1;
 const FOREGROUND_ENTRY = 2;
@@ -602,7 +609,10 @@ describe('resource table summary', () => {
     });
     const s = summariseResourceTable(arsc)!;
     assert.strictEqual(s.packageId, 0x7f);
-    assert.strictEqual(s.typeNames[0], 'mipmap');
+    // Types are declared colour first, so the names follow that order and the
+    // ids are matched positionally rather than by assuming 1-based numbering.
+    assert.deepStrictEqual(s.typeIds, [COLOUR_TYPE_ID, TYPE_ID]);
+    assert.strictEqual(s.typeNames[s.typeIds.indexOf(TYPE_ID)], 'mipmap');
     assert.ok(s.keyNames.includes(ICON_RESOURCE_NAME));
     assert.ok(s.filePaths.has(`res/mipmap-xhdpi/${ICON_RESOURCE_NAME}.png`));
     assert.ok(!s.filePaths.has('res/values/strings.xml'));
@@ -717,7 +727,7 @@ describe('APK launcher icon verification', () => {
     const root = realIconProject('good');
     const r = verifyApkLauncherIconFromBuffer(apkWithIcon({ projectRoot: root }), expectations(root));
     assert.strictEqual(r.valid, true, r.errors.join('; '));
-    assert.strictEqual(r.manifestIconResourceId, '0x7f010000');
+    assert.strictEqual(r.manifestIconResourceId, `0x${((PACKAGE_ID << 24) | (TYPE_ID << 16)).toString(16)}`);
     assert.strictEqual(r.manifestIconType, 'mipmap');
     assert.ok(r.similarity! <= 20);
     assert.strictEqual(r.byteIdentical, true, 'the compiled PNG should be the generated PNG');
