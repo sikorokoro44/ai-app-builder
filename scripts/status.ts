@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execSync } from 'child_process';
 
-const configPath = process.env.BUILDER_CONFIG_PATH || 'builder/config/builder.json';
+const configPath = process.env.BUILDER_CONFIG_PATH || 'config/builder.json';
 const config = JSON.parse(execSync(`cat ${configPath}`).toString());
 const ownerRepo = process.env.GITHUB_REPOSITORY || 'owner/repo';
 const [owner, repo] = ownerRepo.split('/');

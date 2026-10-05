@@ -54,7 +54,7 @@ export interface LauncherIconValidation {
   files?: string[];
 }
 
-function resRoot(projectRoot: string): string {
+export function resRoot(projectRoot: string): string {
   return join(projectRoot, 'app', 'src', 'main', 'res');
 }
 

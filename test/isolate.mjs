@@ -8,8 +8,14 @@
  * tracked projectState to whatever stage a fixture used. Two failures came
  * straight out of that — a stale tracked state made a legal transition illegal.
  *
- * This module redirects the live state and checkpoint directories into a
- * throwaway temp dir. It is wired in two ways so no runner can bypass it:
+ * This module redirects every directory the pipeline writes into a throwaway temp
+ * dir: the live state, the checkpoints and the agent run store. Each of them
+ * defaults to a tracked path, so a test that runs the fleet would otherwise
+ * overwrite the very state `.builder/live` exists to keep. The generated Android
+ * project is the exception, because several tests deliberately check the tracked
+ * project in `.builder/generated/android`; a test that needs a throwaway copy of
+ * it passes `projectRoot` to the coordinator. It is wired in two ways so no runner
+ * can bypass it:
  *
  *   - as a `--import` preload from the npm test script, which covers every file
  *   - as the first import of any test file that itself touches the state store
@@ -33,4 +39,7 @@ if (!process.env.BUILDER_STATE_DIR) {
   process.env.BUILDER_CHECKPOINT_DIR = join(dir, 'checkpoints');
   // Keeps a stray release/artifact download from touching the real state.
   process.env.BUILDER_TMP_DIR = dir;
+  // The agent run store. A test that runs the fleet writes a manifest, a ledger
+  // and a directory per agent into it.
+  process.env.BUILDER_AGENT_DIR = join(dir, 'agents');
 }

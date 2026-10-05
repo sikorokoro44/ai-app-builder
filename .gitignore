@@ -10,6 +10,15 @@ dist/
 *.apk
 *.aab
 
+# Agent run store and derived plan files.
+# `.builder/agents/` holds a manifest, a ledger and one directory per agent for
+# each run. `githubPush.ts` stages the whole tree, so without this a run would
+# commit its own scratch space into history. `.builder/live/` stays tracked on
+# purpose: that is the state a later session resumes from.
+.builder/agents/
+.builder/plan.json
+.builder/queue.json
+
 # Runtime recovery snapshots.
 # `.builder/live/state.json` and `.builder/live/events.jsonl` are deliberately NOT
 # ignored: they are tracked so an interrupted run can be resumed in a later

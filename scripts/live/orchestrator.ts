@@ -1,58 +1,43 @@
 #!/usr/bin/env node
+/**
+ * Register the fleet and show where a run would start.
+ *
+ * Starting the orchestrator is safe at any point in a run: it seeds the twenty
+ * real agents in the live state so progress views can name them, and it touches
+ * nothing else. It used to force the project back to READY and zero every
+ * progress counter, which destroyed real work in progress and attempted an
+ * illegal transition whenever the build was already running.
+ */
 import { initStateStore, readState, writeState, appendEvent } from './stateStore.ts';
-import { ProjectStates, AgentStates, TaskStates, CloudBuildStages, Events } from '../../shared/types.ts';
+import { AgentStates, Events } from '../../shared/types.ts';
+import { AGENT_IDS } from '../agents/agentIds.ts';
+import { executionWaves, validateRegistry } from '../agents/registry.ts';
 
 initStateStore();
-let state = readState();
-
-function ensureAgent(id: string, name: string) {
-  if (!state.agents[id]) {
-    state.agents[id] = {
-      id,
-      name,
-      state: AgentStates.IDLE,
-      activity: 'Initialized',
-      updatedAt: new Date().toISOString()
-    };
-    appendEvent({ type: Events.AGENT_STARTED, agentId: id, name });
-  }
+const problems = validateRegistry();
+if (problems.length) {
+  console.error('The agent registry is invalid:');
+  for (const problem of problems) console.error(` - ${problem}`);
+  process.exit(1);
 }
 
-function agentActivity(id: string, activity: string, newState?: any) {
-  ensureAgent(id, id);
-  state.agents[id].activity = activity;
-  if (newState) state.agents[id].state = newState;
-  state.agents[id].updatedAt = new Date().toISOString();
-  appendEvent({ type: Events.AGENT_ACTIVITY, agentId: id, activity, state: state.agents[id].state });
+const state = readState();
+const at = new Date().toISOString();
+state.agents = { ...(state.agents || {}) };
+for (const agent of AGENT_IDS) {
+  const existing = state.agents[agent.id];
+  state.agents[agent.id] = {
+    id: agent.id,
+    index: agent.index,
+    name: agent.name,
+    state: existing?.state || AgentStates.IDLE,
+    activity: existing?.activity || 'waiting for dependencies',
+    updatedAt: existing?.updatedAt || at
+  };
+  if (!existing) appendEvent({ type: Events.AGENT_STARTED, agentId: agent.id, name: agent.name });
 }
-
-function setCloudStage(stage: any, line?: string) {
-  state.cloudBuild.stage = stage;
-  state.cloudBuild.status = 'running';
-  state.projectState = ProjectStates.CLOUD_BUILDING;
-  if (line) {
-    const out = { timestamp: new Date().toISOString(), stage, line };
-    state.cloudBuild.output.push(out);
-    state.buildLogs.push(out);
-    appendEvent({ type: Events.BUILD_OUTPUT, stage, line });
-  }
-  appendEvent({ type: Events.BUILD_STAGE_CHANGED, stage });
-}
-
-initStateStore();
-state = readState();
-
-// Initialize with 20 agents as per config
-const agentCount = 20;
-for (let i = 1; i <= agentCount; i++) {
-  ensureAgent(`agent-${String(i).padStart(2, '0')}`, `Worker ${i}`);
-}
-
-// Orchestrating is not a lifecycle stage of its own. This script used to force
-// the project to READY and zero every progress counter, which both destroyed
-// real work in progress and attempted an illegal transition whenever the build
-// was already running (CLOUD_BUILDING -> READY). Leaving projectState alone and
-// only registering agents means starting the orchestrator is now safe to do at
-// any point in a run.
 writeState(state);
-console.log('Orchestrator initialized', { agents: agentCount, state: state.projectState });
+
+const waves = executionWaves();
+console.log(`Orchestrator ready: ${AGENT_IDS.length} agents in ${waves.length} waves, project state ${state.projectState}`);
+for (const wave of waves) console.log(`  ${String(waves.indexOf(wave) + 1).padStart(2)}. ${wave.join(', ')}`);

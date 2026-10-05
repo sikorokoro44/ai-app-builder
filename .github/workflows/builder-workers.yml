@@ -1,33 +1,120 @@
 name: Builder - Workers
 
+# Runs individual agents for a run the coordinator started. Each job downloads the
+# run store, runs exactly one agent, and uploads that agent's directory back.
+#
+# The coordinator is the scheduler of record and parallelises on its own, so this
+# workflow is for splitting a long run across machines. An agent whose
+# dependencies are not in the store refuses to run and says which ones are missing.
 on:
   workflow_dispatch:
     inputs:
-      agentCount:
-        description: 'Number of worker agents (config-driven override optional)'
-        required: false
-        default: '20'
+      runId:
+        description: 'Run to work on (from the coordinator run or its artifact)'
+        required: true
         type: string
+      agents:
+        description: 'Comma-separated agent ids, or a wave number such as 3'
+        required: true
+        type: string
+      coordinatorRunId:
+        description: 'Actions run id whose builder-run-state artifact holds the store'
+        required: true
+        type: string
+      mode:
+        description: 'full or pre-cloud'
+        required: false
+        default: 'full'
+        type: choice
+        options: [full, pre-cloud]
 
 jobs:
-  worker:
+  prepare:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-    strategy:
-      matrix:
-        agent_id: [01,02,03,04,05,06,07,08,09,10,11,12,13,14,15,16,17,18,19,20]
-      max-parallel: 20
+    outputs:
+      agents: ${{ steps.plan.outputs.agents }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Run worker
+      - name: Download the run store
+        uses: actions/download-artifact@v4
+        with:
+          name: builder-run-state-${{ inputs.coordinatorRunId }}
+          path: workspace
+      - name: Work out which agents this invocation covers
+        id: plan
         env:
-          BUILDER_WORKER_ID: agent-${{ matrix.agent_id }}
-          BUILDER_CONFIG_PATH: builder/config/builder.json
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILDER_AGENT_DIR: workspace/.builder/agents
+          # Passed through the environment rather than interpolated into the
+          # script, so a crafted input cannot become code.
+          REQUESTED: ${{ inputs.agents }}
         run: |
-          node --experimental-strip-types builder/scripts/worker.ts
+          set -euo pipefail
+          value="$REQUESTED"
+          if [[ "$value" =~ ^[0-9]+$ ]]; then
+            value=$(node --experimental-strip-types -e "
+              import { executionWaves } from './scripts/agents/registry.ts';
+              const wave = executionWaves()[Number(process.env.REQUESTED) - 1];
+              if (!wave) { console.error('no wave ' + process.env.REQUESTED); process.exit(1); }
+              console.log(wave.join(','));
+            ")
+          fi
+          echo "Running: $value"
+          RESOLVED="$value" node --experimental-strip-types -e "
+            const list = process.env.RESOLVED.split(/[\\s,]+/).filter(Boolean);
+            if (!list.length) { console.error('no agents to run'); process.exit(1); }
+            console.log('agents=' + JSON.stringify(list));
+          " >> "$GITHUB_OUTPUT"
+
+  worker:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      issues: write
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: ${{ fromJSON(needs.prepare.outputs.agents) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Download the run store
+        uses: actions/download-artifact@v4
+        with:
+          name: builder-run-state-${{ inputs.coordinatorRunId }}
+          path: workspace
+      - name: Use the project the coordinator generated
+        run: |
+          if [ -d workspace/.builder/generated/android ]; then
+            echo "BUILDER_PROJECT_DIR=workspace/.builder/generated/android" >> "$GITHUB_ENV"
+          else
+            echo "BUILDER_PROJECT_DIR=.builder/generated/android" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run ${{ matrix.agent }}
+        env:
+          BUILDER_CONFIG_PATH: config/builder.json
+          BUILDER_AGENT_DIR: workspace/.builder/agents
+          BUILDER_STATE_DIR: workspace/.builder/live
+          BUILDER_REPO_ROOT: .
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ inputs.mode }}" = "pre-cloud" ]; then
+            node --experimental-strip-types scripts/worker.ts --agent "${{ matrix.agent }}" --run "${{ inputs.runId }}" --pre-cloud
+          else
+            node --experimental-strip-types scripts/worker.ts --agent "${{ matrix.agent }}" --run "${{ inputs.runId }}"
+          fi
+      - name: Upload what this agent produced
+        uses: actions/upload-artifact@v4
+        with:
+          name: builder-agent-${{ matrix.agent }}-${{ github.run_id }}
+          path: workspace/.builder/agents/${{ inputs.runId }}/${{ matrix.agent }}
+          retention-days: 7
+          if-no-files-found: warn

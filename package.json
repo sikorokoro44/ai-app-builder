@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node --experimental-strip-types --import ./test/isolate.mjs --test \"test/**/*.test.ts\"",
     "validate": "node --experimental-strip-types scripts/validateState.ts",
-    "view": "node --experimental-strip-types opencode/live-view-visual.ts"
+    "view": "node --experimental-strip-types opencode/live-view-visual.ts",
+    "progress": "node --experimental-strip-types opencode/live-progress.ts"
   }
 }

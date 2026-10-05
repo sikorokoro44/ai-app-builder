@@ -1,18 +1,30 @@
 # Builder (Autonomous Cloud Builder)
 
-Self-contained module under `/builder/`. All building is cloud-only (Gradle on GitHub Actions).
+This repository is the builder module. All building is cloud-only: Gradle runs on
+GitHub Actions, and a build is only ever reported through the evidence chain in
+`shared/state.ts` together with `scripts/live/evidenceChain.ts`.
 
 ## Rules
-- 20 worker agents (single config value: `builder/config/builder.json` → `agents.count`)
-- No user interaction after idea submission
-- All apps public (repo/releases). Every completed build produces public GitHub Releases asset URL reported on completion
-- Coordinator merges passing branches into `main` one-at-a-time
-- GitHub Issues = source of truth (labels per status)
-- Visual-only live progress view (no text details displayed to user)
+- Twenty agents, defined once in `scripts/agents/agentIds.ts`. Each has a
+  contract, owned files, a failure policy and a lifecycle transition.
+- No user interaction after the idea is submitted.
+- All apps public. A completed build produces a public GitHub release asset URL,
+  and that URL is reported only after the asset has been downloaded and verified.
+- The coordinator is the scheduler of record; it is the only thing that decides
+  when an agent may run.
+- Progress is derived from recorded evidence, never simulated. The live view
+  (`shared/liveProgress.ts`, `GET /live/progress`) is a read-only projection of the
+  authoritative state.
 
 ## Files
 - Config: `config/builder.json`
+- Agents and fleet: `scripts/agents/`
+- Project emitters: `scripts/project/emitters.ts`, `scripts/generateAndroidApp.ts`
 - Scripts: `scripts/*`, `scripts/live/*`
-- Shared: `shared/types.ts`, `shared/state.ts`, `shared/progress.ts`, `shared/stateWithProgressImpl2.ts`
+- Shared: `shared/types.ts`, `shared/state.ts`, `shared/agentTypes.ts`,
+  `shared/liveProgress.ts`, `shared/progress.ts`, `shared/stateWithProgressImpl.ts`
 - Workflows: `.github/workflows/builder-*.yml`
-- Termux/OpenCode view: `opencode/live-view-visual.ts`, `opencode/visual-view.sh`
+- Termux/OpenCode view: `opencode/live-view-visual.ts`, `opencode/live-progress.ts`,
+  `opencode/visual-view.sh`
+
+See `README.md` for the fleet, the flow and the commands.

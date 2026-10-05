@@ -25,13 +25,15 @@ jobs:
       - name: Run planner
         env:
           BUILDER_IDEA: ${{ inputs.idea }}
-          BUILDER_CONFIG_PATH: builder/config/builder.json
+          BUILDER_CONFIG_PATH: config/builder.json
+          BUILDER_PLAN_PATH: .builder/plan.json
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node --experimental-strip-types builder/scripts/planner.ts
+          node --experimental-strip-types scripts/planner.ts
 
       - name: Upload plan
         uses: actions/upload-artifact@v4
         with:
           name: builder-plan
-          path: .builder/
+          path: .builder/plan.json
+          if-no-files-found: error

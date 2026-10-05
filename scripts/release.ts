@@ -5,7 +5,7 @@ const featureId = process.env.BUILDER_FEATURE_ID || 'feat-000';
 const featureTitle = process.env.BUILDER_FEATURE_TITLE || 'Feature';
 const assetPath = process.env.BUILDER_ASSET_PATH || '';
 const tag = process.env.BUILDER_RELEASE_TAG || `builder-${featureId}-${Date.now()}`;
-const configPath = process.env.BUILDER_CONFIG_PATH || 'builder/config/builder.json';
+const configPath = process.env.BUILDER_CONFIG_PATH || 'config/builder.json';
 JSON.parse(execSync(`cat ${configPath}`).toString()); // validate
 
 const repo = process.env.GITHUB_REPOSITORY;

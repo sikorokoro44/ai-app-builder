@@ -1,23 +1,101 @@
 name: Builder - Coordinator
 
+# Runs the twenty agents for one idea. The run store (.builder/agents) is cached
+# and uploaded, so a stopped run is continued with `--resume <runId>` instead of
+# being started again.
 on:
   workflow_dispatch:
+    inputs:
+      idea:
+        description: 'Plain-text idea to build'
+        required: true
+        type: string
+      runId:
+        description: 'Continue this run instead of starting a new one'
+        required: false
+        type: string
+      concurrency:
+        description: 'Agents to run at once'
+        required: false
+        default: '4'
+        type: string
+      mode:
+        description: 'full runs GitHub publishing and the cloud build; pre-cloud stops after validation'
+        required: false
+        default: 'full'
+        type: choice
+        options: [full, pre-cloud]
+
+concurrency:
+  group: builder-coordinator
+  cancel-in-progress: false
 
 jobs:
   coordinate:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: write
       issues: write
       pull-requests: write
     steps:
+      # `repo-publisher` refuses to push from a detached HEAD, and githubPush.ts
+      # compares origin/main with HEAD, so the branch and its history are needed.
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Run coordinator
+
+      - name: Restore the run store
+        uses: actions/cache@v4
+        with:
+          path: |
+            .builder/agents
+            .builder/live
+          key: builder-run-${{ inputs.runId || github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            builder-run-${{ inputs.runId || github.run_id }}-
+
+      - name: Show the runs already on disk
+        run: node --experimental-strip-types scripts/coordinator.ts --runs || true
+
+      - name: Run the fleet
         env:
-          BUILDER_CONFIG_PATH: builder/config/builder.json
+          BUILDER_IDEA: ${{ inputs.idea }}
+          BUILDER_CONFIG_PATH: config/builder.json
+          BUILDER_AGENT_DIR: .builder/agents
+          BUILDER_PROJECT_DIR: .builder/generated/android
+          BUILDER_REPO_ROOT: .
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node --experimental-strip-types builder/scripts/coordinator.ts
+          args=(--concurrency "${{ inputs.concurrency || '4' }}")
+          if [ "${{ inputs.mode }}" = "pre-cloud" ]; then
+            args+=(--pre-cloud)
+          fi
+          if [ -n "${{ inputs.runId }}" ]; then
+            node --experimental-strip-types scripts/coordinator.ts --resume "${{ inputs.runId }}" "${args[@]}"
+          else
+            node --experimental-strip-types scripts/coordinator.ts "${{ inputs.idea }}" "${args[@]}"
+          fi
+
+      - name: Report what the run proved
+        if: always()
+        run: node --experimental-strip-types scripts/coordinator.ts --status || true
+
+      - name: Upload the run store and live state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: builder-run-state-${{ github.run_id }}
+          path: |
+            .builder/agents
+            .builder/live
+            .builder/generated/android
+          retention-days: 14
+          if-no-files-found: warn

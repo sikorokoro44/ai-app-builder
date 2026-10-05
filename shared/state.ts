@@ -2,6 +2,8 @@ import { ProjectStates, AgentStates, TaskStates, CloudBuildStages } from './type
 
 export interface Agent {
   id: string;
+  /** Position in the fleet, so a view can list the agents in run order. */
+  index?: number;
   name: string;
   state: typeof AgentStates[keyof typeof AgentStates];
   activity: string;
