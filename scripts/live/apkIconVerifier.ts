@@ -861,7 +861,8 @@ export function verifyApkLauncherIconFromBuffer(
       if (!referenced.has(needed)) {
         errors.push(
           `Adaptive icon ${path} does not reference ${needed} ` +
-          `(it references ${[...referenced].join(', ') || 'nothing'})`
+          `(it references ${[...referenced].join(', ') || 'nothing'}; ` +
+          `${resourceIds.size} ids resolved, sample ${JSON.stringify([...resourceIds].slice(0, 4))})`
         );
       }
     }
