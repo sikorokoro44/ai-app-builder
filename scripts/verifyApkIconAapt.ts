@@ -201,7 +201,7 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
   }
 
   // Every density the generator wrote must be reachable from the icon entry.
-  const have = new Set<string>();
+  let have = new Set<string>();
   for (const e of resources.values()) {
     for (const f of e.files) have.add(f);
   }
