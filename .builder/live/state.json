@@ -1,9 +1,9 @@
 {
-  "version": 90,
-  "projectState": "REPAIRING",
+  "version": 91,
+  "projectState": "CLOUD_BUILDING",
   "overallProgressPct": 0,
   "elapsedMs": 0,
-  "latestActivity": "Cloud build failed (unknown)",
+  "latestActivity": "Prepared cloud build",
   "completedFeatures": 0,
   "totalFeatures": 1,
   "completedTasks": 2,
@@ -50,18 +50,18 @@
   "githubStatus": "unknown",
   "cloudBuild": {
     "state": "running",
-    "stage": "COMPILING",
-    "status": "failed",
+    "stage": "QUEUED",
+    "status": "running",
     "output": [],
     "runId": "37268736122",
-    "headSha": "fdc8bc5dd6f6d8e6a88b366ecd99b44a6e70015b",
+    "headSha": "250a8b90e6f8583e89f49b98bec77dbc9530f774",
     "workflowFile": ".github/workflows/builder-android-build.yml",
     "logsFetched": true,
     "conclusion": "failure",
     "failureClass": "unknown",
     "failedReason": "unknown: Verify the compiled launcher icon with aapt2 — no diagnostic captured",
     "retryable": false,
-    "attempt": 33
+    "attempt": 34
   },
   "apkVerification": "idle",
   "icon": {
@@ -116,9 +116,9 @@
       {
         "stage": "VALIDATE",
         "evidence": "project validated, packageId=com.builder.todo",
-        "at": "2026-10-05T05:38:53.015Z"
+        "at": "2026-10-05T05:54:32.969Z"
       }
     ]
   },
-  "lastUpdated": "2026-10-05T05:40:39.837Z"
+  "lastUpdated": "2026-10-05T05:54:33.066Z"
 }

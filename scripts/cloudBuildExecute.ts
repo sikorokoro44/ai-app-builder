@@ -111,12 +111,18 @@ if (process.argv.includes('--prepare')) {
     errors: undefined
   };
 
+  const buildHead = headSha();
+  // A run id belongs to exactly one commit. Carrying the previous attempt's id
+  // across a new head lets a later step attribute this commit's artifact to an
+  // older run, or re-watch a run that was never built from this tree, so drop
+  // it whenever the pinned commit changes.
+  if (s.cloudBuild.headSha !== buildHead) s.cloudBuild.runId = undefined;
   s.cloudBuild.stage = 'QUEUED';
   s.cloudBuild.status = 'running';
   s.cloudBuild.state = 'running';
   s.cloudBuild.attempt = (s.cloudBuild.attempt || 0) + 1;
   s.cloudBuild.workflowFile = WORKFLOW;
-  s.cloudBuild.headSha = headSha();
+  s.cloudBuild.headSha = buildHead;
   s.projectState = ProjectStates.CLOUD_BUILDING;
   s.latestActivity = 'Prepared cloud build';
   persistCheckpoint('pre-cloud-build', s);

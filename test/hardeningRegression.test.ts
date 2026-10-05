@@ -184,6 +184,48 @@ describe('planner reaches READY so the next stage is not a skipped state', () =>
     assert.strictEqual(stateOnDisk().projectState, ProjectStates.CLOUD_BUILDING);
   });
 
+  test('a new commit does not inherit the previous attempt run id', async () => {
+    // A run id names one specific run. If prepare keeps the old id while it
+    // repins headSha, the state pairs this commit with a run built from
+    // different sources, and the artifact identity it later records is not
+    // this commit's.
+    rmSync(STATE_DIR, { recursive: true, force: true });
+    rmSync(CP_DIR, { recursive: true, force: true });
+    await seedAt(ProjectStates.TESTING);
+
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf-8' }).trim();
+    const prep = run('cloudBuildExecute.ts', ['--prepare'], {
+      BUILDER_PROJECT_DIR: join(REPO, '.builder/generated/android')
+    });
+    assert.strictEqual(prep.code, 0, `--prepare failed: ${prep.err}`);
+
+    // Simulate an earlier attempt on this commit that recorded its run id.
+    const s = stateOnDisk();
+    s.cloudBuild.runId = '37268736122';
+    writeFileSync(join(STATE_DIR, 'state.json'), JSON.stringify(s, null, 2));
+
+    // The same head keeps the id: that run really is this commit's build.
+    const same = run('cloudBuildExecute.ts', ['--prepare'], {
+      BUILDER_PROJECT_DIR: join(REPO, '.builder/generated/android')
+    });
+    assert.strictEqual(same.code, 0, `--prepare failed: ${same.err}`);
+    assert.strictEqual(stateOnDisk().cloudBuild.runId, '37268736122',
+      're-preparing the same commit must not orphan a live run id');
+    assert.strictEqual(stateOnDisk().cloudBuild.headSha, head);
+
+    // A different head must not keep it.
+    const other = stateOnDisk();
+    other.cloudBuild.headSha = 'f'.repeat(40);
+    writeFileSync(join(STATE_DIR, 'state.json'), JSON.stringify(other, null, 2));
+    const moved = run('cloudBuildExecute.ts', ['--prepare'], {
+      BUILDER_PROJECT_DIR: join(REPO, '.builder/generated/android')
+    });
+    assert.strictEqual(moved.code, 0, `--prepare failed: ${moved.err}`);
+    assert.strictEqual(stateOnDisk().cloudBuild.runId, undefined,
+      'a run id from another commit must be dropped, not carried into this build');
+    assert.strictEqual(stateOnDisk().cloudBuild.headSha, head);
+  });
+
   test('running a later stage before the earlier ones is refused, not silently accepted', async () => {
     rmSync(STATE_DIR, { recursive: true, force: true });
     rmSync(CP_DIR, { recursive: true, force: true });
