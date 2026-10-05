@@ -15,15 +15,28 @@ import { join } from 'path';
 import type { AgentSpec } from '../../../shared/agentTypes.ts';
 import { fail, ok, invalid, planFrom } from './common.ts';
 
+/**
+ * The last complete JSON object a script printed.
+ *
+ * Taking the last `{` and the last `}` only works for output with no nested
+ * objects, and most of this pipeline's output has some: artifactVerify.ts
+ * reports an `icon` object inside its result, so the last `{` opens the icon and
+ * the parse returned the icon instead of the report — which is how run
+ * 37390432614 got a verified APK and then "apkVerify did not record a checksum".
+ * The earliest position whose remaining text parses is the outermost object.
+ */
 function lastJson(stdout: string): Record<string, unknown> | null {
-  const start = stdout.lastIndexOf('{');
   const end = stdout.lastIndexOf('}');
-  if (start === -1 || end <= start) return null;
-  try {
-    return JSON.parse(stdout.slice(start, end + 1));
-  } catch {
-    return null;
+  if (end === -1) return null;
+  for (let start = stdout.indexOf('{'); start !== -1 && start < end; start = stdout.indexOf('{', start + 1)) {
+    try {
+      const parsed = JSON.parse(stdout.slice(start, end + 1));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
+    } catch {
+      // Not the start of the object; try the next one.
+    }
   }
+  return null;
 }
 
 function git(args: string[]): string {
