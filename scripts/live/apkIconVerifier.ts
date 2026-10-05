@@ -313,6 +313,7 @@ function readPackagePools(
   packageEnd: number
 ): { typeNames: string[]; typeIds: number[]; keyNamesByType: Map<number, string[]> } {
   const typeIdsInOrder: number[] = [];
+  let keyIndex = 0;
   for (let scan = off + headerSize; scan + 8 <= packageEnd;) {
     const chunkType = arsc.readUInt16LE(scan);
     const chunkSize = arsc.readUInt32LE(scan + 4);
@@ -327,32 +328,47 @@ function readPackagePools(
   const typeNames: string[] = [];
   const keyNamesByType = new Map<number, string[]>();
   // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260,
-  // lastPublicType @264, keyStrings @268, lastPublicKey @272. The pools are
-  // written before the type chunks, so the header offsets are what locate them.
-  const typeStringsOffset = arsc.readUInt32LE(off + 260);
-  const keyStringsOffset = arsc.readUInt32LE(off + 268);
-  const namedPool = off + typeStringsOffset;
-  if (typeStringsOffset > 0 && namedPool + 8 <= packageEnd) {
-    const parsed = readStringPool(arsc, namedPool);
-    if (parsed) typeNames.push(...parsed.strings);
+  // lastPublicType @264, keyStrings @268, lastPublicKey @272.
+  //
+  // The header names the type names pool and the first key pool, and the other
+  // key pools sit next to that one. Their position relative to the type chunks is
+  // not something to rely on, so every string pool in the package is collected
+  // and matched by identity: the pool the header calls the type names, and the
+  // rest taken against the type ids in declaration order.
+  const namedPool = off + arsc.readUInt32LE(off + 260);
+  const firstKeyPool = off + arsc.readUInt32LE(off + 268);
+  const pools: { at: number; strings: string[] }[] = [];
+  const seen = new Set<number>();
+  const takePool = (at: number): boolean => {
+    if (at <= 0 || at + 8 > packageEnd || seen.has(at)) return false;
+    seen.add(at);
+    if (arsc.readUInt16LE(at) !== AXML_TYPE_STRING_POOL) return false;
+    const parsed = readStringPool(arsc, at);
+    if (!parsed) return false;
+    pools.push({ at, strings: parsed.strings });
+    return true;
+  };
+  takePool(namedPool);
+  takePool(firstKeyPool);
+  // Any pool the header did not name is found by walking the package. Offsets
+  // are aligned relative to the package start, so the step has to be too.
+  for (let scan = off + headerSize; scan + 8 <= packageEnd;) {
+    const chunkType = arsc.readUInt16LE(scan);
+    const chunkSize = arsc.readUInt32LE(scan + 4);
+    if (chunkSize < 8 || scan + chunkSize > arsc.length) break;
+    if (chunkType === AXML_TYPE_STRING_POOL) takePool(scan);
+    scan = off + ((scan - off + chunkSize + 3) & ~3);
   }
-  let poolOff = off + keyStringsOffset;
-  let poolIndex = 0;
-  while (poolOff + 8 <= packageEnd) {
-    const poolType = arsc.readUInt16LE(poolOff);
-    const poolSize = arsc.readUInt32LE(poolOff + 4);
-    if (poolSize < 8 || poolOff + poolSize > packageEnd) break;
-    if (poolType !== AXML_TYPE_STRING_POOL) break;
-    const parsed = readStringPool(arsc, poolOff);
-    if (!parsed) break;
-    if (poolOff !== namedPool) {
-      const id = typeIdsInOrder[poolIndex];
-      poolIndex++;
-      if (id !== undefined) keyNamesByType.set(id, parsed.strings);
-    }
-    // Offsets inside a package are aligned relative to its start, so stepping by
-    // the raw size would land inside the next pool's padding and end the walk.
-    poolOff = off + ((poolOff - off + poolSize + 3) & ~3);
+  const order = pools.slice().sort((a, b) => a.at - b.at);
+  // The key pools are the ones from the header's key offset onwards; anything
+  // before them is the type names pool.
+  const keyPools = order.filter((p) => p.at >= firstKeyPool);
+  const typePool = order.find((p) => p.at === namedPool) ?? order.find((p) => p.at < firstKeyPool);
+  if (typePool) typeNames.push(...typePool.strings);
+  for (const pool of keyPools) {
+    const id = typeIdsInOrder[keyIndex];
+    keyIndex++;
+    if (id !== undefined) keyNamesByType.set(id, pool.strings);
   }
   return { typeNames, typeIds: typeIdsInOrder, keyNamesByType };
 }

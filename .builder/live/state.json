@@ -1,5 +1,5 @@
 {
-  "version": 113,
+  "version": 116,
   "projectState": "REPAIRING",
   "overallProgressPct": 0,
   "elapsedMs": 0,
@@ -53,15 +53,15 @@
     "stage": "COMPILING",
     "status": "failed",
     "output": [],
-    "headSha": "1ddaf29fc3fa33ba548ad92a9e22f5ef93fdb9e9",
+    "headSha": "f49528b2a4a4f43f517002553b98f5becfdc44b9",
     "workflowFile": ".github/workflows/builder-android-build.yml",
     "logsFetched": true,
     "conclusion": "failure",
     "failureClass": "unknown",
     "failedReason": "unknown: Verify the compiled launcher icon against the generated source — no diagnostic captured",
     "retryable": false,
-    "attempt": 42,
-    "runId": "37283995853"
+    "attempt": 43,
+    "runId": "37284779659"
   },
   "apkVerification": "idle",
   "icon": {
@@ -76,7 +76,7 @@
   },
   "failureRepair": {
     "state": "FAILURE_DETECTED",
-    "failureDetectedAt": "2026-10-05T08:31:35.951Z",
+    "failureDetectedAt": "2026-10-05T08:39:00.700Z",
     "rootCause": "unknown",
     "changes": [
       "Capture full failing-step logs before changing anything.",
@@ -84,36 +84,36 @@
     ]
   },
   "buildLogs": [
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t﻿2026-10-05T08:30:53.0893522Z ##[group]Run set -euo pipefail",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0894008Z ^[[36;1mset -euo pipefail^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0894556Z ^[[36;1mnode --experimental-strip-types scripts/verifyApkIconSource.ts^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0974053Z shell: /usr/bin/bash -e {0}",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0974444Z env:",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0974911Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0975652Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0976240Z   ANDROID_HOME: /usr/local/lib/android/sdk",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0976703Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0977196Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0977676Z   GRADLE_USER_HOME: /home/runner/.gradle",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0978118Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0978569Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0979415Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0980175Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0980639Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0981251Z   APK_FILE: .builder/generated/android/app/build/outputs/apk/debug/app-debug.apk",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.0981855Z ##[endgroup]",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.2691168Z the compiled launcher icon is not the generated icon:",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.2692191Z   - Manifest icon references resource type id 8, which the package does not declare",
-    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:30:53.2765160Z ##[error]Process completed with exit code 1."
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t﻿2026-10-05T08:38:21.3500103Z ##[group]Run set -euo pipefail",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3500696Z ^[[36;1mset -euo pipefail^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3501383Z ^[[36;1mnode --experimental-strip-types scripts/verifyApkIconSource.ts^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3585747Z shell: /usr/bin/bash -e {0}",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3586111Z env:",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3586502Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3587082Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3587557Z   ANDROID_HOME: /usr/local/lib/android/sdk",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3587919Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3588301Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3588676Z   GRADLE_USER_HOME: /home/runner/.gradle",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3589043Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3589417Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3589924Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3590534Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3590918Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3591402Z   APK_FILE: .builder/generated/android/app/build/outputs/apk/debug/app-debug.apk",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.3591860Z ##[endgroup]",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.5699984Z the compiled launcher icon is not the generated icon:",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.5718198Z   - Manifest icon references resource type id 8, which the package does not declare (declared types: 1=undefined, 2=undefined, 3=undefined, 4=undefined, 5=undefined, 6=undefined, 7=undefined, 8=undefined, 9=undefined, 10=undefined)",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T08:38:21.5808873Z ##[error]Process completed with exit code 1."
   ],
   "evidence": {
     "stages": [
       {
         "stage": "VALIDATE",
         "evidence": "project validated, packageId=com.builder.todo",
-        "at": "2026-10-05T08:29:46.986Z"
+        "at": "2026-10-05T08:37:14.474Z"
       }
     ]
   },
-  "lastUpdated": "2026-10-05T08:31:36.025Z"
+  "lastUpdated": "2026-10-05T08:39:00.731Z"
 }
