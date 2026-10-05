@@ -216,10 +216,7 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
     // bytes), typeStrings @+268, lastPublicType @+272, keyStrings @+276.
     const packageEnd = Math.min(off + size, tableSize);
 
-    const { typeNames, typeIds, keyNamesByType, detail } = readPackagePools(arsc, off, arsc.readUInt16LE(off + 2), packageEnd);
-    // Each type numbers its keys from zero, so these are only meaningful for
-    // display; use readPackagePools' per-type map when resolving an entry.
-    const keyNames = [...keyNamesByType.values()].flat();
+    const { typeNames, typeIds, keyNames, detail } = readPackagePools(arsc, off, arsc.readUInt16LE(off + 2), packageEnd);
 
     const typeEntryCounts = new Map<number, number>();
     let inner = off + arsc.readUInt16LE(off + 2);
@@ -314,9 +311,8 @@ function readPackagePools(
   off: number,
   headerSize: number,
   packageEnd: number
-): { typeNames: string[]; typeIds: number[]; keyNamesByType: Map<number, string[]>; detail: string } {
+): { typeNames: string[]; typeIds: number[]; keyNames: string[]; detail: string } {
   const typeIdsInOrder: number[] = [];
-  let keyIndex = 0;
   for (let scan = off + headerSize; scan + 8 <= packageEnd;) {
     const chunkType = arsc.readUInt16LE(scan);
     const chunkSize = arsc.readUInt32LE(scan + 4);
@@ -329,7 +325,7 @@ function readPackagePools(
   }
 
   const typeNames: string[] = [];
-  const keyNamesByType = new Map<number, string[]>();
+  const keyNames: string[] = [];
   const detail: string[] = [];
   // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260,
   // lastPublicType @264, keyStrings @268, lastPublicKey @272.
@@ -374,13 +370,16 @@ function readPackagePools(
   const order = pools.slice().sort((a, b) => a.at - b.at);
   // The key pools are the ones from the header's key offset onwards; anything
   // before them is the type names pool.
-  const keyPools = order.filter((p) => p.at >= firstKeyPool);
   const typePool = order.find((p) => p.at === namedPool) ?? order.find((p) => p.at < firstKeyPool);
   if (typePool) typeNames.push(...typePool.strings);
-  for (const pool of keyPools) {
-    const id = typeIdsInOrder[keyIndex];
-    keyIndex++;
-    if (id !== undefined) keyNamesByType.set(id, pool.strings);
+  // Key indices are package-wide, not per type: each type's entries continue
+  // where the previous type's stopped, so the pools form one index space. A
+  // package with a single key pool is the common case and needs no special
+  // handling; concatenating in file order is what keeps the space continuous
+  // when a table splits it across several pools.
+  for (const pool of order) {
+    if (pool === typePool) continue;
+    keyNames.push(...pool.strings);
   }
   detail.push(`typeStrings=${typeStringsOffset} keyStrings=${keyStringsOffset} typeIds=${typeIdsInOrder.join(',')}`);
   const inventory: string[] = [];
@@ -395,8 +394,8 @@ function readPackagePools(
     at = off + ((at - off + chunkSize + 3) & ~3);
   }
   detail.push(`chunks=${inventory.join(' ')}`);
-  detail.push(`idOffset=${arsc.readUInt32LE(off + 284)} types=${typeNames.join('|')}`);
-  return { typeNames, typeIds: typeIdsInOrder, keyNamesByType, detail: detail.join('; ') };
+  detail.push(`idOffset=${arsc.readUInt32LE(off + 284)} types=${typeNames.join('|')} keys=${keyNames.length}`);
+  return { typeNames, typeIds: typeIdsInOrder, keyNames, detail: detail.join('; ') };
 }
 
 /**
@@ -444,7 +443,7 @@ export function indexResourceFiles(
     const packageEnd = Math.min(off + packageSize, tableSize);
     const headerSize = arsc.readUInt16LE(off + 2);
 
-    const { typeNames, typeIds, keyNamesByType } = readPackagePools(arsc, off, headerSize, packageEnd);
+    const { typeNames, typeIds, keyNames } = readPackagePools(arsc, off, headerSize, packageEnd);
 
     const add = (typeName: string, keyName: string | undefined, value: string | undefined): void => {
       if (!keyName || typeof value !== 'string' || !value.startsWith('res/')) return;
@@ -462,7 +461,7 @@ export function indexResourceFiles(
       if (innerType === RES_TABLE_TYPE_TYPE) {
         const typeId = arsc[inner + 8];
         const typeName = typeNames[typeIds.indexOf(typeId)] ?? String(typeId);
-        const keyNames = keyNamesByType.get(typeId) ?? [];
+
         const entryCount = arsc.readUInt32LE(inner + 12);
         const entriesStart = arsc.readUInt32LE(inner + 16);
         let p = inner + entriesStart;

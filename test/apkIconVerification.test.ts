@@ -227,11 +227,13 @@ function buildArsc(opts: {
   const entryCount = Math.max(opts.entriesPerFile || opts.keyNames.length, opts.keyNames.length);
 
   const global = poolChunk(colours);
-  // Type names follow the same order as the chunks and the key pools: colour
-  // first, then mipmap.
+  // Type names follow the same order as the chunks: colour first, then mipmap.
   const types = poolChunk(['color', typeName]);
-  const keys = poolChunk(opts.keyNames);
-  const colourKeys = poolChunk([ICON_BACKGROUND_COLOR_NAME]);
+  // aapt2 writes one key pool per package and numbers keys across the whole
+  // package, so the colour key comes first and the mipmap keys continue after it.
+  const colourKeyIndex = 0;
+  const keys = poolChunk([ICON_BACKGROUND_COLOR_NAME, ...opts.keyNames]);
+  const mipmapKeyIndex = (name: string): number => opts.keyNames.indexOf(name) + 1;
 
   const typeSpecSize = 16 + entryCount * 4;
   const typeSpec = Buffer.alloc(typeSpecSize);
@@ -256,7 +258,8 @@ function buildArsc(opts: {
 
   // Encodes one entry for `path` under `keyIndex`, as a map when the key has
   // several configurations, so a chunk can carry a key's values together.
-  const encodeEntry = (keyIndex: number, paths: string[]): Buffer => {
+  const encodeEntry = (key: string, paths: string[]): Buffer => {
+    const keyIndex = mipmapKeyIndex(key);
     if (paths.length === 0) return Buffer.alloc(8);        // absent: size 0 header only
     if (paths.length === 1) {
       const e = Buffer.alloc(16);
@@ -307,7 +310,7 @@ function buildArsc(opts: {
     if (path !== undefined && fileIndex.has(path)) {
       e.writeUInt16LE(8, 0);            // ResTable_entry.size
       e.writeUInt16LE(0, 2);            // simple entry
-      e.writeUInt32LE(keyIndex, 4);
+      e.writeUInt32LE(mipmapKeyIndex(opts.keyNames[i]), 4);
       e.writeUInt8(0x03, 11);           // Res_value dataType = string
       e.writeUInt32LE(fileIndex.get(path)!, 12);
     }
@@ -327,7 +330,7 @@ function buildArsc(opts: {
       const e = Buffer.alloc(size);
       e.writeUInt16LE(size, 0);
       e.writeUInt16LE(0x0001, 2);     // FLAG_COMPLEX
-      e.writeUInt32LE(i, 4);
+      e.writeUInt32LE(mipmapKeyIndex(opts.keyNames[i]), 4);
       e.writeUInt32LE(0, 8);           // parent
       e.writeUInt32LE(paths.length, 12);
       paths.forEach((p, m) => {
@@ -346,13 +349,13 @@ function buildArsc(opts: {
   // does not carry are left as zero-size gaps.
   const chunks: Buffer[] = opts.configChunks
     ? Object.values(opts.configChunks).map((cfg) => typeChunkFor(
-        opts.keyNames.map((keyName, i) => encodeEntry(i, (cfg[keyName] ?? []).filter((q) => fileIndex.has(q))))
+        opts.keyNames.map((keyName) => encodeEntry(keyName, (cfg[keyName] ?? []).filter((q) => fileIndex.has(q))))
       ))
     : [typeChunkFor(entries)];
   const colourEntry = Buffer.alloc(16);
   colourEntry.writeUInt16LE(8, 0);
   colourEntry.writeUInt16LE(0, 2);
-  colourEntry.writeUInt32LE(0, 4);                        // index in the colour key pool
+  colourEntry.writeUInt32LE(colourKeyIndex, 4);           // index in the package key pool
   colourEntry.writeUInt16LE(8, 8);
   colourEntry.writeUInt8(0x03, 11);
   colourEntry.writeUInt32LE(fileIndex.get('res/values/colors.xml')!, 12);
@@ -364,8 +367,7 @@ function buildArsc(opts: {
   // Key pools follow the type chunks in type-id order, which is how a reader
   // pairs them back to their type.
   const keyStringsOffset = align4(typeStringsOffset + types.size);
-  const mipmapKeyStringsOffset = align4(keyStringsOffset + colourKeys.size);
-  const packageSize = mipmapKeyStringsOffset + keys.size;
+  const packageSize = keyStringsOffset + keys.size;
   const pkg = Buffer.alloc(packageSize);
   pkg.writeUInt16LE(0x0200, 0);
   pkg.writeUInt16LE(288, 2);
@@ -378,8 +380,7 @@ function buildArsc(opts: {
   for (const spec of allSpecs) { spec.copy(pkg, chunkAt); chunkAt += spec.length; }
   for (const c of chunks) { c.copy(pkg, chunkAt); chunkAt += c.length; }
   types.buf.copy(pkg, typeStringsOffset);
-  colourKeys.buf.copy(pkg, keyStringsOffset);
-  keys.buf.copy(pkg, mipmapKeyStringsOffset);
+  keys.buf.copy(pkg, keyStringsOffset);
 
   const tableSize = 12 + global.size + packageSize;
   const table = Buffer.alloc(tableSize);
@@ -441,9 +442,11 @@ const PACKAGE_ID = 0x7f;
 // mapping key pools back to the right type.
 const TYPE_ID = 8;
 const COLOUR_TYPE_ID = 4;
-const ICON_ENTRY = 0;
-const ROUND_ENTRY = 1;
-const FOREGROUND_ENTRY = 2;
+// Keys are numbered across the whole package and aapt2 puts the colour type's
+// key first, so the mipmap keys start after it.
+const ICON_ENTRY = 1;
+const ROUND_ENTRY = 2;
+const FOREGROUND_ENTRY = 3;
 /** `@color/ic_launcher_background` and `@mipmap/ic_launcher_foreground`. */
 const COLOUR_ID = (PACKAGE_ID << 24) | (COLOUR_TYPE_ID << 16);
 const FOREGROUND_ID = (PACKAGE_ID << 24) | (TYPE_ID << 16) | FOREGROUND_ENTRY;
@@ -728,7 +731,7 @@ describe('APK launcher icon verification', () => {
     const root = realIconProject('good');
     const r = verifyApkLauncherIconFromBuffer(apkWithIcon({ projectRoot: root }), expectations(root));
     assert.strictEqual(r.valid, true, r.errors.join('; '));
-    assert.strictEqual(r.manifestIconResourceId, `0x${((PACKAGE_ID << 24) | (TYPE_ID << 16)).toString(16)}`);
+    assert.strictEqual(r.manifestIconResourceId, `0x${((PACKAGE_ID << 24) | (TYPE_ID << 16) | ICON_ENTRY).toString(16)}`);
     assert.strictEqual(r.manifestIconType, 'mipmap');
     assert.ok(r.similarity! <= 20);
     assert.strictEqual(r.byteIdentical, true, 'the compiled PNG should be the generated PNG');
