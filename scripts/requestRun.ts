@@ -46,6 +46,62 @@ function git(args: string[]): string {
   return execFileSync('git', args, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 }
 
+function tryGit(args: string[]): boolean {
+  try {
+    git(args);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Pushes a commit onto a branch that the fleet is writing to at the same time.
+ * A run that publishes its live state, or records a request of its own, moves
+ * `origin/main` underneath this process, so a bare push is rejected more often
+ * than not. The commit being pushed only ever touches `.builder/requests`,
+ * which nothing else writes, so replaying it on top of whatever arrived is
+ * safe; a rebase that cannot be completed is abandoned and retried rather than
+ * left half-applied.
+ */
+function pushWithRebase(message: string, attempts = 4): string {
+  git(['add', '-A', '.builder/requests']);
+  if (!git(['status', '--porcelain', '.builder/requests'])) {
+    return 'nothing to push';
+  }
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    // A replay that succeeded has already carried the commit with it, so the
+    // commit is made only when something is actually staged for it.
+    const staged = git(['diff', '--cached', '--name-only', '--', '.builder/requests']);
+    if (staged) {
+      git(['commit', '-m', message, '--only', '--', '.builder/requests']);
+    }
+
+    try {
+      git(['push', 'origin', `HEAD:${BRANCH}`]);
+      return 'pushed';
+    } catch (e: any) {
+      const detail = e.stderr?.toString() || e.message || '';
+      const behind = /cannot lock ref|fetch first|non-fast-forward|rejected|stale info/i.test(detail);
+      if (!behind || attempt === attempts) {
+        console.error(`Could not push the run request to ${BRANCH}:\n${detail.trim()}`);
+        process.exit(1);
+      }
+      console.log(`${BRANCH} moved while the request was being recorded; replaying on top of it (${attempt}/${attempts - 1}).`);
+      if (!tryGit(['fetch', 'origin', BRANCH])) {
+        console.error(`Could not fetch ${BRANCH} to replay the request on top of it.`);
+        process.exit(1);
+      }
+      if (!tryGit(['rebase', `origin/${BRANCH}`])) {
+        tryGit(['rebase', '--abort']);
+        console.log('The replay conflicted and was abandoned; starting it again from the current branch.');
+      }
+    }
+  }
+  return 'pushed';
+}
+
 function gh(args: string[]): string {
   return execFileSync('gh', args, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 }
@@ -101,13 +157,10 @@ const redriveCmd =
 // Durability first: the record has to be on the remote before the dispatch, or a
 // dropped dispatch takes the idea with it.
 if (!flag('no-push')) {
-  git(['add', '-A', '.builder/requests']);
-  const dirty = git(['status', '--porcelain', '.builder/requests']);
-  if (dirty) {
-    git(['commit', '-m', `builder: record run request ${request.requestId}`]);
-    git(['push', 'origin', BRANCH]);
-  }
-  console.log(`Request ${request.requestId} is on ${BRANCH}`);
+  const outcome = pushWithRebase(`builder: record run request ${request.requestId}`);
+  console.log(outcome === 'pushed'
+    ? `Request ${request.requestId} is on ${BRANCH}`
+    : `Request ${request.requestId} was already on ${BRANCH}`);
 }
 
 let runId = '';
@@ -158,11 +211,8 @@ const saved = recordDispatch(request.requestId, {
 })!;
 
 if (!flag('no-push')) {
-  git(['add', '-A', '.builder/requests']);
-  if (git(['status', '--porcelain', '.builder/requests'])) {
-    git(['commit', '-m', `builder: run ${runId} dispatched for ${saved.requestId}`]);
-    git(['push', 'origin', BRANCH]);
-  }
+  const outcome = pushWithRebase(`builder: run ${runId} dispatched for ${saved.requestId}`);
+  if (outcome === 'pushed') console.log(`Run ${runId} is recorded for ${saved.requestId}`);
 }
 
 console.log(JSON.stringify({

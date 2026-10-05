@@ -163,11 +163,14 @@ describe('the pipeline keeps GitHub as the source of truth', () => {
   test('run requests are recorded in the repository before a dispatch is sent', () => {
     const script = readFileSync(join(REPO, 'scripts/requestRun.ts'), 'utf-8');
     const writeAt = script.indexOf('writeRequest(request)');
-    const pushAt = script.indexOf("git(['push', 'origin', BRANCH])");
+    const pushAt = script.indexOf('pushWithRebase(`builder: record run request');
     const dispatchAt = script.indexOf("gh(['workflow', 'run', WORKFLOW");
     assert.ok(writeAt > -1 && pushAt > -1 && dispatchAt > -1, 'the script must write, push and dispatch');
     assert.ok(writeAt < pushAt, 'the request is written before it is pushed');
     assert.ok(pushAt < dispatchAt, 'the request reaches the remote before the dispatch is sent');
+    // The fleet commits to the same branch the request is recorded on, so the
+    // push has to survive losing that race rather than dropping the idea.
+    assert.match(script, /rebase/i, 'a branch that moves must be replayed on, not lost');
   });
 
   test('a redrive reuses the open request instead of recording the idea twice', () => {

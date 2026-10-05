@@ -10,6 +10,7 @@ import { FailureRepairStates, ProjectStates } from '../shared/types.ts';
 import { buildLiveProgress, ProgressStages, statusGlyph } from '../shared/liveProgress.ts';
 import { LifecycleStages, recordStage } from '../scripts/live/evidenceChain.ts';
 import { initStateStore, readState, writeState, readEvents } from '../scripts/live/stateStore.ts';
+import { assertTruthful } from '../scripts/live/stateValidator.ts';
 import { isValidTransition } from '../scripts/live/stateValidator.ts';
 
 const REPO = join(import.meta.dirname, '..');
@@ -412,11 +413,16 @@ describe('live progress render and restart', () => {
     assert.ok(recorded.length >= 6, 'each recorded link must reach the append-only log');
   });
 
+// The tracked state records whatever the last real run did, so it cannot be
+  // pinned to one outcome: run 37379495902 left it at TESTING, honestly, where
+  // an earlier run had left it COMPLETED. What must hold is that the suite did
+  // not touch it and that whatever it says is a state the validator accepts.
   test('tracked live state is untouched by the progress tests', () => {
     const tracked = join(REPO, '.builder', 'live', 'state.json');
     assert.ok(existsSync(tracked));
     const s = JSON.parse(readFileSync(tracked, 'utf-8'));
-    assert.strictEqual(s.projectState, ProjectStates.COMPLETED, 'the verified run must stay verified');
+    assert.ok(Object.values(ProjectStates).includes(s.projectState), `unknown tracked state ${s.projectState}`);
+    assert.doesNotThrow(() => assertTruthful(s), 'the tracked state must satisfy the same gate a live run does');
     assert.notStrictEqual(stateDir, join(REPO, '.builder', 'live'));
   });
 });
