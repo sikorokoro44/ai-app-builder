@@ -213,6 +213,12 @@ function buildArsc(opts: {
    * densities. When omitted each key gets the single file at the same index.
    */
   keyPaths?: Record<string, string[]>;
+  /**
+   * Emit each config as its own ResTable_type chunk, keyed by config name, with
+   * keys absent from that config recorded as zero-size gaps. This is the shape a
+   * real APK has: one chunk per configuration, not one chunk for everything.
+   */
+  configChunks?: Record<string, Record<string, string[]>>;
 }): Buffer {
   const typeName = opts.typeName || 'mipmap';
   const typeId = 1;
@@ -234,6 +240,52 @@ function buildArsc(opts: {
   const configSize = 64;
   const headerEnd = 20;
   const entriesStart = headerEnd + configSize;
+
+  // Encodes one entry for `path` under `keyIndex`, as a map when the key has
+  // several configurations, so a chunk can carry a key's values together.
+  const encodeEntry = (keyIndex: number, paths: string[]): Buffer => {
+    if (paths.length === 0) return Buffer.alloc(8);        // absent: size 0 header only
+    if (paths.length === 1) {
+      const e = Buffer.alloc(16);
+      e.writeUInt16LE(8, 0);                                // ResTable_entry.size (header only)
+      e.writeUInt16LE(0, 2);                                // simple entry
+      e.writeUInt32LE(keyIndex, 4);
+      e.writeUInt16LE(8, 8);                                // Res_value.size
+      e.writeUInt8(0x03, 11);                               // Res_value dataType = string
+      e.writeUInt32LE(fileIndex.get(paths[0])!, 12);
+      return e;
+    }
+    const size = 16 + paths.length * 12;
+    const e = Buffer.alloc(size);
+    e.writeUInt16LE(size, 0);
+    e.writeUInt16LE(0x0001, 2);                             // FLAG_COMPLEX
+    e.writeUInt32LE(keyIndex, 4);
+    e.writeUInt32LE(0, 8);                                   // parent
+    e.writeUInt32LE(paths.length, 12);
+    paths.forEach((p, m) => {
+      const at = 16 + m * 12;
+      e.writeUInt32LE(0, at);                                // ResTable_ref.name, unused
+      e.writeUInt8(0x03, at + 7);                            // Res_value dataType = string
+      e.writeUInt32LE(fileIndex.get(p)!, at + 8);
+    });
+    return e;
+  };
+
+  const typeChunkFor = (body: Buffer[]): Buffer => {
+    const size = entriesStart + body.reduce((n, e) => n + e.length, 0);
+    const c = Buffer.alloc(size);
+    c.writeUInt16LE(0x0201, 0);
+    c.writeUInt16LE(16, 2);
+    c.writeUInt32LE(size, 4);
+    c.writeUInt8(typeId, 8);
+    c.writeUInt32LE(entryCount, 12);
+    c.writeUInt32LE(entriesStart, 16);
+    c.writeUInt32LE(configSize, 20);
+    let at = entriesStart;
+    for (const e of body) { e.copy(c, at); at += e.length; }
+    return c;
+  };
+
   const entries: Buffer[] = [];
   for (let i = 0; i < entryCount; i++) {
     const keyIndex = i;
@@ -277,19 +329,16 @@ function buildArsc(opts: {
     entries.push(...maps);
   }
 
-  const typeSize = entriesStart + entries.reduce((n, e) => n + e.length, 0);
-  const typeChunk = Buffer.alloc(typeSize);
-  typeChunk.writeUInt16LE(0x0201, 0);
-  typeChunk.writeUInt16LE(16, 2);
-  typeChunk.writeUInt32LE(typeSize, 4);
-  typeChunk.writeUInt8(typeId, 8);
-  typeChunk.writeUInt32LE(entryCount, 12);
-  typeChunk.writeUInt32LE(entriesStart, 16);
-  typeChunk.writeUInt32LE(configSize, 20);
-  let at = entriesStart;
-  for (const e of entries) { e.copy(typeChunk, at); at += e.length; }
+  // One chunk per configuration, which is what aapt2 emits. Keys a configuration
+  // does not carry are left as zero-size gaps.
+  const chunks: Buffer[] = opts.configChunks
+    ? Object.values(opts.configChunks).map((cfg) => typeChunkFor(
+        opts.keyNames.map((keyName, i) => encodeEntry(i, (cfg[keyName] ?? []).filter((q) => fileIndex.has(q))))
+      ))
+    : [typeChunkFor(entries)];
+  const typeBytes = chunks.reduce((n, c) => n + c.length, 0);
 
-  const typeStringsOffset = align4(288 + typeSpecSize + typeSize);
+  const typeStringsOffset = align4(288 + typeSpecSize + typeBytes);
   const keyStringsOffset = align4(typeStringsOffset + types.size);
   const packageSize = keyStringsOffset + keys.size;
   const pkg = Buffer.alloc(packageSize);
@@ -300,7 +349,8 @@ function buildArsc(opts: {
   pkg.writeUInt32LE(typeStringsOffset, 268);
   pkg.writeUInt32LE(keyStringsOffset, 276);
   typeSpec.copy(pkg, 288);
-  typeChunk.copy(pkg, 288 + typeSpecSize);
+  let chunkAt = 288 + typeSpecSize;
+  for (const c of chunks) { c.copy(pkg, chunkAt); chunkAt += c.length; }
   types.buf.copy(pkg, typeStringsOffset);
   keys.buf.copy(pkg, keyStringsOffset);
 
@@ -577,6 +627,56 @@ describe('APK launcher icon verification', () => {
     assert.strictEqual(densities.length, Object.keys(LEGACY_ICON_SIZES).length);
     assert.ok(densities.every((q) => /-v4\//.test(q)),
       `every compiled density path should carry the qualifier, got ${densities.join(', ')}`);
+  });
+
+  test('a resource split across per-configuration chunks is still fully read', () => {
+    // AAPT2 emits one ResTable_type chunk per configuration and marks the keys a
+    // configuration does not carry with a zero-size entry. A reader that stops at
+    // the first such gap silently drops every later entry, which loses the round
+    // icon's densities while the legacy ones still verify.
+    const root = realIconProject('per-config-chunks');
+    const paths = generatedIconPaths();
+    const chunks: Record<string, Record<string, string[]>> = {};
+    for (const d of Object.keys(LEGACY_ICON_SIZES)) {
+      chunks[d] = {
+        [ICON_RESOURCE_NAME]: [`res/mipmap-${d}-v4/${ICON_RESOURCE_NAME}.png`],
+        [ROUND_ICON_RESOURCE_NAME]: [`res/mipmap-${d}-v4/${ROUND_ICON_RESOURCE_NAME}.png`],
+        [FOREGROUND_RESOURCE_NAME]: [`res/mipmap-${d}-v4/${FOREGROUND_RESOURCE_NAME}.png`]
+      };
+    }
+    // The adaptive configuration carries only the two XMLs, so the foreground key
+    // is a gap in the middle of that chunk's entry array.
+    chunks['anydpi-v26'] = {
+      [ICON_RESOURCE_NAME]: [`res/mipmap-anydpi-v26/${ICON_RESOURCE_NAME}.xml`],
+      [ROUND_ICON_RESOURCE_NAME]: [`res/mipmap-anydpi-v26/${ROUND_ICON_RESOURCE_NAME}.xml`],
+      [FOREGROUND_RESOURCE_NAME]: []
+    };
+    const entries: { name: string; data: Buffer; store?: boolean }[] = [
+      { name: 'AndroidManifest.xml', store: true, data: buildManifest({
+        packageName: 'com.builder.todo',
+        iconId: (PACKAGE_ID << 24) | (TYPE_ID << 16) | ICON_ENTRY,
+        roundIconId: (PACKAGE_ID << 24) | (TYPE_ID << 16) | ROUND_ENTRY
+      }) },
+      { name: 'resources.arsc', data: buildArsc({
+        packageId: PACKAGE_ID,
+        filePaths: Object.values(chunks).flatMap((cfg) => Object.values(cfg).flat()),
+        keyNames: [ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME, ICON_BACKGROUND_COLOR_NAME],
+        configChunks: chunks
+      }) }
+    ];
+    for (const d of Object.keys(LEGACY_ICON_SIZES)) {
+      for (const file of [`${ICON_RESOURCE_NAME}.png`, `${ROUND_ICON_RESOURCE_NAME}.png`, `${FOREGROUND_RESOURCE_NAME}.png`]) {
+        entries.push({
+          name: `res/mipmap-${d}-v4/${file}`,
+          data: readFileSync(join(root, 'app', 'src', 'main', 'res', `mipmap-${d}`, file))
+        });
+      }
+    }
+    for (const rel of paths.adaptive) entries.push({ name: rel, data: buildAdaptiveXml() });
+
+    const r = verifyApkLauncherIconFromBuffer(zip(entries), expectations(root));
+    assert.strictEqual(r.valid, true, r.errors.join('; '));
+    assert.deepStrictEqual(r.matchedDensities, Object.keys(LEGACY_ICON_SIZES));
   });
 
   test('an APK carrying the generated icon passes', () => {

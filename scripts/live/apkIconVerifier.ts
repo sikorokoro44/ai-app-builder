@@ -263,7 +263,7 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
  * holding one value per configuration, which is what a real APK uses for a
  * resource that exists at several densities.
  */
-export function indexResourceFiles(arsc: Buffer): Map<string, string[]> {
+export function indexResourceFiles(arsc: Buffer, trace?: string[]): Map<string, string[]> {
   const out = new Map<string, string[]>();
   if (arsc.length < 12 || arsc.readUInt16LE(0) !== RES_TABLE_TYPE) return out;
   const tableSize = Math.min(arsc.readUInt32LE(4), arsc.length);
@@ -321,15 +321,33 @@ export function indexResourceFiles(arsc: Buffer): Map<string, string[]> {
         let p = inner + entriesStart;
         for (let i = 0; i < entryCount && p + 16 <= arsc.length && p + 8 <= packageEnd; i++) {
           const entrySize = arsc.readUInt16LE(p);
+          if (trace && trace.length < 400) {
+            trace.push(`${typeName} entry ${i} at ${p}: size=${entrySize} flags=0x${arsc.readUInt16LE(p + 2).toString(16)} ` +
+              `key=${keyNames[arsc.readUInt32LE(p + 4)] ?? arsc.readUInt32LE(p + 4)}`);
+          }
           const flags = arsc.readUInt16LE(p + 2);
           const keyName = keyNames[arsc.readUInt32LE(p + 4)];
+          // A configuration that does not carry an entry records size 0. Step over
+          // the fixed header and keep going: stopping here drops every later entry,
+          // which is how the round icon's densities went missing from its key.
+          if (entrySize === 0) { p += 8; continue; }
           if (entrySize < 8) break;
+          // A simple entry's `size` covers only its own 8-byte header; the
+          // Res_value that follows is counted separately, so the bytes actually
+          // occupied are 8 + that value's size. A map entry's `size` already
+          // covers the whole list. Getting this wrong desynchronises the walk and
+          // silently attributes later densities to the wrong resource key.
+          const total = (flags & 0x0001)
+            ? entrySize
+            : entrySize === 8
+              ? 8 + arsc.readUInt16LE(p + 8)
+              : entrySize;
           if (flags & 0x0001) {
             // ResTable_map_list is ResTable_entry { size, flags, key } followed by
             // { parent, count }, so the values start at a fixed 16 bytes in, not at
             // `entrySize`, which is where the whole entry ends.
             const count = arsc.readUInt32LE(p + 12);
-            const listEnd = Math.min(p + entrySize, arsc.length);
+            const listEnd = Math.min(p + total, arsc.length);
             let q = p + 16;
             for (let m = 0; m < count && q + 12 <= listEnd; m++) {
               // ResTable_map: ResTable_ref { name } then Res_value { size, res0, dataType, data }.
@@ -339,7 +357,7 @@ export function indexResourceFiles(arsc: Buffer): Map<string, string[]> {
           } else if (arsc[p + 11] === 0x03) {
             add(typeName, keyName, globalStrings[arsc.readUInt32LE(p + 12)]);
           }
-          p += entrySize;
+          p += total;
         }
       }
       inner += innerSize;
@@ -523,7 +541,8 @@ export function verifyApkLauncherIconFromBuffer(
   // then locate each expected density by the size of the compiled PNG. Keying on
   // pixel size rather than on a reconstructed path is what makes this survive
   // AAPT2's compile-time rewrite of resource directories.
-  const filesByKey = indexResourceFiles(arsc);
+  const trace: string[] = [];
+  const filesByKey = indexResourceFiles(arsc, trace);
   const keyFor = {
     legacy: `${iconTypeName}/${ICON_RESOURCE_NAME}`,
     round: `${iconTypeName}/${ROUND_ICON_RESOURCE_NAME}`,
@@ -555,6 +574,9 @@ export function verifyApkLauncherIconFromBuffer(
         `${keyFor[check.kind]} at the ${check.density} density (it maps ${have})`
       );
     }
+  }
+  if (errors.length > 0 && trace.length > 0) {
+    errors.push(`Compiled resource table walk:\n${trace.slice(0, 120).join('\n')}`);
   }
   // Resolved the same way as the densities: the adaptive XML is whichever file
   // the icon and round keys actually point at, not a rebuilt `anydpi-v26` path.
