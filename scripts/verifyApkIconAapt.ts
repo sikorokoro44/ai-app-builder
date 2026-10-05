@@ -120,16 +120,40 @@ function packagedEntryNames(apk: string): Set<string> {
   return new Set(entries.map((e) => e.name));
 }
 
-/** Resource ids referenced from an `aapt2 dump xmltree` attribute value. */
+/**
+ * Resource ids referenced from an `aapt2 dump xmltree` attribute value.
+ *
+ * aapt2 renders a reference as `attr(0x01010199)=@0x7f0a0006`, so an attribute
+ * line carries two ids: the framework attribute's own id first, then the
+ * resource it points at. The resource is always the last id on the line, which
+ * holds for the typed inline form too, e.g. `=(type 0x12)0x7f0a0006`.
+ */
 function parseReferences(xmltree: string): number[] {
   const out: number[] = [];
-  for (const m of xmltree.matchAll(/\(type\s+\S+\)\s*(0x[0-9a-fA-F]+)/g)) {
-    out.push(Number.parseInt(m[1], 16));
+  for (const line of xmltree.split('\n')) {
+    if (!/^\s*A:\s/.test(line)) continue;
+    const ids = [...line.matchAll(/0x[0-9a-fA-F]+/g)];
+    if (ids.length < 2) continue;
+    out.push(Number.parseInt(ids[ids.length - 1][0], 16));
   }
   return out;
 }
 
-/** Reads `android:icon` / `android:roundIcon` from the `<application>` element. */
+/**
+ * Reads `android:icon` / `android:roundIcon` off the `<application>` element.
+ *
+ * aapt2 prints the attribute name fully qualified and the value as a resource
+ * reference, e.g.
+ *
+ *   A: http://schemas.android.com/apk/res/android:icon(0x01010002)=@0x7f080000
+ *
+ * so the local name is whatever follows the last `:` before `(0x...)`, and the
+ * value is the id after the `=@`. Matching the namespace with `\w+` is not
+ * enough: a URI namespace contains `/` and `.`, and a looser match happily
+ * accepts an unrelated attribute whose name merely contains "icon".
+ */
+const APP_ICON_ATTR = /^A:\s+(?:[^\s=]*:)?(icon|roundIcon)\(0x[0-9a-fA-F]+\)=@?(0x[0-9a-fA-F]+)/;
+
 export function parseApplicationIcons(xmltree: string): { icon?: number; roundIcon?: number } {
   const out: { icon?: number; roundIcon?: number } = {};
   const lines = xmltree.split('\n');
@@ -137,26 +161,37 @@ export function parseApplicationIcons(xmltree: string): { icon?: number; roundIc
   if (start < 0) return out;
   for (let i = start + 1; i < lines.length; i++) {
     if (/^\s*E:\s/.test(lines[i])) break;   // the next element ends <application>
-    // A: android:icon(0x01010002)=(type 0x12)0x7f010000 or (type 0x1) etc
-    const m = /A:\s+(?:[\w-]+:)?(icon|roundIcon)/.exec(lines[i].trim());
+    const m = APP_ICON_ATTR.exec(lines[i].trim());
     if (!m) continue;
-    const hexes = lines[i].match(/0x[0-9a-fA-F]+/g);
-    if (!hexes || hexes.length < 2) continue;
-    const value = Number.parseInt(hexes[hexes.length - 1], 16);
+    const value = Number.parseInt(m[2], 16);
     if (m[1] === 'icon') out.icon = value;
     else out.roundIcon = value;
   }
   return out;
 }
 
+/**
+ * Dumps one compiled XML from the APK, or returns null when aapt2 will not.
+ *
+ * `aapt2 dump xmltree` is documented as `--file <entry> <apk>`, but aapt2's
+ * argument parser also accepts the flags after the archive. Both spellings are
+ * tried so the audit does not hinge on which one this build-tools release
+ * happens to prefer; a null still means the file could not be read, and the
+ * caller treats that as a failure.
+ */
 function tryDumpXml(bin: string, apk: string, entry: string): string | null {
-  try {
-    return execFileSync(bin, ['dump', 'xmltree', apk, '--file', entry], {
-      encoding: 'utf8', maxBuffer: 16 * 1024 * 1024
-    });
-  } catch {
-    return null;
+  const orderings = [
+    ['dump', 'xmltree', '--file', entry, apk],
+    ['dump', 'xmltree', apk, '--file', entry]
+  ];
+  for (const args of orderings) {
+    try {
+      return execFileSync(bin, args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    } catch {
+      // Try the next spelling before giving up.
+    }
   }
+  return null;
 }
 
 export interface AaptIconAudit {

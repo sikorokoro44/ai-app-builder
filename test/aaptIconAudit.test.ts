@@ -55,12 +55,17 @@ interface FakeApk {
 }
 
 /** A compiled resource XML references layers by resource id, not by name. */
+/**
+ * Renders a compiled adaptive icon the way `aapt2 dump xmltree` prints it:
+ * URI-qualified attribute names and `@`-prefixed resource references.
+ */
 function adaptiveXmlTree(backgroundId: number | null, foregroundId: number): string {
-  const lines = ['N: http://schemas.android.com/apk/res/android', '  E: adaptive-icon (line=2)'];
+  const NS = 'http://schemas.android.com/apk/res/android';
+  const lines = [`N: ${NS}`, '  E: adaptive-icon (line=2)'];
   if (backgroundId !== null) {
-    lines.push('    E: background', `      A: android:drawable(0x01010199)=(type 0x12)0x${backgroundId.toString(16)}`);
+    lines.push('    E: background (line=3)', `      A: ${NS}:drawable(0x01010199)=@0x${backgroundId.toString(16)}`);
   }
-  lines.push('    E: foreground', `      A: android:drawable(0x01010199)=(type 0x12)0x${foregroundId.toString(16)}`);
+  lines.push('    E: foreground (line=4)', `      A: ${NS}:drawable(0x01010199)=@0x${foregroundId.toString(16)}`);
   return lines.join('\n') + '\n';
 }
 
@@ -100,24 +105,37 @@ function resourceDump(apk: FakeApk): string {
   return lines.join('\n') + '\n';
 }
 
+/**
+ * Renders the manifest the way `aapt2 dump xmltree` actually prints it.
+ *
+ * The attribute name is fully URI-qualified and the value is written as a
+ * resource reference, which is what build-tools 35.0.0 emits. Reproducing that
+ * exactly is the point: a fixture written in a hand-rolled shape agrees with
+ * whichever parser was written against it and hides the real format.
+ */
 function manifestTree(apk: FakeApk): string {
+  const NS = 'http://schemas.android.com/apk/res/android';
   const lines = [
-    'N: android=http://schemas.android.com/apk/res/android',
-    '  E: manifest',
-    '    E: application',
-    '      A: android:label(0x01010001)=(type 0x03)"Todo"'
+    `N: ${NS}`,
+    '  E: manifest (line=2)',
+    '    E: application (line=19)',
+    `      A: ${NS}:label(0x01010001)=@0x7f090002`
   ];
   if (apk.declaredIconId !== undefined) {
-    lines.push(`      A: android:icon(0x01010002)=(type 0x12)0x${apk.declaredIconId.toString(16)}`);
+    lines.push(`      A: ${NS}:icon(0x01010002)=@0x${apk.declaredIconId.toString(16)}`);
   } else if (apk.iconTarget) {
     const id = apk.entries.get(apk.iconTarget)?.id;
-    if (id !== undefined) lines.push(`      A: android:icon(0x01010002)=(type 0x12)0x${id.toString(16)}`);
+    if (id !== undefined) lines.push(`      A: ${NS}:icon(0x01010002)=@0x${id.toString(16)}`);
   }
   if (apk.roundTarget) {
     const id = apk.entries.get(apk.roundTarget)?.id;
-    if (id !== undefined) lines.push(`      A: android:roundIcon(0x0101052c)=(type 0x12)0x${id.toString(16)}`);
+    if (id !== undefined) lines.push(`      A: ${NS}:roundIcon(0x0101052c)=@0x${id.toString(16)}`);
   }
-  lines.push('    E: activity', '      A: android:name(0x01010003)=(type 0x03)"MainActivity"');
+  lines.push(
+    `      A: ${NS}:debuggable(0x0101000f)=true`,
+    '    E: activity (line=23)',
+    `      A: ${NS}:name(0x01010003)=(type 0x03)"MainActivity"`
+  );
   return lines.join('\n') + '\n';
 }
 
@@ -249,6 +267,48 @@ describe('aapt2 output parsing', () => {
 
   test('an attribute on a later element is not mistaken for the application icon', () => {
     const tree = '  E: application\n    E: activity\n      A: android:icon(0x01010002)=(type 0x12)0x7f01dead\n';
+    assert.strictEqual(parseApplicationIcons(tree).icon, undefined);
+  });
+
+  test('aapt2 URI-qualified attribute names are read', () => {
+    // Captured verbatim from build-tools 35.0.0 on a real build. The namespace
+    // is a URI, so a matcher that only accepts `android:icon` reports a correct
+    // manifest as having no icon at all.
+    const tree = [
+      'N: http://schemas.android.com/apk/res/android',
+      '  E: application (line=19)',
+      '    A: http://schemas.android.com/apk/res/android:theme(0x01010000)=@0x7f0a0008',
+      '    A: http://schemas.android.com/apk/res/android:label(0x01010001)=@0x7f090002',
+      '    A: http://schemas.android.com/apk/res/android:icon(0x01010002)=@0x7f080000',
+      '    A: http://schemas.android.com/apk/res/android:debuggable(0x0101000f)=true',
+      '    A: http://schemas.android.com/apk/res/android:roundIcon(0x0101052c)=@0x7f080002',
+      '    A: http://schemas.android.com/apk/res/android:appComponentFactory(0x0101057a)="androidx.core.app.CoreComponentFactory"',
+      ''
+    ].join('\n');
+    assert.deepStrictEqual(parseApplicationIcons(tree), { icon: 0x7f080000, roundIcon: 0x7f080002 });
+  });
+
+  test('the resource id is the referenced value, not the framework attribute id', () => {
+    // Both ids sit on the line: 0x01010002 is `android:icon` itself and 0x7f080000
+    // is what it points at. Reading the wrong one resolves into the framework
+    // package and rejects a correct APK.
+    const tree = '  E: application\n    A: android:roundIcon(0x0101052c)=@0x7f080002\n';
+    assert.deepStrictEqual(parseApplicationIcons(tree), { roundIcon: 0x7f080002 });
+  });
+
+  test('an unrelated attribute containing "icon" is not read as the launcher icon', () => {
+    const tree = [
+      '  E: application',
+      '    A: android:appComponentFactory(0x0101057a)="com.example.IconFactory"',
+      '    A: android:icon(0x01010002)=@0x7f080000',
+      ''
+    ].join('\n');
+    assert.strictEqual(parseApplicationIcons(tree).icon, 0x7f080000);
+  });
+
+  test('an icon set to a literal string is not treated as a resource reference', () => {
+    // A literal cannot be the generated mipmap, so there is nothing to resolve.
+    const tree = '  E: application\n    A: android:icon(0x01010002)=(type 0x03)"android/drawable/other"\n';
     assert.strictEqual(parseApplicationIcons(tree).icon, undefined);
   });
 
