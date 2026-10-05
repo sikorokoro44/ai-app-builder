@@ -50,6 +50,18 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      # `actions/checkout` configures credentials but no author identity, so
+      # every commit made in this job exits 128 with "Author identity unknown"
+      # until something sets one. repo-publisher commits the generated app as
+      # its first act, which is where run 37379495902 died. The script also
+      # checks for itself; this keeps the identity available to every step in
+      # the job rather than to one that happens to run first.
+      - name: Give the job an identity to commit with
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config --get user.email
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

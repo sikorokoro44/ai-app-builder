@@ -49,6 +49,7 @@ const checks = [
   'scripts/live/runRequests.ts',
   'scripts/live/workflowWatcher.ts',
   'scripts/live/failureClassifier.ts',
+  'scripts/live/gitIdentity.ts',
   'scripts/apkVerify.ts',
   'scripts/artifactVerify.ts',
   'opencode/live-view-visual.ts',

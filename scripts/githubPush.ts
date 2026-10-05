@@ -3,6 +3,7 @@ import { execFileSync } from 'child_process';
 import { initStateStore, readState, writeState, appendEvent } from './live/stateStore.ts';
 import { persistCheckpoint } from './live/checkpointStore.ts';
 import { assertRepoSafety, assertNoSecretsInFiles, REQUIRED_REPO } from './live/repoGuard.ts';
+import { ensureCommitIdentity } from './live/gitIdentity.ts';
 import { recordStage } from './live/evidenceChain.ts';
 import { assertValidTransition } from './live/stateValidator.ts';
 import { ProjectStates, Events } from '../shared/types.ts';
@@ -74,7 +75,28 @@ s.latestActivity = 'Pushing generated sources to GitHub';
 persistCheckpoint('pre-push', s);
 writeState(s);
 
+const identity = ensureCommitIdentity(process.cwd());
+if (!identity.ok) {
+  console.error(`Refusing to push: ${identity.reason}`);
+  process.exit(1);
+}
+
 execFileSync('git', ['add', '-A'], { stdio: 'inherit' });
+
+// `status --porcelain` can report entries that `add -A` stages nothing for, so
+// an empty index here is a fact to record rather than a git error to crash on.
+let staged = 0;
+try {
+  staged = Number(execFileSync('git', ['diff', '--cached', '--name-only'], { encoding: 'utf-8' }).trim().split('\n').filter(Boolean).length) || 0;
+} catch {
+  staged = 0;
+}
+
+if (staged === 0) {
+  console.error('Refusing to push: the tree is dirty but nothing can be staged. Nothing was committed.');
+  process.exit(1);
+}
+
 execFileSync('git', ['commit', '-m', process.env.BUILDER_COMMIT_MESSAGE || 'builder: generated app sources'], { stdio: 'inherit' });
 execFileSync('git', ['push', 'origin', guard.branch], { stdio: 'inherit' });
 
