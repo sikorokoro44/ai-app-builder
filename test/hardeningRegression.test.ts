@@ -32,6 +32,18 @@ function run(script: string, args: string[] = [], env: Record<string, string> = 
   }
 }
 
+describe('release asset naming', () => {
+  test('the published asset is named from the recorded name, not the local file', () => {
+    // `gh release create path#label` only sets the label: the asset is named after
+    // the file. If the APK is called app-debug-<run>.apk locally, the recorded URL
+    // points at an asset that was never published, and the public download 404s.
+    const src = readFileSync(join(REPO, 'scripts', 'releaseArtifact.ts'), 'utf-8');
+    assert.doesNotMatch(src, /`\$\{assetPath\}#\$\{assetName\}`/, 'asset upload must not rely on the gh label syntax');
+    assert.match(src, /copyFileSync\(assetPath, stagedPath\)/, 'the APK must be staged under the asset name');
+    assert.match(src, /join\(staging, assetName\)/);
+  });
+});
+
 function stateOnDisk(): any {
   return JSON.parse(readFileSync(join(STATE_DIR, 'state.json'), 'utf-8'));
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'child_process';
-import { existsSync, statSync, readFileSync, mkdtempSync, rmSync } from 'fs';
+import { existsSync, statSync, readFileSync, mkdtempSync, rmSync, copyFileSync } from 'fs';
 import { createHash } from 'crypto';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -148,15 +148,23 @@ if (plan.action !== 'reuse') {
   writeState(s);
   appendEvent({ type: Events.BUILD_STAGE_CHANGED, stage: 'RELEASE' });
 
+  // `gh release` names an asset after the file it uploads, and `path#label` only
+  // sets the label. Uploading the APK under whatever name it happens to have
+  // locally publishes an asset the recorded URL does not point at, so the file is
+  // staged under the intended name first.
+  const staging = mkdtempSync(join(tmpdir(), 'builder-asset-'));
+  const stagedPath = join(staging, assetName);
+  copyFileSync(assetPath, stagedPath);
+
   try {
     if (plan.action === 'create-release') {
       gh(['release', 'create', tag, '--title', 'Builder Android build', '--notes',
         `Automated build for ${runId || 'local run'}\nAPK sha256: ${disk.sha256}`,
-        '--repo', repo, `${assetPath}#${assetName}`]);
+        '--repo', repo, stagedPath]);
     } else {
       // --clobber replaces an existing asset of the same name, which is how a
       // mismatched or unverifiable published artifact is repaired in place.
-      gh(['release', 'upload', tag, `${assetPath}#${assetName}`, '--repo', repo, '--clobber']);
+      gh(['release', 'upload', tag, stagedPath, '--repo', repo, '--clobber']);
     }
   } catch (e: any) {
     const msg = String(e.stderr || e.message).slice(0, 500);
@@ -165,6 +173,8 @@ if (plan.action !== 'reuse') {
     appendEvent({ type: Events.BUILD_FAILED, stage: 'RELEASE', error: s.release.failedReason });
     writeState(s);
     fail(`Release ${plan.action} failed: ${msg}`);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
   }
 
   // After publishing, re-read the asset so the recorded URL and checksum come
