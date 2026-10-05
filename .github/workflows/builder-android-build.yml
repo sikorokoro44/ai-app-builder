@@ -181,26 +181,24 @@ jobs:
           APK_FILE: ${{ steps.identity.outputs.apk_path }}
         run: |
           set -euo pipefail
-          cat > /tmp/verify_icon.ts << 'EOF'
-            import { verifyApkLauncherIcon } from './scripts/live/apkIconVerifier.ts';
-            import {
-              validateLauncherIcon, sourceIconSignatures, sourceRoundSignatures,
-              sourceForegroundSignatures, sourceIconPngBytes
-            } from './scripts/live/launcherIcon.ts';
-            const root = '.builder/generated/android';
-            const source = validateLauncherIcon(root);
-            if (!source.valid) { console.error(source.errors.join('
-')); process.exit(1); }
-            const res = verifyApkLauncherIcon(process.env.APK_FILE, {
-              signatures: sourceIconSignatures(root),
-              roundSignatures: sourceRoundSignatures(root),
-              foregroundSignatures: sourceForegroundSignatures(root),
-              sourcePngBytes: sourceIconPngBytes(root),
-              fingerprint: source.fingerprint
-            });
-            if (!res.valid) { console.error(res.errors.join('
-')); process.exit(1); }
-            console.log("verified " + res.matchedDensities.length + " densities, similarity " + res.similarity);
+                    cat > /tmp/verify_icon.ts << 'EOF'
+import { verifyApkLauncherIcon } from './scripts/live/apkIconVerifier.ts';
+import {
+  validateLauncherIcon, sourceIconSignatures, sourceRoundSignatures,
+  sourceForegroundSignatures, sourceIconPngBytes
+} from './scripts/live/launcherIcon.ts';
+const root = '.builder/generated/android';
+const source = validateLauncherIcon(root);
+if (!source.valid) { console.error(source.errors.join('\n')); process.exit(1); }
+const res = verifyApkLauncherIcon(process.env.APK_FILE, {
+  signatures: sourceIconSignatures(root),
+  roundSignatures: sourceRoundSignatures(root),
+  foregroundSignatures: sourceForegroundSignatures(root),
+  sourcePngBytes: sourceIconPngBytes(root),
+  fingerprint: source.fingerprint
+});
+if (!res.valid) { console.error(res.errors.join('\n')); process.exit(1); }
+console.log("verified " + res.matchedDensities.length + " densities, similarity " + res.similarity);
 EOF
           APK_FILE="$APK_FILE" node --experimental-strip-types /tmp/verify_icon.ts
 
