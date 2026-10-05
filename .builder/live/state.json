@@ -1,9 +1,9 @@
 {
-  "version": 124,
-  "projectState": "BUILDING",
+  "version": 144,
+  "projectState": "VERIFYING",
   "overallProgressPct": 0,
   "elapsedMs": 0,
-  "latestActivity": "Pushing generated sources to GitHub",
+  "latestActivity": "build-verifier failed: apkVerify did not record a checksum",
   "completedFeatures": 0,
   "totalFeatures": 0,
   "completedTasks": 0,
@@ -151,18 +151,19 @@
       "id": "repo-publisher",
       "index": 16,
       "name": "Repository Publisher",
-      "state": "WORKING",
-      "activity": "started",
-      "updatedAt": "2026-10-05T23:47:02.213Z",
+      "state": "COMPLETED",
+      "activity": "completed: 3dce30e1ed4a751f3648f8e7b7c26181724accc1",
+      "updatedAt": "2026-10-05T23:47:03.576Z",
       "startedAt": "2026-10-05T23:47:02.211Z"
     },
     "build-verifier": {
       "id": "build-verifier",
       "index": 17,
       "name": "Build Verifier",
-      "state": "IDLE",
-      "activity": "waiting for dependencies",
-      "updatedAt": "2026-10-05T23:47:01.439Z"
+      "state": "WORKING",
+      "activity": "waiting for the GitHub Actions build to finish",
+      "updatedAt": "2026-10-05T23:47:22.141Z",
+      "startedAt": "2026-10-05T23:47:03.584Z"
     },
     "release-publisher": {
       "id": "release-publisher",
@@ -176,9 +177,9 @@
       "id": "failure-diagnostician",
       "index": 19,
       "name": "Failure Diagnostician",
-      "state": "WORKING",
-      "activity": "waiting for dependencies",
-      "updatedAt": "2026-10-05T23:47:02.213Z",
+      "state": "COMPLETED",
+      "activity": "completed: 4/4 health checks passed, 0 observed failure(s)",
+      "updatedAt": "2026-10-05T23:47:03.575Z",
       "startedAt": "2026-10-05T23:47:02.213Z"
     },
     "integration-supervisor": {
@@ -201,14 +202,43 @@
   "repairs": [],
   "githubStatus": "unknown",
   "cloudBuild": {
-    "state": "idle",
-    "stage": "QUEUED",
-    "status": "idle",
-    "output": []
+    "state": "running",
+    "stage": "COMPILING",
+    "status": "passed",
+    "output": [],
+    "attempt": 1,
+    "workflowFile": ".github/workflows/builder-android-build.yml",
+    "headSha": "3dce30e1ed4a751f3648f8e7b7c26181724accc1",
+    "dispatchedAt": "2026-10-05T23:47:04.497Z",
+    "runId": "37390452087",
+    "logsFetched": false,
+    "conclusion": "success",
+    "finishedAt": "2026-10-05T23:48:39.998Z",
+    "buildLogs": []
   },
-  "apkVerification": "idle",
+  "apkVerification": "passed",
   "icon": {
-    "status": "idle"
+    "status": "passed",
+    "category": "habits",
+    "fingerprint": "31d1876636a9ff25eca568c99bac53ea2bac73f83fdb86ef3f57aa7684eda628",
+    "manifestIcon": "@mipmap/ic_launcher",
+    "manifestRoundIcon": "@mipmap/ic_launcher_round",
+    "manifestIconResourceId": "0x7f080000",
+    "manifestIconType": "mipmap",
+    "matchedDensities": [
+      "mdpi",
+      "hdpi",
+      "xhdpi",
+      "xxhdpi",
+      "xxxhdpi"
+    ],
+    "matchedPath": "res/mipmap-mdpi-v4/ic_launcher.png",
+    "similarity": 0,
+    "byteIdentical": true,
+    "iconSignatureSha256": "47704148f0ea0a83e2c41700c2cf76b1a040c245691a9c7c350e07d34a5943e3",
+    "runId": "37390452087",
+    "apkSha256": "3a263c32700f7b778e2cea12222ffcf693fae43e66c85de9cabed996bc4042d9",
+    "verifiedAt": "2026-10-05T23:48:40.870Z"
   },
   "release": {
     "status": "idle"
@@ -251,10 +281,43 @@
       },
       {
         "stage": "VALIDATE",
-        "evidence": "project validated, packageId=com.builder.plantwatering, 7 tests, 0 credential findings",
-        "at": "2026-10-05T23:47:02.199Z"
+        "evidence": "project validated, packageId=com.builder.plantwatering",
+        "at": "2026-10-05T23:47:03.818Z"
+      },
+      {
+        "stage": "CLOUD_BUILD",
+        "evidence": "run 37390452087 completed successfully",
+        "at": "2026-10-05T23:48:39.998Z",
+        "runId": "37390452087"
+      },
+      {
+        "stage": "BUILD_SUCCESS",
+        "evidence": "run 37390452087 conclusion=success",
+        "at": "2026-10-05T23:48:39.998Z",
+        "runId": "37390452087"
+      },
+      {
+        "stage": "REAL_APK",
+        "evidence": "apk=/tmp/builder-apk-37390452087-GXNCSm/app-debug.apk bytes=8685085",
+        "at": "2026-10-05T23:48:40.870Z",
+        "runId": "37390452087"
+      },
+      {
+        "stage": "APK_VERIFY",
+        "evidence": "sha256=3a263c32700f7b778e2cea12222ffcf693fae43e66c85de9cabed996bc4042d9 package=com.builder.plantwatering",
+        "at": "2026-10-05T23:48:40.871Z",
+        "runId": "37390452087"
+      },
+      {
+        "stage": "REAL_ICON_VERIFY",
+        "evidence": "icon=@mipmap/ic_launcher category=habits fingerprint=31d1876636a9ff25eca568c99bac53ea2bac73f83fdb86ef3f57aa7684eda628 compiled=res/mipmap-mdpi-v4/ic_launcher.png densities=mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi similarity=0 resource=0x7f080000",
+        "at": "2026-10-05T23:48:40.871Z",
+        "runId": "37390452087"
       }
     ]
   },
-  "lastUpdated": "2026-10-05T23:47:02.394Z"
+  "lastUpdated": "2026-10-05T23:48:40.997Z",
+  "apkPath": "/tmp/builder-apk-37390452087-GXNCSm/app-debug.apk",
+  "apkSha256": "3a263c32700f7b778e2cea12222ffcf693fae43e66c85de9cabed996bc4042d9",
+  "apkPackageId": "com.builder.plantwatering"
 }
