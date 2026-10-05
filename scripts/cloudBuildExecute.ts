@@ -236,7 +236,23 @@ if (process.argv.includes('--dispatch')) {
   const dispatchedAt = new Date().toISOString();
   s.cloudBuild.dispatchedAt = dispatchedAt;
   writeState(s);
-  gh(ghArgs);
+
+  // A refused dispatch says why on stderr and nothing else, so the reason is
+  // written out here rather than left buried in a thrown error object. The
+  // usual cause is the token: this job dispatches with its own GITHUB_TOKEN,
+  // and a repository whose default workflow permission is `read` refuses with
+  // HTTP 403 "Resource not accessible by integration" unless the job asks for
+  // `actions: write`.
+  try {
+    gh(ghArgs);
+  } catch (e: any) {
+    const detail = (e.stderr?.toString() || e.stderr || e.message || '').toString().trim();
+    const refused = /403|not accessible by integration/i.test(detail);
+    fail(
+      `Could not dispatch ${WORKFLOW} for commit ${sha}: ${detail || 'gh reported no reason'}` +
+      (refused ? '\nThis job needs `actions: write` in its permissions to dispatch a workflow with its own token.' : '')
+    );
+  }
 
   const floor = Date.parse(dispatchedAt) - CLOCK_SKEW_MS;
   // workflow_dispatch returns before the run appears, so poll for the run that

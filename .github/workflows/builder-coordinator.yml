@@ -42,6 +42,12 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      # The coordinator dispatches builder-android-build.yml with this job's own
+      # GITHUB_TOKEN. The repository's default workflow permission is `read`, so
+      # without this the dispatch is refused with HTTP 403 "Resource not
+      # accessible by integration" (run 37380932123) and the fleet fails after
+      # the app is already pushed, with nothing built and nothing to say so.
+      actions: write
     steps:
       # `repo-publisher` refuses to push from a detached HEAD, and githubPush.ts
       # compares origin/main with HEAD, so the branch and its history are needed.
