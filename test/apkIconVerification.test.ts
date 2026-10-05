@@ -371,8 +371,9 @@ function buildArsc(opts: {
   pkg.writeUInt16LE(288, 2);
   pkg.writeUInt32LE(packageSize, 4);
   pkg.writeUInt32LE(opts.packageId, 8);
-  pkg.writeUInt32LE(typeStringsOffset, 260);
-  pkg.writeUInt32LE(keyStringsOffset, 268);
+  // Fields sit inside the chunk, after the 12-byte chunk header.
+  pkg.writeUInt32LE(typeStringsOffset, 268);
+  pkg.writeUInt32LE(keyStringsOffset, 276);
   let chunkAt = 288;
   for (const spec of allSpecs) { spec.copy(pkg, chunkAt); chunkAt += spec.length; }
   for (const c of chunks) { c.copy(pkg, chunkAt); chunkAt += c.length; }

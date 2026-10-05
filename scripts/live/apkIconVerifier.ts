@@ -212,8 +212,8 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
     }
 
     const packageId = arsc.readUInt32LE(off + 8);
-    // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260, lastPublicType
-    // @264, keyStrings @268, lastPublicKey @272.
+    // ResTable_package fields are inside the chunk: id @+8, name @+12 (256
+    // bytes), typeStrings @+268, lastPublicType @+272, keyStrings @+276.
     const packageEnd = Math.min(off + size, tableSize);
 
     const { typeNames, typeIds, keyNamesByType, detail } = readPackagePools(arsc, off, arsc.readUInt16LE(off + 2), packageEnd);
@@ -339,8 +339,15 @@ function readPackagePools(
   // not something to rely on, so every string pool in the package is collected
   // and matched by identity: the pool the header calls the type names, and the
   // rest taken against the type ids in declaration order.
-  const namedPool = off + arsc.readUInt32LE(off + 260);
-  const firstKeyPool = off + arsc.readUInt32LE(off + 268);
+  // A zero typeStrings offset means the type names pool is the first chunk after
+  // the header rather than "no pool", which is how aapt2 writes a package whose
+  // only pools sit at the front.
+  // These fields sit inside the chunk, after the 12-byte chunk header: id@+8,
+  // name@+12 (256 bytes), typeStrings@+268, lastPublicType@+272, keyStrings@+276.
+  const typeStringsOffset = arsc.readUInt32LE(off + 268);
+  const namedPool = off + (typeStringsOffset > 0 ? typeStringsOffset : headerSize);
+  const keyStringsOffset = arsc.readUInt32LE(off + 276);
+  const firstKeyPool = keyStringsOffset > 0 ? off + keyStringsOffset : namedPool + 4;
   const pools: { at: number; strings: string[] }[] = [];
   const seen = new Set<number>();
   const takePool = (at: number): boolean => {
@@ -375,13 +382,20 @@ function readPackagePools(
     keyIndex++;
     if (id !== undefined) keyNamesByType.set(id, pool.strings);
   }
-  detail.push(`typeStrings=${namedPool - off} keyStrings=${firstKeyPool - off} typeIds=${typeIdsInOrder.join(',')}`);
-  detail.push(`packageHead=${arsc.subarray(off, off + 8).toString('hex')}`);
-  for (const at of [namedPool - off, firstKeyPool - off]) {
-    const atAbs = off + at;
-    detail.push(`at+${at}=${atAbs + 8 <= packageEnd ? arsc.subarray(atAbs, atAbs + 8).toString('hex') : 'out of range'}`);
+  detail.push(`typeStrings=${typeStringsOffset} keyStrings=${keyStringsOffset} typeIds=${typeIdsInOrder.join(',')}`);
+  const inventory: string[] = [];
+  for (let at = off + headerSize; at + 8 <= packageEnd;) {
+    const chunkType = arsc.readUInt16LE(at);
+    const chunkSize = arsc.readUInt32LE(at + 4);
+    if (chunkSize < 8 || at + chunkSize > packageEnd) {
+      inventory.push(`+${at - off}:0x${chunkType.toString(16)}/${chunkSize}(unreadable)`);
+      break;
+    }
+    inventory.push(`+${at - off}:0x${chunkType.toString(16)}/${chunkSize}`);
+    at = off + ((at - off + chunkSize + 3) & ~3);
   }
-  detail.push(`types=${JSON.stringify(typeNames.slice(0, 12))}`);
+  detail.push(`chunks=${inventory.join(' ')}`);
+  detail.push(`idOffset=${arsc.readUInt32LE(off + 284)} types=${typeNames.join('|')}`);
   return { typeNames, typeIds: typeIdsInOrder, keyNamesByType, detail: detail.join('; ') };
 }
 
