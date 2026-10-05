@@ -152,3 +152,7 @@
 {"ts":"2026-10-05T05:54:32.971Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T05:54:32.969Z"}
 {"ts":"2026-10-05T05:54:33.088Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
 {"ts":"2026-10-05T05:54:33.089Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37268736122","headSha":"250a8b90e6f8583e89f49b98bec77dbc9530f774"}
+{"ts":"2026-10-05T06:21:39.584Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T06:21:39.582Z"}
+{"ts":"2026-10-05T06:21:39.705Z","type":"BUILD_STARTED","stage":"QUEUED","headSha":"d018654e55ec0f3ec2ed14551f42989ad1fffbbc"}
+{"ts":"2026-10-05T06:23:25.801Z","type":"BUILD_FAILED","runId":"37272052405","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-05T06:23:25.825Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}

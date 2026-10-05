@@ -331,6 +331,55 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
   return audit;
 }
 
+/**
+ * Prints what aapt2 and the archive actually said, so a failing build shows the
+ * evidence instead of only a conclusion.
+ *
+ * This matters because the audit compares against aapt2's rendering of the
+ * resource table. When the check and the rendering disagree, the rendering is
+ * the thing worth reading, and it is not otherwise recoverable from a CI log.
+ * Bounded so a large dump cannot flood the log.
+ */
+function printDiagnostics(bin: string, apk: string): void {
+  const want = new Set([
+    `mipmap/${ICON_RESOURCE_NAME}`,
+    `mipmap/${ROUND_ICON_RESOURCE_NAME}`,
+    `mipmap/${FOREGROUND_RESOURCE_NAME}`
+  ]);
+  try {
+    const lines = aapt2(bin, ['dump', 'resources', apk]).split('\n');
+    let printing = false;
+    let emitted = 0;
+    for (const line of lines) {
+      const entry = /^resource\s+(0x[0-9a-fA-F]+)\s+(\S+)$/.exec(line.trim());
+      if (entry) {
+        printing = want.has(bareName(entry[2]));
+        if (printing) {
+          console.error(`  [aapt2] ${line.trim()}`);
+          emitted++;
+        }
+        continue;
+      }
+      if (printing && emitted < 200) {
+        console.error(`  [aapt2] ${line.trim()}`);
+        emitted++;
+      }
+    }
+  } catch (err) {
+    console.error(`  [aapt2] dump resources failed: ${String(err)}`);
+  }
+  try {
+    const buf = readFileSync(apk);
+    const entries = readZipEntries(buf);
+    const res = (entries || []).map((e) => e.name).filter((n) => n.startsWith('res/'));
+    console.error(`  [zip] ${res.length} res/ entries packaged`);
+    for (const n of res.slice(0, 40)) console.error(`  [zip] ${n}`);
+    if (res.length > 40) console.error(`  [zip] ... and ${res.length - 40} more`);
+  } catch (err) {
+    console.error(`  [zip] unreadable: ${String(err)}`);
+  }
+}
+
 function main(): void {
   const apk = process.argv[2];
   const projectRoot = process.argv[3] || join(process.cwd(), '.builder/generated/android');
@@ -343,6 +392,7 @@ function main(): void {
   if (!audit.valid) {
     console.error('::error::The compiled launcher icon did not verify:');
     for (const e of audit.errors) console.error(`  - ${e}`);
+    printDiagnostics(bin, apk);
     process.exit(1);
   }
 

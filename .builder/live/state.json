@@ -1,9 +1,9 @@
 {
-  "version": 91,
-  "projectState": "CLOUD_BUILDING",
+  "version": 94,
+  "projectState": "REPAIRING",
   "overallProgressPct": 0,
   "elapsedMs": 0,
-  "latestActivity": "Prepared cloud build",
+  "latestActivity": "Cloud build failed (unknown)",
   "completedFeatures": 0,
   "totalFeatures": 1,
   "completedTasks": 2,
@@ -50,18 +50,18 @@
   "githubStatus": "unknown",
   "cloudBuild": {
     "state": "running",
-    "stage": "QUEUED",
-    "status": "running",
+    "stage": "COMPILING",
+    "status": "failed",
     "output": [],
-    "runId": "37268736122",
-    "headSha": "250a8b90e6f8583e89f49b98bec77dbc9530f774",
+    "headSha": "d018654e55ec0f3ec2ed14551f42989ad1fffbbc",
     "workflowFile": ".github/workflows/builder-android-build.yml",
     "logsFetched": true,
     "conclusion": "failure",
     "failureClass": "unknown",
     "failedReason": "unknown: Verify the compiled launcher icon with aapt2 — no diagnostic captured",
     "retryable": false,
-    "attempt": 34
+    "attempt": 35,
+    "runId": "37272052405"
   },
   "apkVerification": "idle",
   "icon": {
@@ -76,7 +76,7 @@
   },
   "failureRepair": {
     "state": "FAILURE_DETECTED",
-    "failureDetectedAt": "2026-10-05T05:40:39.775Z",
+    "failureDetectedAt": "2026-10-05T06:23:25.768Z",
     "rootCause": "unknown",
     "changes": [
       "Capture full failing-step logs before changing anything.",
@@ -84,41 +84,54 @@
     ]
   },
   "buildLogs": [
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t﻿2026-10-05T05:40:04.9169981Z ##[group]Run set -euo pipefail",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9170363Z ^[[36;1mset -euo pipefail^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9170825Z ^[[36;1mif ! command -v aapt2 >/dev/null 2>&1 && [ -z \"${ANDROID_HOME:-}${ANDROID_SDK_ROOT:-}\" ]; then^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9171476Z ^[[36;1m  echo \"::error::aapt2 is unavailable, so the compiled launcher icon cannot be verified\"^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9171933Z ^[[36;1m  exit 1^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9172184Z ^[[36;1mfi^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9172578Z ^[[36;1mnode --experimental-strip-types scripts/verifyApkIconAapt.ts \"$APK_FILE\"^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9240882Z shell: /usr/bin/bash -e {0}",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9241210Z env:",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9241577Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9242099Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9242524Z   ANDROID_HOME: /usr/local/lib/android/sdk",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9242866Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9243272Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9243612Z   GRADLE_USER_HOME: /home/runner/.gradle",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9243941Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9244284Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9244745Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9245235Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9245581Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9246204Z   APK_FILE: .builder/generated/android/app/build/outputs/apk/debug/app-debug.apk",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:04.9246829Z ##[endgroup]",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:05.2895538Z ##[error]The compiled launcher icon did not verify:",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:05.2898309Z   - aapt2 reports no android:icon on <application>",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:05.2904083Z   - application context:       E: application (line=19) |         A: http://schemas.android.com/apk/res/android:theme(0x01010000)=@0x7f0a0008 |         A: http://schemas.android.com/apk/res/android:label(0x01010001)=@0x7f090002 |         A: http://schemas.android.com/apk/res/android:icon(0x01010002)=@0x7f080000 |         A: http://schemas.android.com/apk/res/android:debuggable(0x0101000f)=true |         A: http://schemas.android.com/apk/res/android:allowBackup(0x01010280)=true |         A: http://schemas.android.com/apk/res/android:supportsRtl(0x010103af)=true |         A: http://schemas.android.com/apk/res/android:extractNativeLibs(0x010104ea)=false |         A: http://schemas.android.com/apk/res/android:roundIcon(0x0101052c)=@0x7f080002 |         A: http://schemas.android.com/apk/res/android:appComponentFactory(0x0101057a)=\"androidx.core.app.CoreComponentFactory\" (Raw: \"androidx.core.app.CoreComponentFactory\")",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T05:40:05.2966112Z ##[error]Process completed with exit code 1."
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t﻿2026-10-05T06:22:55.5111596Z ##[group]Run set -euo pipefail",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5112013Z ^[[36;1mset -euo pipefail^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5112500Z ^[[36;1mif ! command -v aapt2 >/dev/null 2>&1 && [ -z \"${ANDROID_HOME:-}${ANDROID_SDK_ROOT:-}\" ]; then^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5113176Z ^[[36;1m  echo \"::error::aapt2 is unavailable, so the compiled launcher icon cannot be verified\"^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5113661Z ^[[36;1m  exit 1^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5113905Z ^[[36;1mfi^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5114295Z ^[[36;1mnode --experimental-strip-types scripts/verifyApkIconAapt.ts \"$APK_FILE\"^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5177120Z shell: /usr/bin/bash -e {0}",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5177441Z env:",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5177807Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5178367Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5178818Z   ANDROID_HOME: /usr/local/lib/android/sdk",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5179167Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5179561Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5179908Z   GRADLE_USER_HOME: /home/runner/.gradle",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5180239Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5180587Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5181362Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5181897Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5182264Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5182729Z   APK_FILE: .builder/generated/android/app/build/outputs/apk/debug/app-debug.apk",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:55.5183368Z ##[endgroup]",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1194207Z ##[error]The compiled launcher icon did not verify:",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1196956Z   - the APK does not package res/mipmap-mdpi/ic_launcher.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1198093Z   - the APK does not package res/mipmap-mdpi/ic_launcher_round.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1199225Z   - the APK does not package res/mipmap-hdpi/ic_launcher.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1200341Z   - the APK does not package res/mipmap-hdpi/ic_launcher_round.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1201840Z   - the APK does not package res/mipmap-xhdpi/ic_launcher.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1202948Z   - the APK does not package res/mipmap-xhdpi/ic_launcher_round.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1203756Z   - the APK does not package res/mipmap-xxhdpi/ic_launcher.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1204395Z   - the APK does not package res/mipmap-xxhdpi/ic_launcher_round.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1204988Z   - the APK does not package res/mipmap-xxxhdpi/ic_launcher.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1205621Z   - the APK does not package res/mipmap-xxxhdpi/ic_launcher_round.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1206255Z   - the APK does not package res/mipmap-mdpi/ic_launcher_foreground.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1206863Z   - the APK does not package res/mipmap-hdpi/ic_launcher_foreground.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1207479Z   - the APK does not package res/mipmap-xhdpi/ic_launcher_foreground.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1208107Z   - the APK does not package res/mipmap-xxhdpi/ic_launcher_foreground.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1208738Z   - the APK does not package res/mipmap-xxxhdpi/ic_launcher_foreground.png",
+    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-05T06:22:56.1260152Z ##[error]Process completed with exit code 1."
   ],
   "evidence": {
     "stages": [
       {
         "stage": "VALIDATE",
         "evidence": "project validated, packageId=com.builder.todo",
-        "at": "2026-10-05T05:54:32.969Z"
+        "at": "2026-10-05T06:21:39.582Z"
       }
     ]
   },
-  "lastUpdated": "2026-10-05T05:54:33.066Z"
+  "lastUpdated": "2026-10-05T06:23:25.804Z"
 }
