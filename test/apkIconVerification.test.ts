@@ -207,6 +207,12 @@ function buildArsc(opts: {
   keyNames: string[];
   typeName?: string;
   entriesPerFile?: number;
+  /**
+   * Files per key, emitted as map entries with one value per configuration,
+   * which is the shape a real APK uses for a resource that exists at several
+   * densities. When omitted each key gets the single file at the same index.
+   */
+  keyPaths?: Record<string, string[]>;
 }): Buffer {
   const typeName = opts.typeName || 'mipmap';
   const typeId = 1;
@@ -242,7 +248,36 @@ function buildArsc(opts: {
     }
     entries.push(e);
   }
-  const typeSize = entriesStart + entries.length * 16;
+  if (opts.keyPaths) {
+    // One map entry per key, one ResTable_map per configuration.
+    const maps: Buffer[] = [];
+    for (let i = 0; i < entryCount; i++) {
+      const keyName = opts.keyNames[i];
+      const paths = opts.keyPaths[keyName] ?? [];
+      if (paths.length === 0) {
+        maps.push(Buffer.alloc(16));   // declared but absent, like a real empty entry
+        continue;
+      }
+      const size = 16 + paths.length * 12;
+      const e = Buffer.alloc(size);
+      e.writeUInt16LE(size, 0);
+      e.writeUInt16LE(0x0001, 2);     // FLAG_COMPLEX
+      e.writeUInt32LE(i, 4);
+      e.writeUInt32LE(0, 8);           // parent
+      e.writeUInt32LE(paths.length, 12);
+      paths.forEach((p, m) => {
+        const at = 16 + m * 12;
+        e.writeUInt32LE(0, at);                    // ResTable_ref.name, unused for values
+        e.writeUInt8(0x03, at + 7);                // Res_value dataType = string
+        e.writeUInt32LE(fileIndex.get(p)!, at + 8);
+      });
+      maps.push(e);
+    }
+    entries.length = 0;
+    entries.push(...maps);
+  }
+
+  const typeSize = entriesStart + entries.reduce((n, e) => n + e.length, 0);
   const typeChunk = Buffer.alloc(typeSize);
   typeChunk.writeUInt16LE(0x0201, 0);
   typeChunk.writeUInt16LE(16, 2);
@@ -251,7 +286,8 @@ function buildArsc(opts: {
   typeChunk.writeUInt32LE(entryCount, 12);
   typeChunk.writeUInt32LE(entriesStart, 16);
   typeChunk.writeUInt32LE(configSize, 20);
-  entries.forEach((e, i) => e.copy(typeChunk, entriesStart + i * 16));
+  let at = entriesStart;
+  for (const e of entries) { e.copy(typeChunk, at); at += e.length; }
 
   const typeStringsOffset = align4(288 + typeSpecSize + typeSize);
   const keyStringsOffset = align4(typeStringsOffset + types.size);
@@ -399,7 +435,17 @@ function apkWithIcon(opts: {
         packageId: PACKAGE_ID,
         filePaths: [...paths.legacy, ...paths.foreground, ...paths.adaptive],
         keyNames: opts.keyNames || [ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME, ICON_BACKGROUND_COLOR_NAME],
-        typeName: opts.typeName
+        typeName: opts.typeName,
+        keyPaths: {
+          [ICON_RESOURCE_NAME]: paths.legacy
+            .filter((p) => !opts.omit?.includes(p) && p.endsWith(`/${ICON_RESOURCE_NAME}.png`))
+            .concat(paths.adaptive.filter((p) => !opts.omit?.includes(p) && p.endsWith(`/${ICON_RESOURCE_NAME}.xml`))),
+          [ROUND_ICON_RESOURCE_NAME]: paths.legacy
+            .filter((p) => !opts.omit?.includes(p) && p.endsWith(`/${ROUND_ICON_RESOURCE_NAME}.png`))
+            .concat(paths.adaptive.filter((p) => !opts.omit?.includes(p) && p.endsWith(`/${ROUND_ICON_RESOURCE_NAME}.xml`))),
+          [FOREGROUND_RESOURCE_NAME]: paths.foreground.filter((p) => !opts.omit?.includes(p)),
+          [ICON_BACKGROUND_COLOR_NAME]: []
+        }
       })
     });
   }
@@ -484,6 +530,55 @@ describe('resource table summary', () => {
 });
 
 describe('APK launcher icon verification', () => {
+  test('a compile-time rewrite of resource directories does not hide the icon', () => {
+    // AAPT2 appends a version qualifier to the mipmap directories as it compiles
+    // (`mipmap-mdpi` -> `mipmap-mdpi-v4`), so the paths the generator wrote are not
+    // the paths the APK ends up with. Resolution therefore goes through the
+    // resource table's own key -> file map and matches on the compiled pixel size.
+    const root = realIconProject('rewritten-paths');
+    const rewrite = (p: string): string =>
+      p.replace(/^res\/mipmap-(mdpi|hdpi|xhdpi|xxhdpi|xxxhdpi)\//, 'res/mipmap-$1-v4/');
+    const paths = generatedIconPaths();
+    const all = [...paths.legacy, ...paths.foreground, ...paths.adaptive].map(rewrite);
+    const entries: { name: string; data: Buffer; store?: boolean }[] = [
+      { name: 'AndroidManifest.xml', store: true, data: buildManifest({
+        packageName: 'com.builder.todo',
+        iconId: (PACKAGE_ID << 24) | (TYPE_ID << 16) | ICON_ENTRY,
+        roundIconId: (PACKAGE_ID << 24) | (TYPE_ID << 16) | ROUND_ENTRY
+      }) },
+      { name: 'resources.arsc', data: buildArsc({
+        packageId: PACKAGE_ID,
+        filePaths: all,
+        keyNames: [ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME, ICON_BACKGROUND_COLOR_NAME],
+        keyPaths: {
+          [ICON_RESOURCE_NAME]: paths.legacy.filter((q) => q.endsWith(`/${ICON_RESOURCE_NAME}.png`)).map(rewrite)
+            .concat(paths.adaptive.filter((q) => q.endsWith(`/${ICON_RESOURCE_NAME}.xml`)).map(rewrite)),
+          [ROUND_ICON_RESOURCE_NAME]: paths.legacy.filter((q) => q.endsWith(`/${ROUND_ICON_RESOURCE_NAME}.png`)).map(rewrite)
+            .concat(paths.adaptive.filter((q) => q.endsWith(`/${ROUND_ICON_RESOURCE_NAME}.xml`)).map(rewrite)),
+          [FOREGROUND_RESOURCE_NAME]: paths.foreground.map(rewrite),
+          [ICON_BACKGROUND_COLOR_NAME]: []
+        }
+      }) }
+    ];
+    for (const rel of [...paths.legacy, ...paths.foreground]) {
+      const density = rel.split('/')[1].replace('mipmap-', '');
+      const file = rel.split('/')[2];
+      entries.push({
+        name: rewrite(rel),
+        data: readFileSync(join(root, 'app', 'src', 'main', 'res', `mipmap-${density}`, file))
+      });
+    }
+    for (const rel of paths.adaptive) entries.push({ name: rewrite(rel), data: buildAdaptiveXml() });
+
+    const r = verifyApkLauncherIconFromBuffer(zip(entries), expectations(root));
+    assert.strictEqual(r.valid, true, r.errors.join('; '));
+    assert.deepStrictEqual(r.matchedDensities, Object.keys(LEGACY_ICON_SIZES));
+    const densities = r.resolvedPaths.filter((q) => /ic_launcher\.png$/.test(q));
+    assert.strictEqual(densities.length, Object.keys(LEGACY_ICON_SIZES).length);
+    assert.ok(densities.every((q) => /-v4\//.test(q)),
+      `every compiled density path should carry the qualifier, got ${densities.join(', ')}`);
+  });
+
   test('an APK carrying the generated icon passes', () => {
     const root = realIconProject('good');
     const r = verifyApkLauncherIconFromBuffer(apkWithIcon({ projectRoot: root }), expectations(root));
@@ -521,7 +616,8 @@ describe('APK launcher icon verification', () => {
     const missing = `res/mipmap-xxhdpi/${ICON_RESOURCE_NAME}.png`;
     const r = verifyApkLauncherIconFromBuffer(apkWithIcon({ projectRoot: root, omit: [missing] }), expectations(root));
     assert.strictEqual(r.valid, false);
-    assert.ok(r.errors.some((e) => /mipmap-xxhdpi/.test(e)), r.errors.join('; '));
+    assert.ok(r.errors.some((e) => /xxhdpi density/.test(e)), r.errors.join('; '));
+    assert.ok(r.errors.some((e) => /mipmap\/ic_launcher/.test(e)), r.errors.join('; '));
   });
 
   test('a missing round density is reported by name', () => {
@@ -529,7 +625,7 @@ describe('APK launcher icon verification', () => {
     const missing = `res/mipmap-xhdpi/${ROUND_ICON_RESOURCE_NAME}.png`;
     const r = verifyApkLauncherIconFromBuffer(apkWithIcon({ projectRoot: root, omit: [missing] }), expectations(root));
     assert.strictEqual(r.valid, false);
-    assert.ok(r.errors.some((e) => /ic_launcher_round\.png/.test(e) && /mipmap-xhdpi/.test(e)), r.errors.join('; '));
+    assert.ok(r.errors.some((e) => /mipmap\/ic_launcher_round/.test(e) && /xhdpi density/.test(e)), r.errors.join('; '));
   });
 
   test('a round icon showing a different picture is rejected', () => {
@@ -655,20 +751,35 @@ describe('APK launcher icon verification', () => {
 
   test('a flat placeholder icon in the APK is rejected', () => {
     const root = realIconProject('flat-apk');
-    const size = LEGACY_ICON_SIZES.xhdpi;
-    const rgba = Buffer.alloc(size * size * 4);
-    for (let i = 0; i < size * size; i++) {
-      rgba[i * 4] = 10; rgba[i * 4 + 1] = 10; rgba[i * 4 + 2] = 200; rgba[i * 4 + 3] = 255;
-    }
-    const flat = encodePng(size, size, rgba);
+    // Each density keeps its own size, so the failure is the flat artwork rather
+    // than an unresolved density.
+    const flatAt = (size: number): Buffer => {
+      const rgba = Buffer.alloc(size * size * 4);
+      for (let i = 0; i < size * size; i++) {
+        rgba[i * 4] = 10; rgba[i * 4 + 1] = 10; rgba[i * 4 + 2] = 200; rgba[i * 4 + 3] = 255;
+      }
+      return encodePng(size, size, rgba);
+    };
     const paths = generatedIconPaths();
     const entries: { name: string; data: Buffer; store?: boolean }[] = [
       { name: 'AndroidManifest.xml', data: buildManifest({ packageName: 'com.builder.todo', iconId: (PACKAGE_ID << 24) | (TYPE_ID << 16) | ICON_ENTRY, roundIconId: (PACKAGE_ID << 24) | (TYPE_ID << 16) | ROUND_ENTRY }), store: true },
-      { name: 'resources.arsc', data: buildArsc({ packageId: PACKAGE_ID, filePaths: [...paths.legacy, ...paths.foreground, ...paths.adaptive], keyNames: [ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME, ICON_BACKGROUND_COLOR_NAME] }) }
+      { name: 'resources.arsc', data: buildArsc({
+        packageId: PACKAGE_ID,
+        filePaths: [...paths.legacy, ...paths.foreground, ...paths.adaptive],
+        keyNames: [ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME, ICON_BACKGROUND_COLOR_NAME],
+        keyPaths: {
+          [ICON_RESOURCE_NAME]: paths.legacy.filter((p) => p.endsWith(`/${ICON_RESOURCE_NAME}.png`))
+            .concat(paths.adaptive.filter((p) => p.endsWith(`/${ICON_RESOURCE_NAME}.xml`))),
+          [ROUND_ICON_RESOURCE_NAME]: paths.legacy.filter((p) => p.endsWith(`/${ROUND_ICON_RESOURCE_NAME}.png`))
+            .concat(paths.adaptive.filter((p) => p.endsWith(`/${ROUND_ICON_RESOURCE_NAME}.xml`))),
+          [FOREGROUND_RESOURCE_NAME]: paths.foreground,
+          [ICON_BACKGROUND_COLOR_NAME]: []
+        }
+      }) }
     ];
     for (const rel of paths.legacy) {
-      const d = rel.split('/')[1].replace('mipmap-', '');
-      entries.push({ name: rel, data: flat });
+      const d = rel.split('/')[1].replace('mipmap-', '') as keyof typeof LEGACY_ICON_SIZES;
+      entries.push({ name: rel, data: flatAt(LEGACY_ICON_SIZES[d]) });
     }
     for (const rel of paths.foreground) {
       const d = rel.split('/')[1].replace('mipmap-', '');

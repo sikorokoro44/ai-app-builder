@@ -4,6 +4,9 @@ import { readZipEntries, entryDataOffset, inflateRaw } from './apkValidator.ts';
 import { decodePng, readPngInfo } from './png.ts';
 import { iconSignature, iconStatistics, signatureDistance } from './iconRaster.ts';
 import { LEGACY_ICON_SIZES, FOREGROUND_ICON_SIZES } from '../iconCatalog.ts';
+import {
+  ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME
+} from './launcherIcon.ts';
 
 /**
  * Proves that a compiled APK really carries the launcher icon the project
@@ -246,6 +249,106 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
   return null;
 }
 
+/**
+ * Maps `type/key` to the `res/...` files the compiled table points at.
+ *
+ * Reading this out of `resources.arsc` rather than recomputing a path from the
+ * density matters because AAPT2 rewrites resource directories as it compiles,
+ * appending a version qualifier the generator never wrote (`mipmap-mdpi-v4`).
+ * A path assembled from the density alone names a file the APK never had, and
+ * reading the wrong one either rejects a correct APK or, worse, checks a
+ * different file than the launcher would draw.
+ *
+ * Handles both entry shapes: a simple entry holding one value, and a map entry
+ * holding one value per configuration, which is what a real APK uses for a
+ * resource that exists at several densities.
+ */
+export function indexResourceFiles(arsc: Buffer): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  if (arsc.length < 12 || arsc.readUInt16LE(0) !== RES_TABLE_TYPE) return out;
+  const tableSize = Math.min(arsc.readUInt32LE(4), arsc.length);
+
+  let globalStrings: string[] = [];
+  let off = 12;
+  while (off + 8 <= tableSize) {
+    const type = arsc.readUInt16LE(off);
+    const size = arsc.readUInt32LE(off + 4);
+    if (size < 8 || off + size > arsc.length) break;
+    if (type === AXML_TYPE_STRING_POOL) {
+      const pool = readStringPool(arsc, off);
+      if (!pool) break;
+      globalStrings = pool.strings;
+      off += size;
+      continue;
+    }
+    if (type !== RES_TABLE_PACKAGE_TYPE) {
+      off += size;
+      continue;
+    }
+
+    let typeNames: string[] = [];
+    let keyNames: string[] = [];
+    const typeStringsOffset = arsc.readUInt32LE(off + 268);
+    const keyStringsOffset = arsc.readUInt32LE(off + 276);
+    if (typeStringsOffset > 0 && off + typeStringsOffset + 8 <= arsc.length) {
+      const p = readStringPool(arsc, off + typeStringsOffset);
+      if (p) typeNames = p.strings;
+    }
+    if (keyStringsOffset > 0 && off + keyStringsOffset + 8 <= arsc.length) {
+      const p = readStringPool(arsc, off + keyStringsOffset);
+      if (p) keyNames = p.strings;
+    }
+
+    const add = (typeName: string, keyName: string | undefined, value: string | undefined): void => {
+      if (!keyName || typeof value !== 'string' || !value.startsWith('res/')) return;
+      const k = `${typeName}/${keyName}`;
+      const list = out.get(k) ?? [];
+      if (!list.includes(value)) list.push(value);
+      out.set(k, list);
+    };
+
+    const packageEnd = Math.min(off + size, tableSize);
+    let inner = off + arsc.readUInt16LE(off + 2);
+    while (inner + 8 <= packageEnd) {
+      const innerType = arsc.readUInt16LE(inner);
+      const innerSize = arsc.readUInt32LE(inner + 4);
+      if (innerSize < 8 || inner + innerSize > arsc.length) break;
+      if (innerType === RES_TABLE_TYPE_TYPE) {
+        const typeId = arsc[inner + 8];
+        const typeName = typeNames[typeId - 1] ?? String(typeId);
+        const entryCount = arsc.readUInt32LE(inner + 12);
+        const entriesStart = arsc.readUInt32LE(inner + 16);
+        let p = inner + entriesStart;
+        for (let i = 0; i < entryCount && p + 16 <= arsc.length && p + 8 <= packageEnd; i++) {
+          const entrySize = arsc.readUInt16LE(p);
+          const flags = arsc.readUInt16LE(p + 2);
+          const keyName = keyNames[arsc.readUInt32LE(p + 4)];
+          if (entrySize < 8) break;
+          if (flags & 0x0001) {
+            // ResTable_map_list is ResTable_entry { size, flags, key } followed by
+            // { parent, count }, so the values start at a fixed 16 bytes in, not at
+            // `entrySize`, which is where the whole entry ends.
+            const count = arsc.readUInt32LE(p + 12);
+            const listEnd = Math.min(p + entrySize, arsc.length);
+            let q = p + 16;
+            for (let m = 0; m < count && q + 12 <= listEnd; m++) {
+              // ResTable_map: ResTable_ref { name } then Res_value { size, res0, dataType, data }.
+              if (arsc[q + 7] === 0x03) add(typeName, keyName, globalStrings[arsc.readUInt32LE(q + 8)]);
+              q += 12;
+            }
+          } else if (arsc[p + 11] === 0x03) {
+            add(typeName, keyName, globalStrings[arsc.readUInt32LE(p + 12)]);
+          }
+          p += entrySize;
+        }
+      }
+      inner += innerSize;
+    }
+    return out;
+  }
+  return out;
+}
+
 export interface ApkIconExpectation {
   /** Expected pixel signature per pixel size, from the generated legacy icon. */
   signatures: Map<number, Buffer>;
@@ -307,7 +410,7 @@ export function expectedApkIconPaths(): DensityCheck[] {
   return out;
 }
 
-const ADAPTIVE_PATHS = ['res/mipmap-anydpi-v26/ic_launcher.xml', 'res/mipmap-anydpi-v26/ic_launcher_round.xml'];
+const ADAPTIVE_RESOURCE_NAMES = [ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME];
 const MIN_CONTRAST = 0.06;
 const MIN_COLOURS = 6;
 
@@ -416,55 +519,94 @@ export function verifyApkLauncherIconFromBuffer(
     }
   }
 
-  const required = expectedApkIconPaths();
+  // Resolve each icon key to the files the compiled table actually points at,
+  // then locate each expected density by the size of the compiled PNG. Keying on
+  // pixel size rather than on a reconstructed path is what makes this survive
+  // AAPT2's compile-time rewrite of resource directories.
+  const filesByKey = indexResourceFiles(arsc);
+  const keyFor = {
+    legacy: `${iconTypeName}/${ICON_RESOURCE_NAME}`,
+    round: `${iconTypeName}/${ROUND_ICON_RESOURCE_NAME}`,
+    foreground: `${iconTypeName}/${FOREGROUND_RESOURCE_NAME}`
+  };
+  const xmlsFor = (key: string): string | undefined =>
+    (filesByKey.get(key) ?? []).find((p) => p.toLowerCase().endsWith('.xml'));
+  const pngsFor = (kind: DensityCheck['kind']): { path: string; size: number }[] => {
+    const out: { path: string; size: number }[] = [];
+    for (const path of filesByKey.get(keyFor[kind]) ?? []) {
+      if (!path.toLowerCase().endsWith('.png')) continue;
+      const bytes = readEntry(path);
+      if (!bytes) continue;
+      const info = readPngInfo(bytes);
+      if (info) out.push({ path, size: info.width });
+    }
+    return out;
+  };
+
+  const required = expectedApkIconPaths().map((check) => {
+    const candidates = pngsFor(check.kind).filter((c) => c.size === check.size);
+    return { ...check, resolved: candidates[0]?.path };
+  });
   for (const check of required) {
-    if (!table.filePaths.has(check.path)) {
-      errors.push(`The compiled resource table does not reference ${check.path}`);
+    if (!check.resolved) {
+      const have = (filesByKey.get(keyFor[check.kind]) ?? []).join(', ') || 'no files';
+      errors.push(
+        `The compiled resource table has no ${check.size}x${check.size} ${check.kind} PNG for ` +
+        `${keyFor[check.kind]} at the ${check.density} density (it maps ${have})`
+      );
     }
   }
-  for (const path of ADAPTIVE_PATHS) {
-    if (!table.filePaths.has(path)) {
-      errors.push(`The compiled resource table does not reference the adaptive icon ${path}`);
+  // Resolved the same way as the densities: the adaptive XML is whichever file
+  // the icon and round keys actually point at, not a rebuilt `anydpi-v26` path.
+  const adaptivePaths = ADAPTIVE_RESOURCE_NAMES.map((name) => xmlsFor(`${iconTypeName}/${name}`));
+  for (let i = 0; i < adaptivePaths.length; i++) {
+    if (!adaptivePaths[i]) {
+      errors.push(
+        `The compiled resource table does not reference an adaptive icon XML for ` +
+        `${iconTypeName}/${ADAPTIVE_RESOURCE_NAMES[i]} (it maps ` +
+        `${(filesByKey.get(`${iconTypeName}/${ADAPTIVE_RESOURCE_NAMES[i]}`) ?? []).join(', ') || 'no files'})`
+      );
     }
   }
   if (errors.length > 0) return result;
 
   // 3. Every density must be present, correctly sized, and not a placeholder.
   for (const check of required) {
-    const bytes = readEntry(check.path);
+    const resolved = check.resolved as string;
+    const bytes = readEntry(resolved);
     if (!bytes) {
-      errors.push(`Compiled icon ${check.path} is missing from the APK`);
+      errors.push(`Compiled icon ${resolved} is missing from the APK`);
       continue;
     }
     const info = readPngInfo(bytes);
     if (!info || !info.structurallyValid) {
-      errors.push(`Compiled icon ${check.path} is not a valid PNG: ${info ? info.errors.join('; ') : 'unreadable'}`);
+      errors.push(`Compiled icon ${resolved} is not a valid PNG: ${info ? info.errors.join('; ') : 'unreadable'}`);
       continue;
     }
     if (info.width !== check.size || info.height !== check.size) {
-      errors.push(`Compiled icon ${check.path} is ${info.width}x${info.height}, expected ${check.size}x${check.size}`);
+      errors.push(`Compiled icon ${resolved} is ${info.width}x${info.height}, expected ${check.size}x${check.size}`);
       continue;
     }
     const img = decodePng(bytes);
     if (!img) {
-      errors.push(`Compiled icon ${check.path} could not be decoded`);
+      errors.push(`Compiled icon ${resolved} could not be decoded`);
       continue;
     }
     const isForeground = check.kind === 'foreground';
     const st = iconStatistics(img.rgba, img.width, img.height);
     if (isForeground) {
       if (st.opaqueFraction < 0.005 || st.opaqueFraction > 0.85) {
-        errors.push(`Compiled adaptive foreground ${check.path} is not a glyph layer (${(st.opaqueFraction * 100).toFixed(1)}% drawn)`);
+        errors.push(`Compiled adaptive foreground ${resolved} is not a glyph layer (${(st.opaqueFraction * 100).toFixed(1)}% drawn)`);
         continue;
       }
     } else {
       if (st.opaqueFraction < 0.5) {
-        errors.push(`Compiled icon ${check.path} is mostly transparent (${(st.opaqueFraction * 100).toFixed(1)}% opaque)`);
+        errors.push(`Compiled icon ${resolved} is mostly transparent (${(st.opaqueFraction * 100).toFixed(1)}% opaque)`);
         continue;
       }
       if (st.distinctColours < MIN_COLOURS || st.contrastFraction < MIN_CONTRAST) {
         errors.push(
-          `Compiled icon ${check.path} looks like a flat placeholder (${st.distinctColours} colours, ` +
+          `Compiled icon ${resolved} looks like a flat placeholder (${st.distinctColours} colours, ` +
           `${(st.contrastFraction * 100).toFixed(1)}% contrast)`
         );
         continue;
@@ -478,24 +620,24 @@ export function verifyApkLauncherIconFromBuffer(
         : expected.signatures;
     const want = signatures?.get(img.width);
     if (!want) {
-      errors.push(`Compiled icon ${check.path} is ${img.width}px wide, which the generator never produces`);
+      errors.push(`Compiled icon ${resolved} is ${img.width}px wide, which the generator never produces`);
       continue;
     }
     const sig = iconSignature(img.rgba, img.width, img.height);
     const distance = signatureDistance(sig, want);
     if (distance > MATCH_THRESHOLD) {
       errors.push(
-        `Compiled icon ${check.path} is a different picture from the generated icon ` +
+        `Compiled icon ${resolved} is a different picture from the generated icon ` +
         `(signature distance ${distance.toFixed(1)} > ${MATCH_THRESHOLD})`
       );
       continue;
     }
 
-    resolvedPaths.push(check.path);
+    resolvedPaths.push(resolved);
     if (check.kind === 'legacy') {
       matchedDensities.push(check.density);
       if (!result.matchedPath) {
-        result.matchedPath = check.path;
+        result.matchedPath = resolved;
         result.matchedSize = img.width;
         result.similarity = Number(distance.toFixed(3));
         result.iconSignatureSha256 = createHash('sha256').update(sig).digest('hex');
@@ -506,7 +648,8 @@ export function verifyApkLauncherIconFromBuffer(
   }
 
   // 4. The adaptive icon configuration must be compiled in and wired up.
-  for (const path of ADAPTIVE_PATHS) {
+  for (let i = 0; i < adaptivePaths.length; i++) {
+    const path = adaptivePaths[i] as string;
     const bytes = readEntry(path);
     if (!bytes) {
       errors.push(`Adaptive icon ${path} is missing from the APK`);
@@ -532,7 +675,7 @@ export function verifyApkLauncherIconFromBuffer(
     errors.push(`Compiled launcher icon is missing densities: ${missing.join(', ')}`);
   }
 
-  result.adaptiveIconsPresent = ADAPTIVE_PATHS.every((p) => byName.has(p));
+  result.adaptiveIconsPresent = adaptivePaths.every((p) => p !== undefined && byName.has(p));
   result.valid = errors.length === 0;
   return result;
 }
