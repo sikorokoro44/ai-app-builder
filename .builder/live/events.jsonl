@@ -27,3 +27,121 @@
 {"ts":"2026-10-04T20:27:38.154Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T20:27:38.152Z"}
 {"ts":"2026-10-04T20:27:38.270Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
 {"ts":"2026-10-04T20:27:38.271Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37231497418","headSha":"7f2a786a2a901a32e3455b47c4f48f68b4edc620"}
+{"ts":"2026-10-04T20:31:45.950Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T20:31:45.948Z"}
+{"ts":"2026-10-04T20:31:46.064Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37231497418","headSha":"045b0ac0333daa5699c704f488d4b59ee559ab19"}
+{"ts":"2026-10-04T20:38:04.655Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T20:38:04.653Z"}
+{"ts":"2026-10-04T20:38:04.774Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37231497418","headSha":"9a20dd88e850c5d5f9289cda0f5929207adadf15"}
+{"ts":"2026-10-04T20:39:42.628Z","type":"BUILD_FAILED","runId":"37232859145","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T20:39:42.654Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T20:41:50.497Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T20:41:50.495Z"}
+{"ts":"2026-10-04T20:41:50.676Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T20:41:50.676Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37232859145","headSha":"57798a84e65e42ab1ebd1fa05f104b10920c58a9"}
+{"ts":"2026-10-04T20:43:31.605Z","type":"BUILD_FAILED","runId":"37233099603","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T20:43:31.630Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T20:47:18.953Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T20:47:18.951Z"}
+{"ts":"2026-10-04T20:47:19.083Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T20:47:19.083Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37233099603","headSha":"e046129e18dcc77fb3b535b93da8267fff1af42f"}
+{"ts":"2026-10-04T20:48:58.828Z","type":"BUILD_FAILED","runId":"37233449310","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T20:48:58.852Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T20:51:53.818Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T20:51:53.816Z"}
+{"ts":"2026-10-04T20:51:53.944Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T20:51:53.944Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37233449310","headSha":"3bae0a387186faf3f22380b42556846985456b5c"}
+{"ts":"2026-10-04T20:53:30.430Z","type":"BUILD_FAILED","runId":"37233747358","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T20:53:30.455Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T20:57:39.440Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T20:57:39.439Z"}
+{"ts":"2026-10-04T20:57:39.603Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T20:57:39.603Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37233747358","headSha":"6ac9b2003614d953b2f94edff7601bb88744ad90"}
+{"ts":"2026-10-04T20:59:08.171Z","type":"BUILD_FAILED","runId":"37234124377","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T20:59:08.195Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T21:02:24.642Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T21:02:24.640Z"}
+{"ts":"2026-10-04T21:02:24.766Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T21:02:24.767Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37234124377","headSha":"b83d3a194a315fc9b4ad1086306f454570dd7459"}
+{"ts":"2026-10-04T21:03:58.479Z","type":"BUILD_FAILED","runId":"37234455213","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T21:03:58.502Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T21:08:33.599Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T21:08:33.597Z"}
+{"ts":"2026-10-04T21:08:33.717Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T21:08:33.718Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37234455213","headSha":"9879210dd765b19be6b8bc4f56ad47ee18c7a7dd"}
+{"ts":"2026-10-04T21:09:57.977Z","type":"BUILD_FAILED","runId":"37234889279","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T21:09:58.009Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T21:21:57.390Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T21:21:57.388Z"}
+{"ts":"2026-10-04T21:21:57.502Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T21:21:57.502Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37234889279","headSha":"226fc5d7449584f047f30b5c94472cf8b8294e17"}
+{"ts":"2026-10-04T21:23:31.209Z","type":"BUILD_FAILED","runId":"37235808200","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T21:23:31.270Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T21:35:46.299Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T21:35:46.297Z"}
+{"ts":"2026-10-04T21:35:46.461Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T21:35:46.462Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37235808200","headSha":"d8c029af65fd5ae7d29fdbacad813a7f2f9a76dc"}
+{"ts":"2026-10-04T21:38:02.669Z","type":"BUILD_FAILED","runId":"37236742305","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T21:38:02.696Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T21:42:36.796Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T21:42:36.794Z"}
+{"ts":"2026-10-04T21:42:36.934Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T21:42:36.934Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37236742305","headSha":"02f217b3e35c1905d7a0ef4b365c235470b22614"}
+{"ts":"2026-10-04T21:44:24.852Z","type":"BUILD_FAILED","runId":"37237194372","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T21:44:24.879Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T21:48:55.698Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T21:48:55.696Z"}
+{"ts":"2026-10-04T21:48:55.803Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T21:48:55.804Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37237194372","headSha":"afd918a376e7c68c0a686ef65ef97c617382a1c9"}
+{"ts":"2026-10-04T21:51:42.613Z","type":"BUILD_FAILED","runId":"37237603449","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T21:51:42.641Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T21:58:44.182Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T21:58:44.180Z"}
+{"ts":"2026-10-04T21:58:44.375Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T21:58:44.376Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37237603449","headSha":"6cf1fd9a25e5a0c8ab3c2c605a42753568fe0da9"}
+{"ts":"2026-10-04T21:59:59.323Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T21:59:59.321Z"}
+{"ts":"2026-10-04T21:59:59.459Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37237603449","headSha":"6cf1fd9a25e5a0c8ab3c2c605a42753568fe0da9"}
+{"ts":"2026-10-04T22:23:39.428Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T22:23:39.425Z"}
+{"ts":"2026-10-04T22:23:39.658Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37237603449","headSha":"937121480d6b9f77021baba8903137c71438b86f"}
+{"ts":"2026-10-04T22:25:40.369Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T22:25:40.367Z"}
+{"ts":"2026-10-04T22:25:40.506Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37237603449","headSha":"937121480d6b9f77021baba8903137c71438b86f"}
+{"ts":"2026-10-04T22:28:15.486Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T22:28:15.483Z"}
+{"ts":"2026-10-04T22:28:15.608Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37237603449","headSha":"6bb3e91a38e9caf39bad3d3331dcdb8bf23c8494"}
+{"ts":"2026-10-04T22:51:12.916Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T22:51:12.915Z"}
+{"ts":"2026-10-04T22:51:13.027Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37237603449","headSha":"5637e1ebf108f26b49a46a37df5878f9f0c3cc83"}
+{"ts":"2026-10-04T23:15:57.022Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T23:15:57.021Z"}
+{"ts":"2026-10-04T23:15:57.212Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37237603449","headSha":"eb841aa880fe1eb40273647970327f062d89c02a"}
+{"ts":"2026-10-04T23:44:09.615Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T23:44:09.613Z"}
+{"ts":"2026-10-04T23:44:15.617Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37237603449","headSha":"865114a720845df5d2e5c78ff5670641cf82e3f9"}
+{"ts":"2026-10-04T23:46:28.637Z","type":"BUILD_FAILED","runId":"37244723143","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T23:46:28.665Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-04T23:57:15.770Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-04T23:57:15.769Z"}
+{"ts":"2026-10-04T23:57:15.898Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-04T23:57:15.898Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37244723143","headSha":"bb9a922c1ca4fd9b35aa7c2ad7085e807666f1ac"}
+{"ts":"2026-10-04T23:58:16.032Z","type":"BUILD_FAILED","runId":"37245566453","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-04T23:58:16.058Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-05T00:27:35.280Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T00:27:35.278Z"}
+{"ts":"2026-10-05T00:27:35.426Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-05T00:27:35.427Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37245566453","headSha":"3935c2d6fbc2737a32954c38a3b4235a7ff5d1f6"}
+{"ts":"2026-10-05T00:31:02.737Z","type":"BUILD_FAILED","runId":"37247668427","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-05T00:31:02.785Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-05T00:33:35.142Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T00:33:35.140Z"}
+{"ts":"2026-10-05T00:33:35.255Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-05T00:33:35.256Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37247668427","headSha":"4b1b6bbb338197819bc3418f20b8bbe897792ebf"}
+{"ts":"2026-10-05T00:41:10.255Z","type":"BUILD_FAILED","runId":"37248064639","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-05T00:41:10.286Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-05T00:45:34.365Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T00:45:34.363Z"}
+{"ts":"2026-10-05T00:45:34.472Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-05T00:45:34.473Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37248064639","headSha":"2bcca340b3f41bd34cfda3653123592d25be25a3"}
+{"ts":"2026-10-05T00:50:39.471Z","type":"BUILD_FAILED","runId":"37248696603","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon with aapt2"}
+{"ts":"2026-10-05T00:50:39.499Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-05T00:55:33.574Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T00:55:33.572Z"}
+{"ts":"2026-10-05T00:55:33.683Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-05T00:55:33.683Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37248696603","headSha":"a45714b5323adf8a19c090b6ac5fbbfdce8fcc52"}
+{"ts":"2026-10-05T00:57:45.243Z","type":"BUILD_FAILED","runId":"37249346689","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon against the generated source"}
+{"ts":"2026-10-05T00:57:45.270Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-05T01:09:02.947Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T01:09:02.945Z"}
+{"ts":"2026-10-05T01:09:03.078Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-05T01:09:03.079Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37249346689","headSha":"9eb3dd0df2d4f0d575239bfafe5a9e0b2651b311"}
+{"ts":"2026-10-05T01:12:10.898Z","type":"BUILD_FAILED","runId":"37250373598","failureClass":"source_code","retry":false,"failedStep":"Verify the compiled launcher icon against the generated source"}
+{"ts":"2026-10-05T01:12:10.925Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (source_code)"}
+{"ts":"2026-10-05T01:14:26.059Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T01:14:26.057Z"}
+{"ts":"2026-10-05T01:14:26.213Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-05T01:14:26.214Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37250373598","headSha":"206e972c0669539dd2d5d5cc1dc92351b98545cb"}
+{"ts":"2026-10-05T01:17:32.665Z","type":"BUILD_FAILED","runId":"37250772641","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon against the generated source"}
+{"ts":"2026-10-05T01:17:32.694Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-05T01:27:48.446Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T01:27:48.444Z"}
+{"ts":"2026-10-05T01:27:48.561Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-05T01:27:48.561Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37250772641","headSha":"2b256afd890d581ff94ab8b229660488ef79558a"}
+{"ts":"2026-10-05T01:29:58.197Z","type":"BUILD_FAILED","runId":"37251576111","failureClass":"source_code","retry":false,"failedStep":"Verify the compiled launcher icon against the generated source"}
+{"ts":"2026-10-05T01:29:58.220Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (source_code)"}
+{"ts":"2026-10-05T01:35:02.509Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T01:35:02.507Z"}
+{"ts":"2026-10-05T01:35:02.661Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-05T01:35:02.662Z","type":"BUILD_STARTED","stage":"QUEUED","runId":"37251576111","headSha":"8755241ed225fe9f8c1b97544ab4a62cd09c8443"}

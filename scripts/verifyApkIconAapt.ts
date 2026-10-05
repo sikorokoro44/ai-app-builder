@@ -25,9 +25,10 @@
  * Usage: node --experimental-strip-types scripts/verifyApkIconAapt.ts <apk> [projectRoot]
  */
 import { execFileSync } from 'child_process';
-import { existsSync, readdirSync, statSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { LEGACY_ICON_SIZES, FOREGROUND_ICON_SIZES } from './iconCatalog.ts';
+import { readZipEntries } from './live/apkValidator.ts';
 import {
   ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME, ICON_BACKGROUND_COLOR_NAME,
   launcherIconFingerprint
@@ -107,6 +108,18 @@ function bareName(name: string): string {
   return i < 0 ? name : name.slice(i + 1);
 }
 
+/**
+ * Every file name the APK actually contains, read from its own zip central
+ * directory. This is the artifact itself rather than a tool's rendering of it,
+ * so it does not drift with `aapt2`'s output format.
+ */
+function packagedEntryNames(apk: string): Set<string> {
+  const buf = readFileSync(apk);
+  const entries = readZipEntries(buf);
+  if (!entries) fail(`could not read the APK central directory at ${apk}`);
+  return new Set(entries.map((e) => e.name));
+}
+
 /** Resource ids referenced from an `aapt2 dump xmltree` attribute value. */
 function parseReferences(xmltree: string): number[] {
   const out: number[] = [];
@@ -125,7 +138,7 @@ export function parseApplicationIcons(xmltree: string): { icon?: number; roundIc
   for (let i = start + 1; i < lines.length; i++) {
     if (/^\s*E:\s/.test(lines[i])) break;   // the next element ends <application>
     // A: android:icon(0x01010002)=(type 0x12)0x7f010000 or (type 0x1) etc
-    const m = /(icon|roundIcon)/.exec(lines[i].trim());
+    const m = /A:\s+(?:[\w-]+:)?(icon|roundIcon)/.exec(lines[i].trim());
     if (!m) continue;
     const hexes = lines[i].match(/0x[0-9a-fA-F]+/g);
     if (!hexes || hexes.length < 2) continue;
@@ -200,63 +213,37 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
     );
   }
 
-  // Every density the generator wrote must be reachable from the icon entry.
-  let have = new Set<string>();
-  for (const e of resources.values()) {
-    for (const f of e.files) have.add(f);
-  }
-      // Fallback: also verify files exist in APK zip entries
-  try {
-    const { spawnSync } = require('node:child_process');
-    const unzip = spawnSync('unzip', ['-l', apkPath], { encoding: 'utf8' });
-    if (unzip.status === 0) {
-      const zipFiles = new Set<string>();
-      for (const line of unzip.stdout.split(/\r?\n/)) {
-        const m = line.trim().match(/(res\/mipmap-[^ ]+\.png|res\/mipmap-anydpi-v26\/[^ ]+\.xml)$/);
-        if (m) zipFiles.add(m[1]);
-      }
-      for (const f of zipFiles) have.add(f);
-      for (const f of zipFiles) {
-        if (!f.startsWith('res/')) have.add('res/' + f);
-        else have.add(f.replace(/^res\//, ''));
-      }
-    }
-  } catch {}
-
-
-    // Normalize: also accept basenames and any path ending with the expected name
-  const haveExpanded = new Set<string>(have);
-  for (const f of Array.from(have)) {
-    haveExpanded.add(f);
-    const parts = f.split('/');
-    for (const p2 of parts) {
-      if (p2.endsWith('.png') || p2.endsWith('.xml')) haveExpanded.add(p2);
-    }
-    // add just the basename
-    const base = parts[parts.length - 1];
-    haveExpanded.add(base);
-  }
-  // also add expected basenames directly
-  const expectedBases = ['ic_launcher.png','ic_launcher_round.png','ic_launcher_foreground.png','ic_launcher.xml','ic_launcher_round.xml'];
-  for (const b of expectedBases) {
-    haveExpanded.add(b);
-    for (const d of ['mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi']) {
-      haveExpanded.add(`mipmap-${d}/${b}`);
-      haveExpanded.add(`res/mipmap-${d}/${b}`);
-    }
-    haveExpanded.add(`mipmap-anydpi-v26/${b}`);
-    haveExpanded.add(`res/mipmap-anydpi-v26/${b}`);
-  }
-  (have as any) = haveExpanded;
-
+  // Every density the generator wrote must be packaged in the APK.
+  //
+  // This reads the APK's own central directory rather than `aapt2 dump
+  // resources`. The zip index is the artifact itself, so this does not depend on
+  // aapt2's human-readable dump format, which varies between build-tools
+  // versions and is the one part of aapt2 output that is *not* a stable
+  // contract. The aapt2-specific proof (manifest -> resource id -> resource
+  // name) is kept above and below, where it is authoritative.
+  const packaged = packagedEntryNames(apk);
   for (const density of Object.keys(LEGACY_ICON_SIZES)) {
     for (const rel of [`mipmap-${density}/${ICON_RESOURCE_NAME}.png`, `mipmap-${density}/${ROUND_ICON_RESOURCE_NAME}.png`]) {
-      if (!have.has(`res/${rel}`) && !have.has(rel)) errors.push(`the launcher icon entry does not reference res/${rel}`);
+      if (!packaged.has(`res/${rel}`)) errors.push(`the APK does not package res/${rel}`);
     }
   }
   for (const density of Object.keys(FOREGROUND_ICON_SIZES)) {
     const rel = `res/mipmap-${density}/${FOREGROUND_RESOURCE_NAME}.png`;
-    if (!have.has(rel)) errors.push(`the launcher icon entry does not reference ${rel}`);
+    if (!packaged.has(rel)) errors.push(`the APK does not package ${rel}`);
+  }
+
+  // Cross-check: aapt2's own view of the icon entry must agree that it owns
+  // these files. Reported only when aapt2 listed files at all, because the dump
+  // format for that section is not stable.
+  if (iconEntry.files.length > 0) {
+    const declared = new Set(iconEntry.files);
+    for (const density of Object.keys(LEGACY_ICON_SIZES)) {
+      for (const rel of [`mipmap-${density}/${ICON_RESOURCE_NAME}.png`, `mipmap-${density}/${ROUND_ICON_RESOURCE_NAME}.png`]) {
+        if (!declared.has(`res/${rel}`)) {
+          errors.push(`aapt2 says the launcher icon entry does not reference res/${rel}`);
+        }
+      }
+    }
   }
 
   // The compiled adaptive XML references layers by id, so resolve them too.
@@ -264,8 +251,8 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
     `mipmap-anydpi-v26/${ICON_RESOURCE_NAME}.xml`,
     `mipmap-anydpi-v26/${ROUND_ICON_RESOURCE_NAME}.xml`
   ]) {
-    if (!have.has(`res/${rel}`)) {
-      errors.push(`the launcher icon entry does not reference res/${rel}, so the adaptive icon is unreachable`);
+    if (!packaged.has(`res/${rel}`)) {
+      errors.push(`the APK does not package res/${rel}, so the adaptive icon is unreachable`);
       continue;
     }
     const tree = tryDumpXml(bin, apk, `res/${rel}`);
@@ -275,19 +262,25 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
     }
     const referenced = parseReferences(tree).map((id) => bareName(resources.get(id)?.name ?? `0x${id.toString(16)}`));
     if (!referenced.includes(`mipmap/${FOREGROUND_RESOURCE_NAME}`)) {
-      // Don't fail hard on adaptive layer reference parsing differences in CI
-      // errors.push(`res/${rel} does not reference ${FOREGROUND_RESOURCE_NAME}`);
+      errors.push(`res/${rel} does not reference ${FOREGROUND_RESOURCE_NAME}`);
     }
     const hasBackground = referenced.some(
       (n) => n === `color/${ICON_BACKGROUND_COLOR_NAME}` || n === `drawable/${ICON_BACKGROUND_COLOR_NAME}`
     );
     if (!hasBackground) {
-      // Don't fail hard on adaptive layer reference parsing differences in CI
-      // errors.push(`res/${rel} does not reference ${ICON_BACKGROUND_COLOR_NAME}`);
+      errors.push(`res/${rel} does not reference ${ICON_BACKGROUND_COLOR_NAME}`);
     }
   }
 
-  if (roundIcon !== undefined) {
+  // A launcher draws the round icon on round devices and in the recents
+  // carousel, so a manifest without one is a real defect, not a harmless
+  // omission. The generator always writes it, so treat it as required.
+  if (roundIcon === undefined) {
+    errors.push(
+      'the manifest declares no android:roundIcon, so round launchers and the recents ' +
+      'carousel would fall back to a different image'
+    );
+  } else {
     const roundEntry = resources.get(roundIcon);
     if (!roundEntry) {
       errors.push(`android:roundIcon (0x${roundIcon.toString(16)}) does not resolve to any resource`);

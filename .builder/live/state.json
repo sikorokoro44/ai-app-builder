@@ -1,5 +1,5 @@
 {
-  "version": 18,
+  "version": 87,
   "projectState": "CLOUD_BUILDING",
   "overallProgressPct": 0,
   "elapsedMs": 0,
@@ -53,15 +53,15 @@
     "stage": "QUEUED",
     "status": "running",
     "output": [],
-    "runId": "37231497418",
-    "headSha": "7f2a786a2a901a32e3455b47c4f48f68b4edc620",
-    "workflowFile": ".github/workflows/builder-android-build.yml",
+    "runId": "37251576111",
+    "headSha": "8755241ed225fe9f8c1b97544ab4a62cd09c8443",
+    "workflowFile": ".github/workflows/android-build.yml",
     "logsFetched": true,
     "conclusion": "failure",
-    "failureClass": "unknown",
-    "failedReason": "unknown: Verify the compiled launcher icon with aapt2 — no diagnostic captured",
+    "failureClass": "source_code",
+    "failedReason": "source_code: Verify the compiled launcher icon against the generated source — Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2823508Z /home/runner/work/_temp/8ee1600a-a3a5-4eef-945b-a2bd63d65422.sh: line 20: syntax error near unexpected token `)'",
     "retryable": false,
-    "attempt": 3
+    "attempt": 32
   },
   "apkVerification": "idle",
   "icon": {
@@ -76,47 +76,62 @@
   },
   "failureRepair": {
     "state": "FAILURE_DETECTED",
-    "failureDetectedAt": "2026-10-04T20:18:13.524Z",
-    "rootCause": "unknown",
+    "failureDetectedAt": "2026-10-05T01:29:58.159Z",
+    "rootCause": "source_code",
     "changes": [
-      "Capture full failing-step logs before changing anything.",
-      "Escalate rather than guess at a fix."
+      "Read the failing source file and the exact compiler diagnostic.",
+      "Apply a minimal, targeted fix to the offending source or resources.",
+      "Re-run validation before rebuilding."
     ]
   },
   "buildLogs": [
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t﻿2026-10-04T20:17:47.4021129Z ##[group]Run set -euo pipefail",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4023154Z ^[[36;1mset -euo pipefail^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4023959Z ^[[36;1mif ! command -v aapt2 >/dev/null 2>&1 && [ -z \"${ANDROID_HOME:-}${ANDROID_SDK_ROOT:-}\" ]; then^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4025119Z ^[[36;1m  echo \"::error::aapt2 is unavailable, so the compiled launcher icon cannot be verified\"^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4025953Z ^[[36;1m  exit 1^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4026374Z ^[[36;1mfi^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4027057Z ^[[36;1mnode --experimental-strip-types scripts/verifyApkIconAapt.ts \"$APK_FILE\"^[[0m",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4093972Z shell: /usr/bin/bash -e {0}",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4094285Z env:",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4094644Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4095211Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4095675Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4096071Z   GRADLE_USER_HOME: /home/runner/.gradle",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4096432Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4096764Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4097233Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4097752Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4098118Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4098575Z   APK_FILE: .builder/generated/android/app/build/outputs/apk/debug/app-debug.apk",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4099017Z   ANDROID_HOME:",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4099260Z   ANDROID_SDK_ROOT:",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4099511Z ##[endgroup]",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4185923Z ##[error]aapt2 is unavailable, so the compiled launcher icon cannot be verified",
-    "Assemble debug APK\tVerify the compiled launcher icon with aapt2\t2026-10-04T20:17:47.4188735Z ##[error]Process completed with exit code 1."
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t﻿2026-10-05T01:29:31.2680921Z ##[group]Run set -euo pipefail",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2681253Z ^[[36;1mset -euo pipefail^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2681588Z ^[[36;1mAPK_FILE=\"$APK_FILE\" node --experimental-strip-types -e \"^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2682052Z ^[[36;1m  import { verifyApkLauncherIcon } from './scripts/live/apkIconVerifier.ts';^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2682445Z ^[[36;1m  import {^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2682782Z ^[[36;1m    validateLauncherIcon, sourceIconSignatures, sourceRoundSignatures,^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2683205Z ^[[36;1m    sourceForegroundSignatures, sourceIconPngBytes^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2683543Z ^[[36;1m  } from './scripts/live/launcherIcon.ts';^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2683864Z ^[[36;1m  const root = '.builder/generated/android';^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2684199Z ^[[36;1m  const source = validateLauncherIcon(root);^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2684606Z ^[[36;1m  if (!source.valid) { console.error(source.errors.join('\\n')); process.exit(1); }^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2685078Z ^[[36;1m  const res = verifyApkLauncherIcon(process.env.APK_FILE, {^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2685516Z ^[[36;1m    signatures: sourceIconSignatures(root),^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2685867Z ^[[36;1m    roundSignatures: sourceRoundSignatures(root),^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2686246Z ^[[36;1m    foregroundSignatures: sourceForegroundSignatures(root),^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2686613Z ^[[36;1m    sourcePngBytes: sourceIconPngBytes(root),^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2686931Z ^[[36;1m    fingerprint: source.fingerprint^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2687204Z ^[[36;1m  });^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2687517Z ^[[36;1m  if (!res.valid) { console.error(res.errors.join('\\n')); process.exit(1); }^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2688056Z ^[[36;1m  console.log(\"verified \" + res.matchedDensities.length + \" densities, similarity \" + res.similarity);^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2688654Z ^[[36;1m\");^[[0m",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2746443Z shell: /usr/bin/bash -e {0}",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2746709Z env:",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2747007Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2747469Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2747847Z   ANDROID_HOME: /usr/local/lib/android/sdk",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2748140Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2748454Z   GRADLE_ACTION_ID: gradle/actions/setup-gradle",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2748745Z   GRADLE_USER_HOME: /home/runner/.gradle",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2749024Z   GRADLE_BUILD_ACTION_SETUP_COMPLETED: true",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2749314Z   GRADLE_BUILD_ACTION_CACHE_RESTORED: true",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2749711Z   DEVELOCITY_INJECTION_INIT_SCRIPT_NAME: gradle-actions.inject-develocity.init.gradle",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2750304Z   DEVELOCITY_INJECTION_CUSTOM_VALUE: gradle-actions",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2750613Z   GITHUB_DEPENDENCY_GRAPH_ENABLED: false",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2750993Z   APK_FILE: .builder/generated/android/app/build/outputs/apk/debug/app-debug.apk",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2751357Z ##[endgroup]",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2823508Z /home/runner/work/_temp/8ee1600a-a3a5-4eef-945b-a2bd63d65422.sh: line 20: syntax error near unexpected token `)'",
+    "Assemble debug APK\tVerify the compiled launcher icon against the generated source\t2026-10-05T01:29:31.2827775Z ##[error]Process completed with exit code 2."
   ],
   "evidence": {
     "stages": [
       {
         "stage": "VALIDATE",
         "evidence": "project validated, packageId=com.builder.todo",
-        "at": "2026-10-04T20:27:38.152Z"
+        "at": "2026-10-05T01:35:02.507Z"
       }
     ]
   },
-  "lastUpdated": "2026-10-04T20:27:38.247Z"
+  "lastUpdated": "2026-10-05T01:35:02.609Z"
 }

@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { chmodSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { deflateRawSync, crc32 } from 'zlib';
 import { auditApkIcon, parseApplicationIcons, parseResourceDump } from '../scripts/verifyApkIconAapt.ts';
 import { ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME, ICON_BACKGROUND_COLOR_NAME } from '../scripts/live/launcherIcon.ts';
 import { LEGACY_ICON_SIZES, FOREGROUND_ICON_SIZES } from '../scripts/iconCatalog.ts';
@@ -45,6 +46,12 @@ interface FakeApk {
   adaptiveXml: Map<string, string | null>;
   /** Resource id the manifest declares, when it should differ from the table. */
   declaredIconId?: number;
+  /**
+   * `res/...` paths the APK archive actually contains. The audit reads the zip
+   * index rather than trusting `aapt2 dump resources`, so a missing density has
+   * to be missing from the archive too.
+   */
+  packagedFiles: string[];
 }
 
 /** A compiled resource XML references layers by resource id, not by name. */
@@ -72,7 +79,8 @@ function goodApk(): FakeApk {
     ]),
     iconTarget: `mipmap/${ICON_RESOURCE_NAME}`,
     roundTarget: `mipmap/${ROUND_ICON_RESOURCE_NAME}`,
-    adaptiveXml
+    adaptiveXml,
+    packagedFiles: all
   };
 }
 
@@ -152,10 +160,76 @@ esac
 }
 
 const APK = join(TMP, 'app-debug.apk');
-writeFileSync(APK, 'placeholder: the fake aapt2 never reads the APK');
+
+/**
+ * Minimal but real zip container.
+ *
+ * The audit reads the APK's own central directory to decide which density files
+ * are actually packaged, so the fixture cannot be a placeholder file the fake
+ * `aapt2` happens to ignore: it has to be a genuine archive whose index the
+ * verifier can walk.
+ */
+function zip(entries: { name: string; data: Buffer }[]): Buffer {
+  const locals: Buffer[] = [];
+  const centrals: Buffer[] = [];
+  let offset = 0;
+  for (const e of entries) {
+    const name = Buffer.from(e.name, 'utf-8');
+    const comp = deflateRawSync(e.data);
+    const crc = crc32(e.data) >>> 0;
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(8, 8);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(comp.length, 18);
+    local.writeUInt32LE(e.data.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    locals.push(local, name, comp);
+
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(comp.length, 20);
+    central.writeUInt32LE(e.data.length, 24);
+    central.writeUInt16LE(name.length, 28);
+    central.writeUInt32LE(offset, 42);
+    centrals.push(central, name);
+    offset += local.length + name.length + comp.length;
+  }
+  const centralBuf = Buffer.concat(centrals);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(entries.length, 8);
+  eocd.writeUInt16LE(entries.length, 10);
+  eocd.writeUInt32LE(centralBuf.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, centralBuf, eocd]);
+}
+
+function writeApk(paths: string[]): string {
+  writeFileSync(APK, zip([
+    { name: 'AndroidManifest.xml', data: Buffer.from('binary manifest') },
+    { name: 'resources.arsc', data: Buffer.from('resource table') },
+    ...paths.map((p) => ({ name: p, data: Buffer.from(`pixels for ${p}`) }))
+  ]));
+  return APK;
+}
 
 function audit(apk: FakeApk): ReturnType<typeof auditApkIcon> {
-  return auditApkIcon(writeFakeAapt2('aapt2', apk), APK, TMP);
+  return auditApkIcon(writeFakeAapt2('aapt2', apk), writeApk(apk.packagedFiles), TMP);
+}
+
+/**
+ * Drops a path from the archive and from the dump, so the scenario is a build
+ * that genuinely never produced the file.
+ */
+function dropEverywhere(apk: FakeApk, keep: (path: string) => boolean): void {
+  apk.packagedFiles = apk.packagedFiles.filter(keep);
+  for (const entry of apk.entries.values()) entry.files = entry.files.filter(keep);
 }
 
 describe('aapt2 output parsing', () => {
@@ -230,8 +304,7 @@ describe('aapt2 launcher icon audit', () => {
 
   test('a missing legacy density is reported by name', () => {
     const apk = goodApk();
-    const e = apk.entries.get(`mipmap/${ICON_RESOURCE_NAME}`)!;
-    e.files = e.files.filter((f) => f !== `res/mipmap-xxhdpi/${ICON_RESOURCE_NAME}.png`);
+    dropEverywhere(apk, (f) => f !== `res/mipmap-xxhdpi/${ICON_RESOURCE_NAME}.png`);
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
     assert.ok(r.errors.some((x) => /mipmap-xxhdpi\/ic_launcher\.png/.test(x)), r.errors.join('; '));
@@ -239,8 +312,7 @@ describe('aapt2 launcher icon audit', () => {
 
   test('a missing round density is reported by name', () => {
     const apk = goodApk();
-    const e = apk.entries.get(`mipmap/${ICON_RESOURCE_NAME}`)!;
-    e.files = e.files.filter((f) => f !== `res/mipmap-hdpi/${ROUND_ICON_RESOURCE_NAME}.png`);
+    dropEverywhere(apk, (f) => f !== `res/mipmap-hdpi/${ROUND_ICON_RESOURCE_NAME}.png`);
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
     assert.ok(r.errors.some((x) => /mipmap-hdpi\/ic_launcher_round\.png/.test(x)), r.errors.join('; '));
@@ -248,8 +320,7 @@ describe('aapt2 launcher icon audit', () => {
 
   test('a missing adaptive foreground density is reported by name', () => {
     const apk = goodApk();
-    const e = apk.entries.get(`mipmap/${ICON_RESOURCE_NAME}`)!;
-    e.files = e.files.filter((f) => f !== `res/mipmap-xhdpi/${FOREGROUND_RESOURCE_NAME}.png`);
+    dropEverywhere(apk, (f) => f !== `res/mipmap-xhdpi/${FOREGROUND_RESOURCE_NAME}.png`);
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
     assert.ok(r.errors.some((x) => /ic_launcher_foreground\.png/.test(x)), r.errors.join('; '));
@@ -257,11 +328,31 @@ describe('aapt2 launcher icon audit', () => {
 
   test('a missing adaptive configuration is rejected', () => {
     const apk = goodApk();
-    const e = apk.entries.get(`mipmap/${ICON_RESOURCE_NAME}`)!;
-    e.files = e.files.filter((f) => !f.includes('anydpi'));
+    dropEverywhere(apk, (f) => !f.includes('anydpi'));
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
     assert.ok(r.errors.some((x) => /adaptive icon is unreachable/.test(x)), r.errors.join('; '));
+  });
+
+  test('a build-tools dump that lists no density files is still accepted', () => {
+    // `aapt2 dump resources` only lists per-entry file paths in some versions;
+    // in others the entry carries just its id. Those file paths are the one
+    // part of the dump that is not a stable contract, so a dump with none must
+    // not fail a build whose archive really does contain every density.
+    const apk = goodApk();
+    for (const entry of apk.entries.values()) entry.files = [];
+    const r = audit(apk);
+    assert.strictEqual(r.valid, true, r.errors.join('; '));
+  });
+
+  test('a density the archive lacks is rejected even when the dump claims it', () => {
+    // The archive is the artifact, so it outranks the dump: listing a path in
+    // `aapt2 dump resources` cannot substitute for shipping the file.
+    const apk = goodApk();
+    apk.packagedFiles = apk.packagedFiles.filter((f) => f !== `res/mipmap-xxxhdpi/${ICON_RESOURCE_NAME}.png`);
+    const r = audit(apk);
+    assert.strictEqual(r.valid, false);
+    assert.ok(r.errors.some((x) => /does not package res\/mipmap-xxxhdpi\/ic_launcher\.png/.test(x)), r.errors.join('; '));
   });
 
   test('an adaptive icon wired to the wrong foreground is rejected', () => {
@@ -297,6 +388,16 @@ describe('aapt2 launcher icon audit', () => {
     assert.ok(r.errors.some((x) => /roundIcon resolves to/.test(x)), r.errors.join('; '));
   });
 
+  test('a manifest with no roundIcon is rejected', () => {
+    // Round launchers and the recents carousel would otherwise fall back to a
+    // different image than the one this repo generated and proved.
+    const apk = goodApk();
+    apk.roundTarget = null;
+    const r = audit(apk);
+    assert.strictEqual(r.valid, false);
+    assert.ok(r.errors.some((x) => /no android:roundIcon/.test(x)), r.errors.join('; '));
+  });
+
   test('an APK with no resources at all is rejected', () => {
     const apk = goodApk();
     apk.entries.clear();
@@ -307,8 +408,7 @@ describe('aapt2 launcher icon audit', () => {
 
   test('every failing reason is reported at once, not just the first', () => {
     const apk = goodApk();
-    const e = apk.entries.get(`mipmap/${ICON_RESOURCE_NAME}`)!;
-    e.files = e.files.filter((f) => f !== `res/mipmap-hdpi/${ICON_RESOURCE_NAME}.png`);
+    dropEverywhere(apk, (f) => f !== `res/mipmap-hdpi/${ICON_RESOURCE_NAME}.png`);
     apk.adaptiveXml = new Map([...apk.adaptiveXml.keys()].map((k) => [k, null] as [string, null]));
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
