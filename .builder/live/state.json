@@ -1,9 +1,9 @@
 {
-  "version": 124,
-  "projectState": "BUILDING",
+  "version": 141,
+  "projectState": "CLOUD_BUILDING",
   "overallProgressPct": 0,
   "elapsedMs": 0,
-  "latestActivity": "Pushing generated sources to GitHub",
+  "latestActivity": "build-verifier failed: scripts/cloudBuildExecute.ts failed with exit 1",
   "completedFeatures": 0,
   "totalFeatures": 0,
   "completedTasks": 0,
@@ -151,18 +151,19 @@
       "id": "repo-publisher",
       "index": 16,
       "name": "Repository Publisher",
-      "state": "WORKING",
-      "activity": "started",
-      "updatedAt": "2026-10-05T22:12:26.404Z",
+      "state": "COMPLETED",
+      "activity": "completed: 5c96f38ed2cbf4c116422fa0c9e5620694e53f01",
+      "updatedAt": "2026-10-05T22:12:27.682Z",
       "startedAt": "2026-10-05T22:12:26.403Z"
     },
     "build-verifier": {
       "id": "build-verifier",
       "index": 17,
       "name": "Build Verifier",
-      "state": "IDLE",
-      "activity": "waiting for dependencies",
-      "updatedAt": "2026-10-05T22:12:25.839Z"
+      "state": "WORKING",
+      "activity": "started",
+      "updatedAt": "2026-10-05T22:12:27.691Z",
+      "startedAt": "2026-10-05T22:12:27.690Z"
     },
     "release-publisher": {
       "id": "release-publisher",
@@ -176,9 +177,9 @@
       "id": "failure-diagnostician",
       "index": 19,
       "name": "Failure Diagnostician",
-      "state": "WORKING",
-      "activity": "waiting for dependencies",
-      "updatedAt": "2026-10-05T22:12:26.404Z",
+      "state": "COMPLETED",
+      "activity": "completed: 4/4 health checks passed, 0 observed failure(s)",
+      "updatedAt": "2026-10-05T22:12:27.681Z",
       "startedAt": "2026-10-05T22:12:26.404Z"
     },
     "integration-supervisor": {
@@ -201,14 +202,22 @@
   "repairs": [],
   "githubStatus": "unknown",
   "cloudBuild": {
-    "state": "idle",
+    "state": "running",
     "stage": "QUEUED",
-    "status": "idle",
-    "output": []
+    "status": "running",
+    "output": [],
+    "attempt": 1,
+    "workflowFile": ".github/workflows/builder-android-build.yml",
+    "headSha": "5c96f38ed2cbf4c116422fa0c9e5620694e53f01",
+    "dispatchedAt": "2026-10-05T22:12:30.412Z"
   },
   "apkVerification": "idle",
   "icon": {
-    "status": "idle"
+    "status": "generated",
+    "category": "habits",
+    "fingerprint": "31d1876636a9ff25eca568c99bac53ea2bac73f83fdb86ef3f57aa7684eda628",
+    "manifestIcon": "@mipmap/ic_launcher",
+    "manifestRoundIcon": "@mipmap/ic_launcher_round"
   },
   "release": {
     "status": "idle"
@@ -251,10 +260,10 @@
       },
       {
         "stage": "VALIDATE",
-        "evidence": "project validated, packageId=com.builder.plantwatering, 7 tests, 0 credential findings",
-        "at": "2026-10-05T22:12:26.394Z"
+        "evidence": "project validated, packageId=com.builder.plantwatering",
+        "at": "2026-10-05T22:12:27.830Z"
       }
     ]
   },
-  "lastUpdated": "2026-10-05T22:12:26.519Z"
+  "lastUpdated": "2026-10-05T22:12:31.210Z"
 }
