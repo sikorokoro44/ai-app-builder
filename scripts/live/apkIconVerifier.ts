@@ -5,7 +5,8 @@ import { decodePng, readPngInfo } from './png.ts';
 import { iconSignature, iconStatistics, signatureDistance } from './iconRaster.ts';
 import { LEGACY_ICON_SIZES, FOREGROUND_ICON_SIZES } from '../iconCatalog.ts';
 import {
-  ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME
+  ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME,
+  ICON_BACKGROUND_COLOR_NAME
 } from './launcherIcon.ts';
 
 /**
@@ -250,6 +251,57 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
 }
 
 /**
+ * Elements and typed attribute values of a compiled binary XML. A compiled
+ * resource holds references as numeric ids, so the names the generator wrote
+ * are not in the string pool and have to be resolved through the resource table.
+ */
+export function extractXmlReferences(axml: Buffer): { elements: string[]; refs: { name: string; dataType: number; data: number }[] } {
+  const out = { elements: [] as string[], refs: [] as { name: string; dataType: number; data: number }[] };
+  if (axml.length < 8) return out;
+  let pool: string[] | null = null;
+  let off = 8;
+  while (off + 8 <= axml.length) {
+    const type = axml.readUInt16LE(off);
+    const size = axml.readUInt32LE(off + 4);
+    if (size < 8 || off + size > axml.length) return out;
+    if (type === AXML_TYPE_STRING_POOL) {
+      pool = readStringPool(axml, off)?.strings ?? null;
+    } else if (type === AXML_TYPE_START_ELEMENT && pool) {
+      const attrExt = off + 16;
+      if (attrExt + 20 > axml.length) return out;
+      const element = pool[axml.readInt32LE(attrExt + 4)];
+      if (element) out.elements.push(element);
+      const attributeStart = axml.readUInt16LE(attrExt + 8);
+      const attributeSize = axml.readUInt16LE(attrExt + 10);
+      const attributeCount = axml.readUInt16LE(attrExt + 12);
+      if (attributeSize < 20) return out;
+      for (let i = 0; i < attributeCount; i++) {
+        const a = attrExt + attributeStart + i * attributeSize;
+        if (a + 20 > axml.length) return out;
+        out.refs.push({
+          name: pool[axml.readInt32LE(a + 4)] ?? '',
+          dataType: axml[a + 15],
+          data: axml.readUInt32LE(a + 16)
+        });
+      }
+    }
+    off += size;
+  }
+  return out;
+}
+
+/**
+ * Maps a compiled resource id to its `type/key` name, so references stored as
+ * numbers in a compiled XML can be checked against the names the generator
+ * wrote. Absent entries are included, because the point is to resolve any id.
+ */
+export function indexResourceIds(arsc: Buffer): Map<number, string> {
+  const ids = new Map<number, string>();
+  indexResourceFiles(arsc, undefined, ids);
+  return ids;
+}
+
+/**
  * Maps `type/key` to the `res/...` files the compiled table points at.
  *
  * Reading this out of `resources.arsc` rather than recomputing a path from the
@@ -263,7 +315,11 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
  * holding one value per configuration, which is what a real APK uses for a
  * resource that exists at several densities.
  */
-export function indexResourceFiles(arsc: Buffer, trace?: string[]): Map<string, string[]> {
+export function indexResourceFiles(
+  arsc: Buffer,
+  trace?: string[],
+  ids?: Map<number, string>
+): Map<string, string[]> {
   const out = new Map<string, string[]>();
   if (arsc.length < 12 || arsc.readUInt16LE(0) !== RES_TABLE_TYPE) return out;
   const tableSize = Math.min(arsc.readUInt32LE(4), arsc.length);
@@ -327,6 +383,11 @@ export function indexResourceFiles(arsc: Buffer, trace?: string[]): Map<string, 
           }
           const flags = arsc.readUInt16LE(p + 2);
           const keyName = keyNames[arsc.readUInt32LE(p + 4)];
+          // Only a present entry owns an id. A zero-size gap holds no key, and
+          // recording one would claim another resource's id for a stale name.
+          if (ids && keyName && entrySize !== 0) {
+            ids.set((arsc.readUInt32LE(off + 8) << 24) | (typeId << 16) | i, `${typeName}/${keyName}`);
+          }
           // A configuration that does not carry an entry records size 0. Step over
           // the fixed header and keep going: stopping here drops every later entry,
           // which is how the round icon's densities went missing from its key.
@@ -542,7 +603,8 @@ export function verifyApkLauncherIconFromBuffer(
   // pixel size rather than on a reconstructed path is what makes this survive
   // AAPT2's compile-time rewrite of resource directories.
   const trace: string[] = [];
-  const filesByKey = indexResourceFiles(arsc, trace);
+  const resourceIds = new Map<number, string>();
+  const filesByKey = indexResourceFiles(arsc, trace, resourceIds);
   const keyFor = {
     legacy: `${iconTypeName}/${ICON_RESOURCE_NAME}`,
     round: `${iconTypeName}/${ROUND_ICON_RESOURCE_NAME}`,
@@ -677,14 +739,28 @@ export function verifyApkLauncherIconFromBuffer(
       errors.push(`Adaptive icon ${path} is missing from the APK`);
       continue;
     }
-    const pool = readStringPool(bytes, 8);
-    if (!pool) {
-      errors.push(`Adaptive icon ${path} is not a compiled binary XML resource`);
+    const parsed = extractXmlReferences(bytes);
+    if (!parsed.elements.includes('adaptive-icon')) {
+      errors.push(`Adaptive icon ${path} is not a compiled adaptive-icon`);
       continue;
     }
-    for (const needed of ['adaptive-icon', 'ic_launcher_foreground', 'ic_launcher_background']) {
-      if (!pool.strings.includes(needed)) {
-        errors.push(`Adaptive icon ${path} does not reference ${needed}`);
+    // The compiled XML stores `@mipmap/...` and `@color/...` as numeric ids, so
+    // the referenced names are recovered through the resource table rather than
+    // looked up as text.
+    const referenced = new Set<string>();
+    for (const ref of parsed.refs) {
+      if (ref.dataType !== RES_TYPE_REFERENCE) continue;
+      referenced.add(resourceIds.get(ref.data) ?? `0x${ref.data.toString(16)}`);
+    }
+    for (const needed of [
+      `mipmap/${FOREGROUND_RESOURCE_NAME}`,
+      `color/${ICON_BACKGROUND_COLOR_NAME}`
+    ]) {
+      if (!referenced.has(needed)) {
+        errors.push(
+          `Adaptive icon ${path} does not reference ${needed} ` +
+          `(it references ${[...referenced].join(', ') || 'nothing'})`
+        );
       }
     }
   }

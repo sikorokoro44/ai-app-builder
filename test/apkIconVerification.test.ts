@@ -222,12 +222,13 @@ function buildArsc(opts: {
 }): Buffer {
   const typeName = opts.typeName || 'mipmap';
   const typeId = 1;
-  const fileIndex = new Map(opts.filePaths.map((p, i) => [p, i]));
+  const colours = [...opts.filePaths, 'res/values/colors.xml'];
+  const fileIndex = new Map(colours.map((p, i) => [p, i]));
   const entryCount = Math.max(opts.entriesPerFile || opts.keyNames.length, opts.keyNames.length);
 
-  const global = poolChunk(opts.filePaths);
-  const types = poolChunk([typeName]);
-  const keys = poolChunk(opts.keyNames);
+  const global = poolChunk(colours);
+  const types = poolChunk([typeName, 'color']);
+  const keys = poolChunk([...opts.keyNames, ICON_BACKGROUND_COLOR_NAME]);
 
   const typeSpecSize = 16 + entryCount * 4;
   const typeSpec = Buffer.alloc(typeSpecSize);
@@ -236,6 +237,15 @@ function buildArsc(opts: {
   typeSpec.writeUInt32LE(typeSpecSize, 4);
   typeSpec.writeUInt8(typeId, 8);
   typeSpec.writeUInt32LE(entryCount, 12);
+
+  // `color/ic_launcher_background`, declared so an adaptive icon's reference to
+  // it resolves to a name.
+  const colourSpec = Buffer.alloc(16 + 4);
+  colourSpec.writeUInt16LE(0x0202, 0);
+  colourSpec.writeUInt16LE(16, 2);
+  colourSpec.writeUInt32LE(colourSpec.length, 4);
+  colourSpec.writeUInt8(COLOUR_TYPE_ID, 8);
+  colourSpec.writeUInt32LE(1, 12);
 
   const configSize = 64;
   const headerEnd = 20;
@@ -271,13 +281,13 @@ function buildArsc(opts: {
     return e;
   };
 
-  const typeChunkFor = (body: Buffer[]): Buffer => {
+  const typeChunkFor = (body: Buffer[], id = typeId): Buffer => {
     const size = entriesStart + body.reduce((n, e) => n + e.length, 0);
     const c = Buffer.alloc(size);
     c.writeUInt16LE(0x0201, 0);
     c.writeUInt16LE(16, 2);
     c.writeUInt32LE(size, 4);
-    c.writeUInt8(typeId, 8);
+    c.writeUInt8(id, 8);
     c.writeUInt32LE(entryCount, 12);
     c.writeUInt32LE(entriesStart, 16);
     c.writeUInt32LE(configSize, 20);
@@ -336,9 +346,18 @@ function buildArsc(opts: {
         opts.keyNames.map((keyName, i) => encodeEntry(i, (cfg[keyName] ?? []).filter((q) => fileIndex.has(q))))
       ))
     : [typeChunkFor(entries)];
-  const typeBytes = chunks.reduce((n, c) => n + c.length, 0);
+  const colourEntry = Buffer.alloc(16);
+  colourEntry.writeUInt16LE(8, 0);
+  colourEntry.writeUInt16LE(0, 2);
+  colourEntry.writeUInt32LE(opts.keyNames.length, 4);      // the colour key's index
+  colourEntry.writeUInt16LE(8, 8);
+  colourEntry.writeUInt8(0x03, 11);
+  colourEntry.writeUInt32LE(fileIndex.get('res/values/colors.xml')!, 12);
+  chunks.unshift(typeChunkFor([colourEntry], COLOUR_TYPE_ID));
+  const allSpecs = [colourSpec, typeSpec];
+  const typeBytes = allSpecs.reduce((n, c) => n + c.length, 0) + chunks.reduce((n, c) => n + c.length, 0);
 
-  const typeStringsOffset = align4(288 + typeSpecSize + typeBytes);
+  const typeStringsOffset = align4(288 + typeBytes);
   const keyStringsOffset = align4(typeStringsOffset + types.size);
   const packageSize = keyStringsOffset + keys.size;
   const pkg = Buffer.alloc(packageSize);
@@ -348,8 +367,8 @@ function buildArsc(opts: {
   pkg.writeUInt32LE(opts.packageId, 8);
   pkg.writeUInt32LE(typeStringsOffset, 268);
   pkg.writeUInt32LE(keyStringsOffset, 276);
-  typeSpec.copy(pkg, 288);
-  let chunkAt = 288 + typeSpecSize;
+  let chunkAt = 288;
+  for (const spec of allSpecs) { spec.copy(pkg, chunkAt); chunkAt += spec.length; }
   for (const c of chunks) { c.copy(pkg, chunkAt); chunkAt += c.length; }
   types.buf.copy(pkg, typeStringsOffset);
   keys.buf.copy(pkg, keyStringsOffset);
@@ -370,6 +389,11 @@ function align4(n: number): number {
 }
 
 /** A compiled adaptive-icon XML, as AAPT2 would emit it. */
+/**
+ * A compiled adaptive icon. `@mipmap/...` and `@color/...` are stored as numeric
+ * resource ids, not as text, so the verifier has to resolve them through the
+ * resource table to learn which layer is referenced.
+ */
 function buildAdaptiveXml(): Buffer {
   const strings = ['adaptive-icon', 'background', 'foreground', 'drawable', ICON_BACKGROUND_COLOR_NAME, FOREGROUND_RESOURCE_NAME];
   const pool = poolChunk(strings);
@@ -387,10 +411,12 @@ function buildAdaptiveXml(): Buffer {
   start.writeUInt16LE(2, attrExt + 12);
   start.writeInt32LE(-1, attrExt + 20);
   start.writeInt32LE(3, attrExt + 24);         // 'drawable'
-  start.writeUInt32LE(0x7f020001, attrExt + 36);
+  start.writeUInt8(0x01, attrExt + 35);        // Res_value dataType = reference
+  start.writeUInt32LE(COLOUR_ID, attrExt + 36);
   start.writeInt32LE(-1, attrExt + 40);
   start.writeInt32LE(2, attrExt + 44);         // 'foreground'
-  start.writeUInt32LE(0x7f010009, attrExt + 56);
+  start.writeUInt8(0x01, attrExt + 55);        // Res_value dataType = reference
+  start.writeUInt32LE(FOREGROUND_ID, attrExt + 56);
 
   const file = Buffer.alloc(8);
   file.writeUInt16LE(0x0003, 0);
@@ -403,8 +429,13 @@ function buildAdaptiveXml(): Buffer {
 
 const PACKAGE_ID = 0x7f;
 const TYPE_ID = 1;
+const COLOUR_TYPE_ID = 2;
 const ICON_ENTRY = 0;
 const ROUND_ENTRY = 1;
+const FOREGROUND_ENTRY = 2;
+/** `@color/ic_launcher_background` and `@mipmap/ic_launcher_foreground`. */
+const COLOUR_ID = (PACKAGE_ID << 24) | (COLOUR_TYPE_ID << 16);
+const FOREGROUND_ID = (PACKAGE_ID << 24) | (TYPE_ID << 16) | FOREGROUND_ENTRY;
 
 function generatedIconPaths(): { legacy: string[]; foreground: string[]; adaptive: string[] } {
   const legacy: string[] = [];
