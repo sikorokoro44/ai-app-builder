@@ -17,24 +17,41 @@ const OTHER_FOREGROUND_ID = 0x7f02000f;
 const BACKGROUND_ID = 0x7f030005;
 const FRAMEWORK_ICON_ID = 0x0108001c;
 
-/** The `res/...` paths a correct build lists under the launcher icon entry. */
-function completeIconFiles(): string[] {
-  const out = [
-    `res/mipmap-anydpi-v26/${ICON_RESOURCE_NAME}.xml`,
-    `res/mipmap-anydpi-v26/${ROUND_ICON_RESOURCE_NAME}.xml`
+/** One `(config) (file) path type=TYPE` value line from `aapt2 dump resources`. */
+interface FakeFile {
+  config: string;
+  path: string;
+  type: string;
+}
+
+/**
+ * The value lines a correct build lists under the launcher icon entry.
+ *
+ * The `-v4` on the density directories is what build-tools 35.0.0 emits: AAPT2
+ * appends a version qualifier at compile time that the generator never wrote. A
+ * fixture that omits it agrees with whichever path spelling the checker assumes
+ * and hides exactly the mismatch that broke real builds.
+ */
+function completeIconFiles(): FakeFile[] {
+  const out: FakeFile[] = [
+    { config: 'anydpi-v26', path: `res/mipmap-anydpi-v26/${ICON_RESOURCE_NAME}.xml`, type: 'XML' },
+    { config: 'anydpi-v26', path: `res/mipmap-anydpi-v26/${ROUND_ICON_RESOURCE_NAME}.xml`, type: 'XML' }
   ];
   for (const d of Object.keys(LEGACY_ICON_SIZES)) {
-    out.push(`res/mipmap-${d}/${ICON_RESOURCE_NAME}.png`, `res/mipmap-${d}/${ROUND_ICON_RESOURCE_NAME}.png`);
+    out.push(
+      { config: d, path: `res/mipmap-${d}-v4/${ICON_RESOURCE_NAME}.png`, type: 'PNG' },
+      { config: d, path: `res/mipmap-${d}-v4/${ROUND_ICON_RESOURCE_NAME}.png`, type: 'PNG' }
+    );
   }
   for (const d of Object.keys(FOREGROUND_ICON_SIZES)) {
-    out.push(`res/mipmap-${d}/${FOREGROUND_RESOURCE_NAME}.png`);
+    out.push({ config: d, path: `res/mipmap-${d}-v4/${FOREGROUND_RESOURCE_NAME}.png`, type: 'PNG' });
   }
   return out;
 }
 
 interface Entry {
   id: number;
-  files: string[];
+  files: FakeFile[];
 }
 
 interface FakeApk {
@@ -77,15 +94,27 @@ function goodApk(): FakeApk {
   ]);
   return {
     entries: new Map<string, Entry>([
-      [`mipmap/${ICON_RESOURCE_NAME}`, { id: ICON_ID, files: all }],
-      [`mipmap/${ROUND_ICON_RESOURCE_NAME}`, { id: ROUND_ID, files: all.filter((f) => f.includes('_round')) }],
-      [`mipmap/${FOREGROUND_RESOURCE_NAME}`, { id: FOREGROUND_ID, files: all.filter((f) => f.includes('_foreground')) }],
+      // Each entry owns only its own values, as a real dump shows: the icon
+      // entry lists ic_launcher.png per density plus the anydpi-v26 XML, and
+      // never the round or foreground files.
+      [`mipmap/${ICON_RESOURCE_NAME}`, {
+        id: ICON_ID,
+        files: all.filter((f) => f.path.endsWith(`/${ICON_RESOURCE_NAME}.png`) || f.path.endsWith(`/${ICON_RESOURCE_NAME}.xml`))
+      }],
+      [`mipmap/${ROUND_ICON_RESOURCE_NAME}`, {
+        id: ROUND_ID,
+        files: all.filter((f) => f.path.endsWith(`/${ROUND_ICON_RESOURCE_NAME}.png`) || f.path.endsWith(`/${ROUND_ICON_RESOURCE_NAME}.xml`))
+      }],
+      [`mipmap/${FOREGROUND_RESOURCE_NAME}`, {
+        id: FOREGROUND_ID,
+        files: all.filter((f) => f.path.endsWith(`/${FOREGROUND_RESOURCE_NAME}.png`))
+      }],
       [`color/${ICON_BACKGROUND_COLOR_NAME}`, { id: BACKGROUND_ID, files: [] }]
     ]),
     iconTarget: `mipmap/${ICON_RESOURCE_NAME}`,
     roundTarget: `mipmap/${ROUND_ICON_RESOURCE_NAME}`,
     adaptiveXml,
-    packagedFiles: all
+    packagedFiles: all.map((f) => f.path)
   };
 }
 
@@ -100,7 +129,7 @@ function resourceDump(apk: FakeApk): string {
       lastType = type;
     }
     lines.push(`      resource 0x${entry.id.toString(16)} ${name}`);
-    for (const f of entry.files) lines.push(`        (default) (file) ${f}`);
+    for (const f of entry.files) lines.push(`        (${f.config}) (file) ${f.path} type=${f.type}`);
   }
   return lines.join('\n') + '\n';
 }
@@ -247,7 +276,7 @@ function audit(apk: FakeApk): ReturnType<typeof auditApkIcon> {
  */
 function dropEverywhere(apk: FakeApk, keep: (path: string) => boolean): void {
   apk.packagedFiles = apk.packagedFiles.filter(keep);
-  for (const entry of apk.entries.values()) entry.files = entry.files.filter(keep);
+  for (const entry of apk.entries.values()) entry.files = entry.files.filter((f) => keep(f.path));
 }
 
 describe('aapt2 output parsing', () => {
@@ -255,7 +284,14 @@ describe('aapt2 output parsing', () => {
     const m = parseResourceDump(resourceDump(goodApk()));
     assert.strictEqual(m.size, 4);
     assert.strictEqual(m.get(ICON_ID)!.name, `mipmap/${ICON_RESOURCE_NAME}`);
-    assert.ok(m.get(ICON_ID)!.files.includes(`res/mipmap-xhdpi/${ICON_RESOURCE_NAME}.png`));
+    const xhdpi = m.get(ICON_ID)!.files.find((f) => f.config === 'xhdpi');
+    assert.deepStrictEqual(xhdpi, {
+      config: 'xhdpi', path: `res/mipmap-xhdpi-v4/${ICON_RESOURCE_NAME}.png`, type: 'PNG'
+    });
+    // The density qualifier lives in `config`, not in the path: AAPT2 rewrote
+    // the directory to `mipmap-xhdpi-v4`, so a path rebuilt from the density
+    // alone would name a file the APK never had.
+    assert.ok(m.get(ICON_ID)!.files.some((f) => f.config === 'anydpi-v26' && f.type === 'XML'));
     assert.strictEqual(m.get(BACKGROUND_ID)!.name, `color/${ICON_BACKGROUND_COLOR_NAME}`);
   });
 
@@ -364,26 +400,26 @@ describe('aapt2 launcher icon audit', () => {
 
   test('a missing legacy density is reported by name', () => {
     const apk = goodApk();
-    dropEverywhere(apk, (f) => f !== `res/mipmap-xxhdpi/${ICON_RESOURCE_NAME}.png`);
+    dropEverywhere(apk, (f) => f !== `res/mipmap-xxhdpi-v4/${ICON_RESOURCE_NAME}.png`);
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
-    assert.ok(r.errors.some((x) => /mipmap-xxhdpi\/ic_launcher\.png/.test(x)), r.errors.join('; '));
+    assert.ok(r.errors.some((x) => /no xxhdpi configuration for mipmap\/ic_launcher/.test(x)), r.errors.join('; '));
   });
 
   test('a missing round density is reported by name', () => {
     const apk = goodApk();
-    dropEverywhere(apk, (f) => f !== `res/mipmap-hdpi/${ROUND_ICON_RESOURCE_NAME}.png`);
+    dropEverywhere(apk, (f) => f !== `res/mipmap-hdpi-v4/${ROUND_ICON_RESOURCE_NAME}.png`);
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
-    assert.ok(r.errors.some((x) => /mipmap-hdpi\/ic_launcher_round\.png/.test(x)), r.errors.join('; '));
+    assert.ok(r.errors.some((x) => /no hdpi configuration for mipmap\/ic_launcher_round/.test(x)), r.errors.join('; '));
   });
 
   test('a missing adaptive foreground density is reported by name', () => {
     const apk = goodApk();
-    dropEverywhere(apk, (f) => f !== `res/mipmap-xhdpi/${FOREGROUND_RESOURCE_NAME}.png`);
+    dropEverywhere(apk, (f) => f !== `res/mipmap-xhdpi-v4/${FOREGROUND_RESOURCE_NAME}.png`);
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
-    assert.ok(r.errors.some((x) => /ic_launcher_foreground\.png/.test(x)), r.errors.join('; '));
+    assert.ok(r.errors.some((x) => /no xhdpi configuration for mipmap\/ic_launcher_foreground/.test(x)), r.errors.join('; '));
   });
 
   test('a missing adaptive configuration is rejected', () => {
@@ -394,25 +430,36 @@ describe('aapt2 launcher icon audit', () => {
     assert.ok(r.errors.some((x) => /adaptive icon is unreachable/.test(x)), r.errors.join('; '));
   });
 
-  test('a build-tools dump that lists no density files is still accepted', () => {
-    // `aapt2 dump resources` only lists per-entry file paths in some versions;
-    // in others the entry carries just its id. Those file paths are the one
-    // part of the dump that is not a stable contract, so a dump with none must
-    // not fail a build whose archive really does contain every density.
+  test('an entry with no density configurations is rejected', () => {
+    // Density coverage is read from aapt2's own per-configuration value lines,
+    // which is the authoritative record of what the compiled table maps. An
+    // entry that lists no density proves nothing, so it fails rather than
+    // passing on the strength of the archive alone.
     const apk = goodApk();
     for (const entry of apk.entries.values()) entry.files = [];
     const r = audit(apk);
+    assert.strictEqual(r.valid, false);
+    assert.ok(r.errors.some((x) => /no mdpi configuration for mipmap\/ic_launcher/.test(x)), r.errors.join('; '));
+  });
+
+  test('the compile-time version qualifier on density paths is not a missing file', () => {
+    // AAPT2 appends `-v4` to mipmap-* directories when it compiles. Reading
+    // coverage from aapt2 rather than rebuilding paths from the density keeps a
+    // correct APK from being reported as missing every density.
+    const r = audit(goodApk());
     assert.strictEqual(r.valid, true, r.errors.join('; '));
+    assert.ok(!r.errors.some((x) => /does not package/.test(x)), r.errors.join('; '));
   });
 
   test('a density the archive lacks is rejected even when the dump claims it', () => {
     // The archive is the artifact, so it outranks the dump: listing a path in
     // `aapt2 dump resources` cannot substitute for shipping the file.
     const apk = goodApk();
-    apk.packagedFiles = apk.packagedFiles.filter((f) => f !== `res/mipmap-xxxhdpi/${ICON_RESOURCE_NAME}.png`);
+    apk.packagedFiles = apk.packagedFiles.filter((f) => f !== `res/mipmap-xxxhdpi-v4/${ICON_RESOURCE_NAME}.png`);
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
-    assert.ok(r.errors.some((x) => /does not package res\/mipmap-xxxhdpi\/ic_launcher\.png/.test(x)), r.errors.join('; '));
+    assert.ok(r.errors.some((x) => /uses res\/mipmap-xxxhdpi-v4\/ic_launcher\.png, but the APK does not package it/.test(x)),
+      r.errors.join('; '));
   });
 
   test('an adaptive icon wired to the wrong foreground is rejected', () => {
@@ -468,12 +515,12 @@ describe('aapt2 launcher icon audit', () => {
 
   test('every failing reason is reported at once, not just the first', () => {
     const apk = goodApk();
-    dropEverywhere(apk, (f) => f !== `res/mipmap-hdpi/${ICON_RESOURCE_NAME}.png`);
+    dropEverywhere(apk, (f) => f !== `res/mipmap-hdpi-v4/${ICON_RESOURCE_NAME}.png`);
     apk.adaptiveXml = new Map([...apk.adaptiveXml.keys()].map((k) => [k, null] as [string, null]));
     const r = audit(apk);
     assert.strictEqual(r.valid, false);
     assert.ok(r.errors.length >= 2, r.errors.join('; '));
-    assert.ok(r.errors.some((x) => /mipmap-hdpi\/ic_launcher\.png/.test(x)), r.errors.join('; '));
-    assert.ok(r.errors.some((x) => /could not be dumped/.test(x)), r.errors.join('; '));
+    assert.ok(r.errors.some((x) => /no hdpi configuration for mipmap\/ic_launcher/.test(x)), r.errors.join('; '));
+    assert.ok(r.errors.some((x) => /ic_launcher\.xml could not be dumped/.test(x)), r.errors.join('; '));
   });
 });

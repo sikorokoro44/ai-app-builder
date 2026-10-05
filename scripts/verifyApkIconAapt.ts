@@ -73,14 +73,36 @@ function aapt2(bin: string, args: string[]): string {
   }
 }
 
+interface AaptFile {
+  /** Configuration qualifier aapt2 printed, e.g. `mdpi`, `anydpi-v26`. */
+  config: string;
+  /** Path inside the APK, always `res/...`. */
+  path: string;
+  /** `PNG` / `XML`, when aapt2 reported the value type. */
+  type?: string;
+}
+
 interface AaptEntry {
   /** Qualified or plain resource name, e.g. `mipmap/ic_launcher`. */
   name: string;
-  /** Files reachable from this entry, as `res/...` paths. */
-  files: string[];
+  /** Files reachable from this entry, one per configuration. */
+  files: AaptFile[];
 }
 
-/** Parses `aapt2 dump resources` into resource id -> entry. */
+/**
+ * Parses `aapt2 dump resources` into resource id -> entry.
+ *
+ * Density coverage is read from the per-configuration value lines, e.g.
+ *
+ *   resource 0x7f080000 mipmap/ic_launcher
+ *     (mdpi) (file) res/mipmap-mdpi-v4/ic_launcher.png type=PNG
+ *
+ * The path comes from aapt2 rather than being recomputed from the density.
+ * AAPT2 rewrites resource directories when it compiles, appending a version
+ * qualifier the generator never wrote (`-v4` in this build), so a path
+ * reconstructed from the density alone does not name the file that is actually
+ * in the APK.
+ */
 export function parseResourceDump(dump: string): Map<number, AaptEntry> {
   const entries = new Map<number, AaptEntry>();
   let current: AaptEntry | null = null;
@@ -93,10 +115,13 @@ export function parseResourceDump(dump: string): Map<number, AaptEntry> {
       entries.set(Number.parseInt(resMatch[1], 16), current);
       continue;
     }
-    // `(default) (file) res/mipmap-xhdpi/ic_launcher.png`
-    const fileMatch = /\(file\)\s+(\S+)$/.exec(line);
-    if (fileMatch && current) {
-      current.files.push(fileMatch[1].startsWith('res/') ? fileMatch[1] : `res/${fileMatch[1]}`);
+    const valMatch = /^\(([^)]*)\)\s+\(file\)\s+(\S+)(?:\s+type=(\w+))?$/.exec(line);
+    if (valMatch && current) {
+      current.files.push({
+        config: valMatch[1],
+        path: valMatch[2].startsWith('res/') ? valMatch[2] : `res/${valMatch[2]}`,
+        type: valMatch[3]
+      });
     }
   }
   return entries;
@@ -248,62 +273,83 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
     );
   }
 
-  // Every density the generator wrote must be packaged in the APK.
+  // Density coverage.
   //
-  // This reads the APK's own central directory rather than `aapt2 dump
-  // resources`. The zip index is the artifact itself, so this does not depend on
-  // aapt2's human-readable dump format, which varies between build-tools
-  // versions and is the one part of aapt2 output that is *not* a stable
-  // contract. The aapt2-specific proof (manifest -> resource id -> resource
-  // name) is kept above and below, where it is authoritative.
+  // aapt2 owns this judgement because it is the tool that compiled the table:
+  // it knows which configuration maps to which file. The paths it reports are
+  // then checked against the APK's own zip index, so a declared file that is not
+  // actually shipped is still a failure. Reading the path from aapt2 rather than
+  // rebuilding it from the density matters because AAPT2 appends a version
+  // qualifier at compile time (`mipmap-mdpi-v4`), which no generator wrote.
   const packaged = packagedEntryNames(apk);
-  for (const density of Object.keys(LEGACY_ICON_SIZES)) {
-    for (const rel of [`mipmap-${density}/${ICON_RESOURCE_NAME}.png`, `mipmap-${density}/${ROUND_ICON_RESOURCE_NAME}.png`]) {
-      if (!packaged.has(`res/${rel}`)) errors.push(`the APK does not package res/${rel}`);
-    }
-  }
-  for (const density of Object.keys(FOREGROUND_ICON_SIZES)) {
-    const rel = `res/mipmap-${density}/${FOREGROUND_RESOURCE_NAME}.png`;
-    if (!packaged.has(rel)) errors.push(`the APK does not package ${rel}`);
-  }
+  const legacyDensities = Object.keys(LEGACY_ICON_SIZES);
+  const foregroundDensities = Object.keys(FOREGROUND_ICON_SIZES);
 
-  // Cross-check: aapt2's own view of the icon entry must agree that it owns
-  // these files. Reported only when aapt2 listed files at all, because the dump
-  // format for that section is not stable.
-  if (iconEntry.files.length > 0) {
-    const declared = new Set(iconEntry.files);
-    for (const density of Object.keys(LEGACY_ICON_SIZES)) {
-      for (const rel of [`mipmap-${density}/${ICON_RESOURCE_NAME}.png`, `mipmap-${density}/${ROUND_ICON_RESOURCE_NAME}.png`]) {
-        if (!declared.has(`res/${rel}`)) {
-          errors.push(`aapt2 says the launcher icon entry does not reference res/${rel}`);
-        }
+  const fileFor = (entry: AaptEntry, config: string): AaptFile | undefined =>
+    entry.files.find((f) => f.config === config);
+
+  // The foreground is not named by the manifest; it is a layer the adaptive XML
+  // points at. Locate its entry by name so its densities are checked directly.
+  let foregroundEntry: AaptEntry | undefined;
+  for (const entry of resources.values()) {
+    if (bareName(entry.name) === `mipmap/${FOREGROUND_RESOURCE_NAME}`) foregroundEntry = entry;
+  }
+  const roundEntry = roundIcon === undefined ? undefined : resources.get(roundIcon);
+
+  // Every file the table attributes to an entry must really be in the archive.
+  for (const entry of [iconEntry, roundEntry, foregroundEntry].filter((e): e is AaptEntry => !!e)) {
+    for (const f of entry.files) {
+      if (!packaged.has(f.path)) {
+        errors.push(`aapt2 says ${bareName(entry.name)} uses ${f.path}, but the APK does not package it`);
       }
     }
   }
 
+  const requireDensity = (entry: AaptEntry | undefined, label: string, densities: string[]): void => {
+    if (!entry) return;   // the missing entry is already reported
+    for (const density of densities) {
+      const f = fileFor(entry, density);
+      if (!f) {
+        errors.push(`aapt2 reports no ${density} configuration for ${label}`);
+      } else if (f.type && f.type !== 'PNG') {
+        errors.push(`${label} is a ${f.type} at ${density}, expected a PNG`);
+      }
+    }
+  };
+
+  requireDensity(iconEntry, `mipmap/${ICON_RESOURCE_NAME}`, legacyDensities);
+  requireDensity(roundEntry, `mipmap/${ROUND_ICON_RESOURCE_NAME}`, legacyDensities);
+  requireDensity(foregroundEntry, `mipmap/${FOREGROUND_RESOURCE_NAME}`, foregroundDensities);
+
   // The compiled adaptive XML references layers by id, so resolve them too.
-  for (const rel of [
-    `mipmap-anydpi-v26/${ICON_RESOURCE_NAME}.xml`,
-    `mipmap-anydpi-v26/${ROUND_ICON_RESOURCE_NAME}.xml`
-  ]) {
-    if (!packaged.has(`res/${rel}`)) {
-      errors.push(`the APK does not package res/${rel}, so the adaptive icon is unreachable`);
+  for (const [entry, label] of [
+    [iconEntry, `mipmap/${ICON_RESOURCE_NAME}`],
+    [roundEntry, `mipmap/${ROUND_ICON_RESOURCE_NAME}`]
+  ] as [AaptEntry | undefined, string][]) {
+    const adaptive = entry && fileFor(entry, 'anydpi-v26');
+    if (!adaptive) {
+      errors.push(`aapt2 reports no anydpi-v26 configuration for ${label}, so the adaptive icon is unreachable`);
       continue;
     }
-    const tree = tryDumpXml(bin, apk, `res/${rel}`);
+    if (!packaged.has(adaptive.path)) {
+      errors.push(`the APK does not package ${adaptive.path}, so the adaptive icon is unreachable`);
+      continue;
+    }
+    const rel = adaptive.path;   // already `res/...`, as aapt2 reports it
+    const tree = tryDumpXml(bin, apk, rel);
     if (tree === null) {
-      errors.push(`res/${rel} could not be dumped as compiled XML`);
+      errors.push(`${rel} could not be dumped as compiled XML`);
       continue;
     }
     const referenced = parseReferences(tree).map((id) => bareName(resources.get(id)?.name ?? `0x${id.toString(16)}`));
     if (!referenced.includes(`mipmap/${FOREGROUND_RESOURCE_NAME}`)) {
-      errors.push(`res/${rel} does not reference ${FOREGROUND_RESOURCE_NAME}`);
+      errors.push(`${rel} does not reference ${FOREGROUND_RESOURCE_NAME}`);
     }
     const hasBackground = referenced.some(
       (n) => n === `color/${ICON_BACKGROUND_COLOR_NAME}` || n === `drawable/${ICON_BACKGROUND_COLOR_NAME}`
     );
     if (!hasBackground) {
-      errors.push(`res/${rel} does not reference ${ICON_BACKGROUND_COLOR_NAME}`);
+      errors.push(`${rel} does not reference ${ICON_BACKGROUND_COLOR_NAME}`);
     }
   }
 
