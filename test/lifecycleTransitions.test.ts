@@ -31,6 +31,15 @@ describe('valid lifecycle transitions', () => {
     }
   });
 
+  test('a pushed implementation can go straight to the cloud build', () => {
+    // githubPush leaves the state at BUILDING and the canonical runner dispatches
+    // the cloud build from there, so this edge has to be legal. Reaching for the
+    // release stages from BUILDING still is not.
+    assert.ok(isValidTransition(ProjectStates.BUILDING, ProjectStates.CLOUD_BUILDING));
+    assert.ok(!isValidTransition(ProjectStates.BUILDING, ProjectStates.VERIFYING));
+    assert.ok(!isValidTransition(ProjectStates.BUILDING, ProjectStates.RELEASING));
+  });
+
   test('repair state can return to every earlier build stage', () => {
     const allowed = VALID_TRANSITIONS[ProjectStates.REPAIRING];
     for (const target of [ProjectStates.READY, ProjectStates.BUILDING, ProjectStates.TESTING,

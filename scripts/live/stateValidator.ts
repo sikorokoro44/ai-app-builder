@@ -12,7 +12,9 @@ export const VALID_TRANSITIONS: Record<string, string[]> = {
   [ProjectStates.PLANNING]: [ProjectStates.READY, ProjectStates.WAITING, ProjectStates.REPAIRING, ProjectStates.BLOCKED, ProjectStates.FAILED],
   [ProjectStates.WAITING]: [ProjectStates.READY, ProjectStates.PLANNING, ProjectStates.REPAIRING, ProjectStates.BLOCKED, ProjectStates.FAILED],
   [ProjectStates.READY]: [ProjectStates.BUILDING, ProjectStates.REPAIRING, ProjectStates.BLOCKED, ProjectStates.FAILED],
-  [ProjectStates.BUILDING]: [ProjectStates.TESTING, ProjectStates.REPAIRING, ProjectStates.BLOCKED, ProjectStates.FAILED],
+  // A pushed implementation goes straight to the cloud build: githubPush leaves
+  // the state at BUILDING, and the canonical runner dispatches from there.
+  [ProjectStates.BUILDING]: [ProjectStates.TESTING, ProjectStates.CLOUD_BUILDING, ProjectStates.REPAIRING, ProjectStates.BLOCKED, ProjectStates.FAILED],
   [ProjectStates.TESTING]: [ProjectStates.BUILDING, ProjectStates.CLOUD_BUILDING, ProjectStates.REPAIRING, ProjectStates.BLOCKED, ProjectStates.FAILED],
   [ProjectStates.REPAIRING]: [
     ProjectStates.READY, ProjectStates.BUILDING, ProjectStates.TESTING, ProjectStates.CLOUD_BUILDING,
