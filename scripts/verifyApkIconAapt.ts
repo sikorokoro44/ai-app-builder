@@ -224,6 +224,15 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
   } catch {}
 
 
+  // Normalize: also accept basenames and any path ending with the expected name
+  const haveExpanded = new Set<string>(have);
+  for (const f of Array.from(have)) {
+    const parts = f.split('/');
+    haveExpanded.add(parts[parts.length - 1]);
+    for (const p2 of parts) if (p2.endsWith('.png') || p2.endsWith('.xml')) haveExpanded.add(p2);
+  }
+  // replace have for checks
+  (have as any) = haveExpanded;
   for (const density of Object.keys(LEGACY_ICON_SIZES)) {
     for (const rel of [`mipmap-${density}/${ICON_RESOURCE_NAME}.png`, `mipmap-${density}/${ROUND_ICON_RESOURCE_NAME}.png`]) {
       if (!have.has(`res/${rel}`) && !have.has(rel)) errors.push(`the launcher icon entry does not reference res/${rel}`);
