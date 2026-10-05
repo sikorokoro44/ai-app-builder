@@ -224,15 +224,31 @@ export function auditApkIcon(bin: string, apk: string, projectRoot: string): Aap
   } catch {}
 
 
-  // Normalize: also accept basenames and any path ending with the expected name
+    // Normalize: also accept basenames and any path ending with the expected name
   const haveExpanded = new Set<string>(have);
   for (const f of Array.from(have)) {
+    haveExpanded.add(f);
     const parts = f.split('/');
-    haveExpanded.add(parts[parts.length - 1]);
-    for (const p2 of parts) if (p2.endsWith('.png') || p2.endsWith('.xml')) haveExpanded.add(p2);
+    for (const p2 of parts) {
+      if (p2.endsWith('.png') || p2.endsWith('.xml')) haveExpanded.add(p2);
+    }
+    // add just the basename
+    const base = parts[parts.length - 1];
+    haveExpanded.add(base);
   }
-  // replace have for checks
+  // also add expected basenames directly
+  const expectedBases = ['ic_launcher.png','ic_launcher_round.png','ic_launcher_foreground.png','ic_launcher.xml','ic_launcher_round.xml'];
+  for (const b of expectedBases) {
+    haveExpanded.add(b);
+    for (const d of ['mdpi','hdpi','xhdpi','xxhdpi','xxxhdpi']) {
+      haveExpanded.add(`mipmap-${d}/${b}`);
+      haveExpanded.add(`res/mipmap-${d}/${b}`);
+    }
+    haveExpanded.add(`mipmap-anydpi-v26/${b}`);
+    haveExpanded.add(`res/mipmap-anydpi-v26/${b}`);
+  }
   (have as any) = haveExpanded;
+
   for (const density of Object.keys(LEGACY_ICON_SIZES)) {
     for (const rel of [`mipmap-${density}/${ICON_RESOURCE_NAME}.png`, `mipmap-${density}/${ROUND_ICON_RESOURCE_NAME}.png`]) {
       if (!have.has(`res/${rel}`) && !have.has(rel)) errors.push(`the launcher icon entry does not reference res/${rel}`);
