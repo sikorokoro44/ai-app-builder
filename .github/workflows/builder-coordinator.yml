@@ -33,7 +33,11 @@ concurrency:
 jobs:
   coordinate:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # The fleet plus a cloud build that is polled for up to BUILDER_POLL_TIMEOUT_MS
+    # plus release and public-download verification. Sixty minutes was not enough
+    # headroom for a slow Gradle build followed by a retry, and a job killed by its
+    # own timeout leaves the run needing a resume.
+    timeout-minutes: 90
     permissions:
       contents: write
       issues: write
@@ -51,15 +55,22 @@ jobs:
         with:
           node-version: '24'
 
+      # The run store has to survive from one run of this workflow to the next,
+      # whichever way the previous one was stopped: a platform outage that never
+      # started it, a cancelled job, or a coordinator that died mid-build. Keying
+      # the cache on github.run_id gave every dispatch an empty store, so
+      # `--resume` had nothing to resume and a stopped run silently started over.
+      # The key is the commit, and the restore prefix reaches back through it, so
+      # an interrupted run is picked up from the store the last attempt left.
       - name: Restore the run store
         uses: actions/cache@v4
         with:
           path: |
             .builder/agents
             .builder/live
-          key: builder-run-${{ inputs.runId || github.run_id }}-${{ github.run_attempt }}
+          key: builder-run-store-${{ github.sha }}
           restore-keys: |
-            builder-run-${{ inputs.runId || github.run_id }}-
+            builder-run-store-
 
       - name: Show the runs already on disk
         run: node --experimental-strip-types scripts/coordinator.ts --runs || true
@@ -71,6 +82,12 @@ jobs:
           BUILDER_AGENT_DIR: .builder/agents
           BUILDER_PROJECT_DIR: .builder/generated/android
           BUILDER_REPO_ROOT: .
+          BUILDER_REQUESTS_DIR: .builder/requests
+          # A build that GitHub queues for longer than this is treated as
+          # abandoned by the platform and re-dispatched rather than waited on.
+          BUILDER_POLL_TIMEOUT_MS: '2700000'
+          BUILDER_RETRY_BACKOFF_MS: '60000'
+          BUILDER_MAX_ATTEMPTS: '3'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -88,6 +105,33 @@ jobs:
         if: always()
         run: node --experimental-strip-types scripts/coordinator.ts --status || true
 
+      # GitHub is the permanent source of truth, so the evidence this run produced
+      # belongs in the repository and not only in an artifact that expires. Only
+      # the live state is committed: the generated sources are owned by
+      # repo-publisher, and the run store is a scratch directory.
+      - name: Publish the live state to the authoritative branch
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A .builder/live
+          if git diff --cached --quiet; then
+            echo "The live state did not change."
+            exit 0
+          fi
+          git commit -m "builder: live state after run ${{ github.run_id }}"
+          # Another run may have pushed while this one was running; the branch is
+          # the truth, so rebase onto it rather than force anything.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            git pull --rebase --autostash origin main
+          done
+          echo '::error::Could not publish the live state after three attempts.'
+          exit 1
+
       - name: Upload the run store and live state
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,6 +140,7 @@ jobs:
           path: |
             .builder/agents
             .builder/live
+            .builder/requests
             .builder/generated/android
           retention-days: 14
           if-no-files-found: warn

@@ -150,9 +150,12 @@ describe('retry only for genuinely transient failures', () => {
     });
   }
 
-  test('transient is the only retryable class', () => {
+  test('only infrastructure faults are retryable, and they are exactly the ones no code change fixes', () => {
     const retryable = FAILURE_CLASSES.filter(isTransientFailure);
-    assert.deepStrictEqual(retryable, ['infrastructure_transient']);
+    assert.deepStrictEqual(retryable, ['infrastructure_transient', 'infrastructure_not_started']);
+    for (const k of retryable) {
+      assert.match(REPAIR_PLAYBOOK[k].join(' '), /No source change needed/);
+    }
   });
 });
 

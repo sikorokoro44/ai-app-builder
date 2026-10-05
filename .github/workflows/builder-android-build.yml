@@ -18,8 +18,10 @@ permissions:
 concurrency:
   # One build per commit. A second dispatch for the same commit queues behind the
   # first instead of racing it, which is what keeps duplicate artifacts from
-  # appearing for identical input.
-  group: android-build-${{ github.ref }}
+  # appearing for identical input. Keying the group on the branch instead made
+  # every commit's build wait behind every other one, so a build stuck in the
+  # queue during an outage blocked every later attempt for the whole branch.
+  group: android-build-${{ inputs.head_sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -79,6 +81,27 @@ jobs:
         run: |
           set -euo pipefail
           node --experimental-strip-types scripts/generateAndroidApp.ts
+
+      # The APK has to be the app that was committed, not merely an app this
+      # workflow could generate from the same words. Where repo-publisher has
+      # pushed the project, the regenerated tree must be identical to it; file
+      # modes are ignored because they depend on the runner's umask, not on the
+      # generator.
+      - name: Refuse to build a project that differs from the committed one
+        run: |
+          set -euo pipefail
+          root=.builder/generated/android
+          if ! git ls-files --error-unmatch "$root/app/build.gradle.kts" >/dev/null 2>&1; then
+            echo "This commit carries no generated project; building what was just generated."
+            exit 0
+          fi
+          if git -c core.fileMode=false diff --quiet -- "$root"; then
+            echo "The regenerated project is byte-identical to the committed one."
+          else
+            echo "::error::The project regenerated here differs from the one committed at ${{ steps.commit.outputs.head_sha }}"
+            git -c core.fileMode=false diff --stat -- "$root" | head -40
+            exit 1
+          fi
 
       - name: Validate the generated project before building
         run: |

@@ -3,6 +3,7 @@ export type FailureClass =
   | 'dependency'
   | 'workflow_config'
   | 'infrastructure_transient'
+  | 'infrastructure_not_started'
   | 'artifact'
   | 'unknown';
 
@@ -11,6 +12,7 @@ export const FAILURE_CLASSES: FailureClass[] = [
   'dependency',
   'workflow_config',
   'infrastructure_transient',
+  'infrastructure_not_started',
   'artifact',
   'unknown'
 ];
@@ -199,7 +201,16 @@ export function classifyFailure(logs: string[]): Classification {
 }
 
 export function isTransientFailure(k: FailureClass): boolean {
-  return k === 'infrastructure_transient';
+  return k === 'infrastructure_transient' || k === 'infrastructure_not_started';
+}
+
+/**
+ * True when nothing in this repository can be at fault for the failure: the
+ * platform never ran the workflow. A repair pass must not be started for it,
+ * because the code it would "fix" is the code that was never executed.
+ */
+export function isPlatformFault(k: FailureClass): boolean {
+  return k === 'infrastructure_not_started';
 }
 
 /** Repair guidance per class: what an autonomous repair pass should do. */
@@ -222,6 +233,12 @@ export const REPAIR_PLAYBOOK: Record<FailureClass, string[]> = {
   infrastructure_transient: [
     'No source change needed.',
     'Retry the run with bounded exponential backoff.'
+  ],
+  infrastructure_not_started: [
+    'No source change needed: no step of the workflow ever ran, so nothing in this repository was exercised.',
+    'Do not start a repair pass; there is no failing code to read a diagnostic from.',
+    'Re-dispatch the same commit after a bounded backoff, then re-watch it.',
+    'If the platform keeps not starting the workflow, report it as an infrastructure outage with the run ids.'
   ],
   artifact: [
     'Verify the build output path and artifact upload/download steps.',

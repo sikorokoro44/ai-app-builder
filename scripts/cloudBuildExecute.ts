@@ -16,8 +16,19 @@
 import { execFileSync } from 'child_process';
 import { initStateStore, readState, writeState, appendEvent } from './live/stateStore.ts';
 import { persistCheckpoint } from './live/checkpointStore.ts';
-import { classifyFailure, isTransientFailure, REPAIR_PLAYBOOK } from './live/failureClassifier.ts';
-import { summarizeFailure, decideRetry, isSuccessfulRun, isTerminal, isStillRunning, type RunInfo, type JobInfo } from './live/workflowWatcher.ts';
+import { isTransientFailure, isPlatformFault, REPAIR_PLAYBOOK } from './live/failureClassifier.ts';
+import {
+  summarizeFailure,
+  decideRetry,
+  isSuccessfulRun,
+  isTerminal,
+  isStillRunning,
+  retryBackoffMs,
+  classifyRunOutcome,
+  chooseRunToAdopt,
+  type RunInfo,
+  type JobInfo
+} from './live/workflowWatcher.ts';
 import { recordStage, missingStages } from './live/evidenceChain.ts';
 import { validateGeneratedProject } from './live/projectValidator.ts';
 import { assertRepoSafety, assertNoSecretsInFiles } from './live/repoGuard.ts';
@@ -27,6 +38,16 @@ const WORKFLOW = process.env.BUILDER_WORKFLOW || '.github/workflows/builder-andr
 const MAX_ATTEMPTS = Number(process.env.BUILDER_MAX_ATTEMPTS || '3');
 const POLL_INTERVAL_MS = Number(process.env.BUILDER_POLL_INTERVAL_MS || '15000');
 const POLL_TIMEOUT_MS = Number(process.env.BUILDER_POLL_TIMEOUT_MS || String(45 * 60 * 1000));
+const RETRY_BACKOFF_MS = Number(process.env.BUILDER_RETRY_BACKOFF_MS || String(60 * 1000));
+/**
+ * How long a run may sit queued before it is treated as abandoned by the
+ * platform rather than adopted. A queued run that nothing has started yet and
+ * that is older than this will not start on its own; re-dispatching is the only
+ * way the build gets built.
+ */
+const STALE_QUEUED_MS = Number(process.env.BUILDER_STALE_QUEUED_MS || String(20 * 60 * 1000));
+/** Tolerance for clock skew between this machine and GitHub when correlating runs. */
+const CLOCK_SKEW_MS = 30 * 1000;
 const IDEA = process.env.BUILDER_IDEA || '';
 
 function gh(args: string[]): string {
@@ -154,37 +175,92 @@ if (process.argv.includes('--dispatch')) {
   // Duplicate prevention: an unfinished run for this same commit is adopted
   // rather than starting a second identical build.
   const existing = ghJson<RemoteRun[]>([
-    'run', 'list', '--workflow', WORKFLOW, '--commit', sha, '--limit', '10', '--json', 'databaseId,status,conclusion,headSha'
+    'run', 'list', '--workflow', WORKFLOW, '--commit', sha, '--limit', '10', '--json', 'databaseId,status,conclusion,headSha,createdAt'
   ]);
-  const inFlight = existing.find((r) => isStillRunning(r.status));
-  if (inFlight) {
-    s.cloudBuild.runId = String(inFlight.databaseId);
+
+  const abandoned: number[] = [];
+  const decision = chooseRunToAdopt(existing, {
+    now: Date.now(),
+    staleQueuedMs: STALE_QUEUED_MS,
+    hasStarted: (candidate) => {
+      // Ask GitHub whether anything actually started, because a queued-and-old run
+      // that already began building must be adopted rather than duplicated. An
+      // unanswered question is treated as "started" for the same reason.
+      try {
+        const jobs = ghJson<{ jobs: JobInfo[] }>(['run', 'view', String(candidate.databaseId), '--json', 'jobs']).jobs;
+        return jobs.some((j) => (j.steps || []).length > 0 || (j.startedAt && j.status !== 'queued'));
+      } catch {
+        return true;
+      }
+    }
+  });
+  abandoned.push(...decision.abandon);
+
+  if (decision.adopt) {
+    s.cloudBuild.runId = String(decision.adopt.databaseId);
     writeState(s);
     console.log(JSON.stringify({
-      ok: true, dispatched: false, adopted: true, runId: String(inFlight.databaseId), status: inFlight.status
+      ok: true,
+      dispatched: false,
+      adopted: true,
+      runId: String(decision.adopt.databaseId),
+      status: decision.adopt.status,
+      supersededRunIds: abandoned
     }, null, 2));
     process.exit(0);
+  }
+
+  if (abandoned.length) {
+    s.cloudBuild.supersededRunIds = [...new Set([...(s.cloudBuild.supersededRunIds || []), ...abandoned])].map(String);
+    appendEvent({ type: Events.BUILD_FAILED, stage: 'QUEUED', abandonedRunIds: abandoned, reason: 'queued too long with no step executed' });
+  }
+
+  // Back off before re-dispatching after a platform fault. Firing again into a
+  // platform that is refusing to start workflows only produces more runs that
+  // never start.
+  const attempt = s.cloudBuild.attempt || 1;
+  const backoff = retryBackoffMs(attempt, RETRY_BACKOFF_MS);
+  if (backoff > 0) {
+    const why = s.cloudBuild.failureClass || 'an earlier attempt';
+    s.latestActivity = `Waiting ${Math.round(backoff / 1000)}s before re-dispatching after ${why}`;
+    writeState(s);
+    sleep(backoff);
   }
 
   const ghArgs = ['workflow', 'run', WORKFLOW];
   if (IDEA) ghArgs.push('-f', `idea=${IDEA}`);
   if (process.env.BUILDER_HEAD_SHA) ghArgs.push('-f', `head_sha=${process.env.BUILDER_HEAD_SHA}`);
+  // Stamp the moment the dispatch is requested. Without it the poll below can
+  // adopt an older run for the same commit — the previous attempt's run — and
+  // attribute its conclusion to this attempt.
+  const dispatchedAt = new Date().toISOString();
+  s.cloudBuild.dispatchedAt = dispatchedAt;
+  writeState(s);
   gh(ghArgs);
 
+  const floor = Date.parse(dispatchedAt) - CLOCK_SKEW_MS;
   // workflow_dispatch returns before the run appears, so poll for the run that
-  // was created for this commit rather than guessing an id.
+  // this dispatch created rather than guessing an id or reusing the last one.
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   let found: RemoteRun | undefined;
   while (Date.now() < deadline) {
     const runs = ghJson<RemoteRun[]>([
       'run', 'list', '--workflow', WORKFLOW, '--commit', sha, '--limit', '10', '--json', 'databaseId,status,conclusion,headSha,createdAt'
     ]);
-    found = runs.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
+    found = runs
+      .filter((r) => {
+        const created = Date.parse(r.createdAt || '');
+        return !Number.isNaN(created) && created >= floor;
+      })
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))[0];
     if (found) break;
     sleep(POLL_INTERVAL_MS);
   }
   if (!found) {
-    fail(`Dispatched ${WORKFLOW} but no run appeared for commit ${sha} within ${Math.round(POLL_TIMEOUT_MS / 60000)} minutes`);
+    fail(
+      `Dispatched ${WORKFLOW} but no run created after ${dispatchedAt} appeared for commit ${sha} ` +
+      `within ${Math.round(POLL_TIMEOUT_MS / 60000)} minutes`
+    );
   }
 
   s.cloudBuild.runId = String(found.databaseId);
@@ -194,7 +270,12 @@ if (process.argv.includes('--dispatch')) {
   persistCheckpoint(`dispatched-${found.databaseId}`, s);
   writeState(s);
   console.log(JSON.stringify({
-    ok: true, dispatched: true, runId: String(found.databaseId), headSha: sha, status: found.status
+    ok: true,
+    dispatched: true,
+    runId: String(found.databaseId),
+    headSha: sha,
+    status: found.status,
+    supersededRunIds: abandoned
   }, null, 2));
   process.exit(0);
 }
@@ -317,27 +398,48 @@ s.cloudBuild.workflowFile = WORKFLOW;
 s.cloudBuild.logsFetched = logs.length > 0;
 
 if (!isSuccessfulRun(run)) {
-  const classification = classifyFailure(logs);
+  const classification = classifyRunOutcome(run, jobs, logs);
   const summary = summarizeFailure(jobs, logs);
   const attempt = s.cloudBuild.attempt || 1;
   const decision = decideRetry(classification.klass, attempt, MAX_ATTEMPTS);
+  const platformFault = isPlatformFault(classification.klass);
 
   s.cloudBuild.status = 'failed';
   s.cloudBuild.conclusion = run.conclusion || 'failure';
   s.cloudBuild.failureClass = classification.klass;
-  s.cloudBuild.failedReason = `${classification.klass}: ${summary.failedStep || summary.failedJob || 'unknown step'} — ${classification.matched[0] || 'no diagnostic captured'}`.slice(0, 800);
+  s.cloudBuild.failedReason = `${classification.klass}: ${summary.failedStep || summary.failedJob || 'no step ran'} — ${classification.matched[0] || 'no diagnostic captured'}`.slice(0, 800);
   s.cloudBuild.retryable = decision.retry;
   s.buildLogs = logs.slice(-200);
-  s.projectState = ProjectStates.REPAIRING;
-  s.failureRepair = {
-    state: 'FAILURE_DETECTED',
-    failureDetectedAt: new Date().toISOString(),
-    rootCause: classification.klass,
-    changes: REPAIR_PLAYBOOK[classification.klass]
-  };
-  s.latestActivity = `Cloud build failed (${classification.klass})`;
+
+  if (platformFault) {
+    /*
+     * Nothing in this repository ran, so nothing in it is broken. The state stays
+     * where it truthfully is — a build is outstanding and has not finished — and
+     * the repair machinery is left alone: a repair agent asked to fix a build
+     * that never started would edit correct code until the run timed out.
+     */
+    s.projectState = ProjectStates.CLOUD_BUILDING;
+    s.failureRepair = { state: 'idle' };
+    s.latestActivity = `Cloud build run ${runId} never started (${classification.basis}); not a code failure`;
+  } else {
+    s.projectState = ProjectStates.REPAIRING;
+    s.failureRepair = {
+      state: 'FAILURE_DETECTED',
+      failureDetectedAt: new Date().toISOString(),
+      rootCause: classification.klass,
+      changes: REPAIR_PLAYBOOK[classification.klass]
+    };
+    s.latestActivity = `Cloud build failed (${classification.klass})`;
+  }
   persistCheckpoint(`failed-${runId}`, s);
-  appendEvent({ type: Events.BUILD_FAILED, runId, failureClass: classification.klass, retry: decision.retry, failedStep: summary.failedStep });
+  appendEvent({
+    type: Events.BUILD_FAILED,
+    runId,
+    failureClass: classification.klass,
+    retry: decision.retry,
+    failedStep: summary.failedStep,
+    basis: classification.basis
+  });
   writeState(s);
 
   console.error(JSON.stringify({
@@ -346,8 +448,11 @@ if (!isSuccessfulRun(run)) {
     runId,
     conclusion: run.conclusion,
     failureClass: classification.klass,
+    basis: classification.basis,
+    platformFault,
     transient: isTransientFailure(classification.klass),
     retry: decision,
+    retryInMs: decision.retry ? retryBackoffMs(attempt, RETRY_BACKOFF_MS) : 0,
     failedStep: summary.failedStep,
     actionableLines: summary.logLines.slice(-15),
     playbook: REPAIR_PLAYBOOK[classification.klass]

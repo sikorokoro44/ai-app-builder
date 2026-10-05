@@ -6,14 +6,20 @@
  *   BUILDER_IDEA="<idea>" node --experimental-strip-types scripts/coordinator.ts
  *   node --experimental-strip-types scripts/coordinator.ts --resume <runId>
  *   node --experimental-strip-types scripts/coordinator.ts --pre-cloud
+ *   node --experimental-strip-types scripts/coordinator.ts --requests
  *
- * The last two flags matter: `--pre-cloud` runs everything that does not need
- * GitHub or a network, which is what a local check should use, and `--resume`
- * continues a stopped run without redoing verified work.
+ * The last flags matter: `--pre-cloud` runs everything that does not need
+ * GitHub or a network, which is what a local check should use; `--resume`
+ * continues a stopped run without redoing verified work; and `--requests` lists
+ * the runs that have been asked for but not yet delivered.
+ *
+ * A new idea always starts from an empty state. A checkout of main carries the
+ * state and evidence of whatever ran last, and a run that inherited them would
+ * be reporting another app's proof as its own.
  */
-import { runCoordinator } from './agents/coordinator.ts';
-import { inspectRun, resumeRun } from './agents/recovery.ts';
+import { inspectRun, resumeRun, startNewRun } from './agents/recovery.ts';
 import { listRuns } from './agents/recovery.ts';
+import { listRequests, openRequests } from './live/runRequests.ts';
 
 const argv = process.argv.slice(2);
 const flag = (name: string) => argv.includes(`--${name}`);
@@ -28,7 +34,8 @@ if (flag('help')) {
   scripts/coordinator.ts --pre-cloud           same, stopping before GitHub
   scripts/coordinator.ts --resume [runId]      continue a stopped run
   scripts/coordinator.ts --status [runId]      print what a run has proven
-  scripts/coordinator.ts --runs                list the runs on disk`);
+  scripts/coordinator.ts --runs                list the runs on disk
+  scripts/coordinator.ts --requests            list the run requests on record`);
   process.exit(0);
 }
 
@@ -38,6 +45,17 @@ if (flag('runs')) {
   for (const run of runs) {
     console.log(`${run.current ? '*' : ' '} ${run.runId}  ${run.agentsCompleted}/${run.agentsTotal} agents  ${run.projectState}  evidence ${run.evidenceThrough}  ${run.idea}`);
   }
+  process.exit(0);
+}
+
+if (flag('requests')) {
+  const requests = listRequests();
+  if (!requests.length) console.log('No run requests recorded.');
+  for (const r of requests) {
+    const runs = r.dispatches.map((d) => d.runId || d.outcome).join(', ') || 'not dispatched';
+    console.log(`${r.state === 'delivered' ? ' ' : '*'} ${r.requestId}  ${r.state}  ${runs}  ${r.idea}`);
+  }
+  console.log(`\n${openRequests().length} request(s) still open.`);
   process.exit(0);
 }
 
@@ -59,7 +77,10 @@ const options = {
 
 const report = flag('resume')
   ? await resumeRun(value('resume') || undefined, options)
-  : await runCoordinator({ ...options, idea: argv.filter((a) => !a.startsWith('--') && a !== value('resume') && a !== value('concurrency')).join(' ') });
+  : await startNewRun(
+      argv.filter((a) => !a.startsWith('--') && a !== value('resume') && a !== value('concurrency')).join(' '),
+      options
+    );
 
 console.log('');
 console.log(`run ${report.runId} ${report.status}`);

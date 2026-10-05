@@ -3,6 +3,7 @@ import { test, describe, before } from 'node:test';
 import assert from 'node:assert';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { runCoordinator } from '../scripts/agents/coordinator.ts';
@@ -257,5 +258,59 @@ describe('starting a new run', () => {
     const restored = loadCheckpoint(listCheckpoints().find((c) => c.name === 'before-restart')!.file);
     assert.ok(restored, 'the checkpoint should load');
     assert.ok((restored.evidence?.stages ?? []).length > 0, 'the checkpoint should still hold the old evidence');
+  });
+});
+
+describe('a new idea on a checkout that still holds the last run', () => {
+  // A workflow checkout of main carries .builder/live/state.json from whatever ran
+  // last, including a delivered run whose evidence chain is complete. A new idea
+  // that inherited it would report another app's proof as its own, and the state
+  // validator would accept it because every individual link is real. This runs the
+  // command line the workflow runs, not the function behind it.
+  test('the CLI starts the new idea from an empty chain', async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), 'builder-stale-state-'));
+    const agentDir = join(stateDir, 'agents');
+    // The generated project is tracked, so the child process writes to a copy.
+    const projectRoot = mkdtempSync(join(tmpdir(), 'builder-stale-project-'));
+    const stale = readState();
+    assert.ok((stale.evidence?.stages ?? []).length > 0, 'the finished run should have proved something');
+
+    const result = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', 'scripts/coordinator.ts', 'Book tracker for reading', '--pre-cloud', '--concurrency', '4'],
+      {
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          BUILDER_STATE_DIR: stateDir,
+          BUILDER_CHECKPOINT_DIR: join(stateDir, 'checkpoints'),
+          BUILDER_REQUESTS_DIR: join(stateDir, 'requests'),
+          BUILDER_AGENT_DIR: agentDir,
+          BUILDER_PROJECT_DIR: projectRoot
+        }
+      }
+    );
+    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+
+    const fresh = JSON.parse(readFileSync(join(stateDir, 'state.json'), 'utf-8'));
+    const chain = fresh.evidence.stages.map((s: { stage: string }) => s.stage);
+    assert.deepStrictEqual(
+      chain,
+      ['IDEA', 'ANALYZE', 'DESIGN', 'PLAN', 'SCAFFOLD', 'TESTGEN', 'VALIDATE'],
+      'the new run must prove only its own stages'
+    );
+    assert.ok(!JSON.stringify(fresh.evidence).includes(report.runId), 'no stage may quote the earlier run');
+    assert.ok(existsSync(join(projectRoot, 'app/build.gradle.kts')), 'the run wrote its own project');
+    const pointer = JSON.parse(readFileSync(join(agentDir, 'current-run.json'), 'utf-8'));
+    assert.strictEqual(pointer.idea, 'Book tracker for reading', 'the run store belongs to the new idea');
+    assert.notStrictEqual(pointer.runId, report.runId, 'the new idea must be a new run');
+    assert.ok(!JSON.stringify(fresh).includes('Plant watering journal'), 'nothing in the state still describes the last idea');
+  });
+
+  test('the abandoned run is still readable afterwards', () => {
+    const checkpoints = readdirSync(join(process.env.BUILDER_CHECKPOINT_DIR!, '.')).filter((f) => f.startsWith('before-restart--'));
+    assert.ok(checkpoints.length > 0, 'the state it replaced must be checkpointed');
+    const saved = JSON.parse(readFileSync(join(process.env.BUILDER_CHECKPOINT_DIR!, checkpoints[0]), 'utf-8'));
+    assert.ok((saved.evidence?.stages ?? []).length > 0, 'and the checkpoint holds the evidence it had');
   });
 });

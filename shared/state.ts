@@ -87,6 +87,10 @@ export interface CloudBuild {
   artifactSize?: number;
   conclusion?: string;
   logsFetched?: boolean;
+  /** When the dispatch for this attempt was requested, used to correlate the run that answers it. */
+  dispatchedAt?: string;
+  /** Runs GitHub queued but never started, replaced by a later dispatch of the same commit. */
+  supersededRunIds?: string[];
 }
 
 export interface Release {

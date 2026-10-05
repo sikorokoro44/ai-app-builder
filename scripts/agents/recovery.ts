@@ -86,7 +86,7 @@ export async function resumeRun(runId?: string, opts: Omit<CoordinatorOptions, '
 }
 
 /**
- * Start a fresh run, leaving the old run on disk untouched.
+ * Start a fresh run, leaving any earlier run on disk untouched.
  *
  * The live state is cleared first so a new run can never inherit the previous
  * run's evidence: a chain that proves a release for the last idea says nothing
@@ -94,8 +94,12 @@ export async function resumeRun(runId?: string, opts: Omit<CoordinatorOptions, '
  * is a deliberate abandonment rather than a silent reset — the state being
  * replaced is checkpointed, the write names the state it came from, and the
  * transition is logged like any other.
+ *
+ * This is the path a brand-new idea takes, on a workstation and in a workflow
+ * checkout alike, because a checkout of `main` carries the state of whatever ran
+ * last.
  */
-export async function restartRun(idea: string, opts: Omit<CoordinatorOptions, 'runId' | 'idea'> = {}): Promise<CoordinatorReport> {
+export async function startNewRun(idea: string, opts: Omit<CoordinatorOptions, 'runId' | 'idea'> = {}): Promise<CoordinatorReport> {
   const previous = readState();
   if (previous.projectState !== ProjectStates.NOT_STARTED || (previous.evidence?.stages ?? []).length > 0) {
     persistCheckpoint('before-restart', previous);
@@ -112,6 +116,11 @@ export async function restartRun(idea: string, opts: Omit<CoordinatorOptions, 'r
     });
   }
   return runCoordinator({ ...opts, idea });
+}
+
+/** Start a fresh run for the same idea, leaving the old run on disk untouched. */
+export async function restartRun(idea: string, opts: Omit<CoordinatorOptions, 'runId' | 'idea'> = {}): Promise<CoordinatorReport> {
+  return startNewRun(idea, opts);
 }
 
 /**

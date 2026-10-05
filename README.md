@@ -67,6 +67,14 @@ node --experimental-strip-types scripts/coordinator.ts --runs
 # Continue a stopped run without redoing verified work.
 node --experimental-strip-types scripts/coordinator.ts --resume <runId>
 
+# Ask GitHub to build an idea. The request is committed and pushed before the
+# dispatch is sent, so a dispatch the platform drops leaves the idea on record.
+node --experimental-strip-types scripts/requestRun.ts --idea "Plant watering journal"
+
+# Send the request again, and see which requests are still owed a delivered app.
+node --experimental-strip-types scripts/requestRun.ts --idea "Plant watering journal" --redrive
+node --experimental-strip-types scripts/coordinator.ts --requests
+
 # One agent on its own; refuses to run if its dependencies are missing.
 node --experimental-strip-types scripts/worker.ts --agent brand-engineer --pre-cloud
 ```
@@ -74,13 +82,35 @@ node --experimental-strip-types scripts/worker.ts --agent brand-engineer --pre-c
 Agents 16-20 need GitHub. `pre-cloud` stops before them on purpose rather than
 reporting a build that never happened.
 
+A new idea always starts from an empty state. A checkout of `main` carries the
+live state and evidence of whatever ran last, so the CLI clears it first — with a
+`before-restart` checkpoint and a logged abandonment — instead of letting a new
+run inherit another app's proof.
+
 ## Cloud
 - `builder-planner.yml` plans an idea and uploads the plan.
 - `builder-coordinator.yml` runs the fleet, caches the run store and uploads it,
   so `--resume <runId>` continues instead of starting again.
 - `builder-workers.yml` runs individual agents for a run, given a run id.
 - `builder-android-build.yml` is the Gradle build that produces the APK. It is
-  the only thing that may claim a build happened.
+  the only thing that may claim a build happened. It refuses to build a project
+  that differs from the one committed for that idea, and one build per commit
+  means a stuck run cannot block every other build.
+
+### When the platform will not start a run
+A `workflow_dispatch` can be accepted and then never handed a runner. That is
+recorded as what it is rather than as a build failure:
+
+- a run that ends with no step of any job having executed is classified
+  `infrastructure_not_started`; it is retried with backoff and the state stays at
+  `CLOUD_BUILDING`, so no repair pass is pointed at code that never ran;
+- a queued run older than `BUILDER_STALE_QUEUED_MS` is abandoned and re-dispatched
+  rather than watched until it times out;
+- the dispatch that answers a retry must have been created after it was requested,
+  so a previous attempt's run can never be adopted as this one's result.
+
+Requests live in `.builder/requests/` and are pushed before the dispatch, so a lost
+dispatch costs a retry and not the idea.
 
 ## Layout
 - Agents: `scripts/agents/` (specs in `agents/`, registry, planner, coordinator,

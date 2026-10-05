@@ -42,4 +42,8 @@ if (!process.env.BUILDER_STATE_DIR) {
   // The agent run store. A test that runs the fleet writes a manifest, a ledger
   // and a directory per agent into it.
   process.env.BUILDER_AGENT_DIR = join(dir, 'agents');
+  // Run requests are tracked on purpose, because a dispatch the platform drops
+  // must not take the idea with it. Tests write requests too, so they get the
+  // same treatment as the state rather than appending to the real ledger.
+  process.env.BUILDER_REQUESTS_DIR = join(dir, 'requests');
 }
