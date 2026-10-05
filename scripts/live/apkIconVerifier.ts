@@ -412,6 +412,8 @@ function readPackagePools(
  * holding one value per configuration, which is what a real APK uses for a
  * resource that exists at several densities.
  */
+const ICON_TRACE_TYPES = new Set(['mipmap', 'drawable', 'color', 'colour']);
+
 export function indexResourceFiles(
   arsc: Buffer,
   trace?: string[],
@@ -467,7 +469,9 @@ export function indexResourceFiles(
         let p = inner + entriesStart;
         for (let i = 0; i < entryCount && p + 16 <= arsc.length && p + 8 <= packageEnd; i++) {
           const entrySize = arsc.readUInt16LE(p);
-          if (trace && trace.length < 400) {
+          // Only the types the icon is built from, so the trace stays readable
+          // and the budget is not spent on the framework's own resources.
+          if (trace && trace.length < 400 && ICON_TRACE_TYPES.has(typeName)) {
             trace.push(`${typeName} entry ${i} at ${p}: size=${entrySize} flags=0x${arsc.readUInt16LE(p + 2).toString(16)} ` +
               `key=${keyNames[arsc.readUInt32LE(p + 4)] ?? arsc.readUInt32LE(p + 4)}`);
           }
