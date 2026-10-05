@@ -467,6 +467,12 @@ export function indexResourceFiles(
         const entryCount = arsc.readUInt32LE(inner + 12);
         const entriesStart = arsc.readUInt32LE(inner + 16);
         let p = inner + entriesStart;
+        // Ids from a chunk are only trusted when the walk ends exactly on the
+        // chunk's last byte. A chunk holding a value this reader cannot step over
+        // desynchronises, and without this check its garbled keys overwrite the
+        // real ones in the id table.
+        const chunkIds = new Map<number, string>();
+        let clean = true;
         for (let i = 0; i < entryCount && p + 16 <= arsc.length && p + 8 <= packageEnd; i++) {
           const entrySize = arsc.readUInt16LE(p);
           // Only the types the icon is built from, so the trace stays readable
@@ -483,14 +489,15 @@ export function indexResourceFiles(
           // the id whenever a key is absent from a configuration: aapt2 still
           // spends an entry index on that gap, and keying ids by key index instead
           // hands out ids the manifest and the compiled XML never reference.
-          if (ids && keyName && entrySize !== 0) {
-            ids.set((arsc.readUInt32LE(off + 8) << 24) | (typeId << 16) | i, `${typeName}/${keyName}`);
+          if (keyName === undefined) clean = false;
+          if (keyName && entrySize !== 0) {
+            chunkIds.set((arsc.readUInt32LE(off + 8) << 24) | (typeId << 16) | i, `${typeName}/${keyName}`);
           }
           // A configuration that does not carry an entry records size 0. Step over
           // the fixed header and keep going: stopping here drops every later entry,
           // which is how the round icon's densities went missing from its key.
           if (entrySize === 0) { p += 8; continue; }
-          if (entrySize < 8) break;
+          if (entrySize < 8) { clean = false; break; }
           // A simple entry's `size` covers only its own 8-byte header; the
           // Res_value that follows is counted separately, so the bytes actually
           // occupied are 8 + that value's size. A map entry's `size` already
@@ -518,6 +525,10 @@ export function indexResourceFiles(
           }
           p += total;
         }
+        // A short walk, or one that ran past the chunk, means the step above did
+        // not match this chunk's layout, so its ids are not trustworthy.
+        if (p !== inner + innerSize) clean = false;
+        if (ids && clean) for (const [id, name] of chunkIds) ids.set(id, name);
       }
       inner += innerSize;
     }

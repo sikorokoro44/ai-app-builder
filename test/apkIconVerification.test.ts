@@ -5,7 +5,7 @@ import { join } from 'path';
 import { deflateRawSync, crc32 } from 'zlib';
 import {
   verifyApkLauncherIconFromBuffer, extractApplicationIconIds, summariseResourceTable,
-  readStringPool, expectedApkIconPaths
+  readStringPool, expectedApkIconPaths, indexResourceIds
 } from '../scripts/live/apkIconVerifier.ts';
 import { encodePng } from '../scripts/live/png.ts';
 import { renderIcon } from '../scripts/live/iconRaster.ts';
@@ -362,6 +362,21 @@ function buildArsc(opts: {
         opts.keyNames.map((keyName) => encodeEntry(keyName, (cfg[keyName] ?? []).filter((q) => fileIndex.has(q))))
       ))
     : [typeChunkFor(entries)];
+  if (opts.unreadableChunk) {
+    const wrong: Buffer[] = opts.keyNames.map((_, i) => {
+      const e = Buffer.alloc(16);
+      e.writeUInt16LE(8, 0);
+      e.writeUInt16LE(0, 2);
+      // Every entry claims the last key, which is how a desynchronised walk looks.
+      e.writeUInt32LE(mipmapKeyIndex(opts.keyNames[opts.keyNames.length - 1]), 4);
+      e.writeUInt8(0x03, 11);
+      e.writeUInt32LE(fileIndex.get('res/values/colors.xml')!, 12);
+      return e;
+    });
+    const bad = typeChunkFor(wrong);
+    bad.writeUInt32LE(bad.length - 4, 4);
+    chunks.push(bad);
+  }
   const colourEntry = Buffer.alloc(16);
   colourEntry.writeUInt16LE(8, 0);
   colourEntry.writeUInt16LE(0, 2);
@@ -632,6 +647,32 @@ describe('resource table summary', () => {
     assert.ok(s.keyNames.includes(ICON_RESOURCE_NAME));
     assert.ok(s.filePaths.has(`res/mipmap-xhdpi/${ICON_RESOURCE_NAME}.png`));
     assert.ok(!s.filePaths.has('res/values/strings.xml'));
+  });
+
+  test('ids from a chunk that cannot be walked are not believed', () => {
+    // Some compiled values are laid out in ways a plain reader cannot step over.
+    // When that happens the walk drifts and every later key is read from the wrong
+    // offset, so a chunk whose walk does not end on its last byte must not be
+    // allowed to overwrite the ids another configuration got right.
+    const paths = generatedIconPaths();
+    const arsc = buildArsc({
+      packageId: PACKAGE_ID,
+      filePaths: [...paths.legacy, ...paths.foreground, ...paths.adaptive],
+      keyNames: [ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME, ICON_BACKGROUND_COLOR_NAME],
+      keyPaths: {
+        [ICON_RESOURCE_NAME]: paths.legacy.filter((p) => p.endsWith(`/${ICON_RESOURCE_NAME}.png`)),
+        [ROUND_ICON_RESOURCE_NAME]: paths.legacy.filter((p) => p.endsWith(`/${ROUND_ICON_RESOURCE_NAME}.png`)),
+        [FOREGROUND_RESOURCE_NAME]: paths.foreground,
+        [ICON_BACKGROUND_COLOR_NAME]: []
+      },
+      unreadableChunk: true
+    });
+    const ids = indexResourceIds(arsc);
+    const at = (type: number, entry: number): string | undefined => ids.get((PACKAGE_ID << 24) | (type << 16) | entry);
+    assert.strictEqual(at(TYPE_ID, ICON_ENTRY), `mipmap/${ICON_RESOURCE_NAME}`);
+    assert.strictEqual(at(TYPE_ID, ROUND_ENTRY), `mipmap/${ROUND_ICON_RESOURCE_NAME}`);
+    assert.strictEqual(at(TYPE_ID, FOREGROUND_ENTRY), `mipmap/${FOREGROUND_RESOURCE_NAME}`);
+    assert.strictEqual(at(COLOUR_TYPE_ID, 0), `color/${ICON_BACKGROUND_COLOR_NAME}`);
   });
 
   test('garbage is rejected rather than half-parsed', () => {

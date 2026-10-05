@@ -230,3 +230,8 @@
 {"ts":"2026-10-05T09:46:19.513Z","type":"BUILD_STARTED","stage":"QUEUED","headSha":"8ea0c3a7da84f161570dde45d4c3b215c07a6986"}
 {"ts":"2026-10-05T09:48:34.595Z","type":"BUILD_FAILED","runId":"37292251047","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon against the generated source"}
 {"ts":"2026-10-05T09:48:34.645Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-05T09:58:27.741Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.todo","at":"2026-10-05T09:58:27.739Z"}
+{"ts":"2026-10-05T09:58:27.853Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-05T09:58:27.854Z","type":"BUILD_STARTED","stage":"QUEUED","headSha":"5dce9a7f7307173f4dfc166e35915ca705f6bd9d"}
+{"ts":"2026-10-05T10:01:15.963Z","type":"BUILD_FAILED","runId":"37293549898","failureClass":"unknown","retry":false,"failedStep":"Verify the compiled launcher icon against the generated source"}
+{"ts":"2026-10-05T10:01:15.988Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
