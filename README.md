@@ -14,3 +14,4 @@ IDEA → ANALYZE → DESIGN → PLAN → BUILDING → TESTING → CLOUD_BUILDING
 
 ## Usage
 Submit idea via GitHub Actions workflow (planner), workers build in parallel, coordinator merges on green. Monitor visual progress.
+# sync
