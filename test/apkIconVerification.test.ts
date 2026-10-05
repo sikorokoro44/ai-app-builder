@@ -260,7 +260,13 @@ function buildArsc(opts: {
   // several configurations, so a chunk can carry a key's values together.
   const encodeEntry = (key: string, paths: string[]): Buffer => {
     const keyIndex = mipmapKeyIndex(key);
-    if (paths.length === 0) return Buffer.alloc(8);        // absent: size 0 header only
+    if (paths.length === 0) {
+      // Absent: an 8-byte size-0 gap that still names its key, so the walk stays
+      // in step and a reader can tell an absent entry from a missing one.
+      const gap = Buffer.alloc(8);
+      gap.writeUInt32LE(keyIndex, 4);
+      return gap;
+    }
     if (paths.length === 1) {
       const e = Buffer.alloc(16);
       e.writeUInt16LE(8, 0);                                // ResTable_entry.size (header only)
@@ -323,7 +329,11 @@ function buildArsc(opts: {
       const keyName = opts.keyNames[i];
       const paths = opts.keyPaths[keyName] ?? [];
       if (paths.length === 0) {
-        maps.push(Buffer.alloc(16));   // declared but absent, like a real empty entry
+        // Sparse entries are the 8-byte header alone, which is what aapt2 writes
+        // for a key a configuration does not carry.
+        const gap = Buffer.alloc(8);
+        gap.writeUInt32LE(mipmapKeyIndex(opts.keyNames[i]), 4);
+        maps.push(gap);
         continue;
       }
       const size = 16 + paths.length * 12;
@@ -403,7 +413,7 @@ function align4(n: number): number {
  * resource ids, not as text, so the verifier has to resolve them through the
  * resource table to learn which layer is referenced.
  */
-function buildAdaptiveXml(): Buffer {
+function buildAdaptiveXml(entries: { colour?: number; foreground?: number } = {}): Buffer {
   const strings = ['adaptive-icon', 'background', 'foreground', 'drawable', ICON_BACKGROUND_COLOR_NAME, FOREGROUND_RESOURCE_NAME];
   const pool = poolChunk(strings);
 
@@ -421,11 +431,11 @@ function buildAdaptiveXml(): Buffer {
   start.writeInt32LE(-1, attrExt + 20);
   start.writeInt32LE(3, attrExt + 24);         // 'drawable'
   start.writeUInt8(0x01, attrExt + 35);        // Res_value dataType = reference
-  start.writeUInt32LE(COLOUR_ID, attrExt + 36);
+  start.writeUInt32LE(entries.colour ?? COLOUR_ID, attrExt + 36);
   start.writeInt32LE(-1, attrExt + 40);
   start.writeInt32LE(2, attrExt + 44);         // 'foreground'
   start.writeUInt8(0x01, attrExt + 55);        // Res_value dataType = reference
-  start.writeUInt32LE(FOREGROUND_ID, attrExt + 56);
+  start.writeUInt32LE(entries.foreground ?? FOREGROUND_ID, attrExt + 56);
 
   const file = Buffer.alloc(8);
   file.writeUInt16LE(0x0003, 0);
@@ -442,11 +452,11 @@ const PACKAGE_ID = 0x7f;
 // mapping key pools back to the right type.
 const TYPE_ID = 8;
 const COLOUR_TYPE_ID = 4;
-// Keys are numbered across the whole package and aapt2 puts the colour type's
-// key first, so the mipmap keys start after it.
-const ICON_ENTRY = 1;
-const ROUND_ENTRY = 2;
-const FOREGROUND_ENTRY = 3;
+// Ids carry the entry's position in its type chunk, which is not the key's index
+// in the package-wide key pool: aapt2 puts the colour type's key first there.
+const ICON_ENTRY = 0;
+const ROUND_ENTRY = 1;
+const FOREGROUND_ENTRY = 2;
 /** `@color/ic_launcher_background` and `@mipmap/ic_launcher_foreground`. */
 const COLOUR_ID = (PACKAGE_ID << 24) | (COLOUR_TYPE_ID << 16);
 const FOREGROUND_ID = (PACKAGE_ID << 24) | (TYPE_ID << 16) | FOREGROUND_ENTRY;
@@ -505,6 +515,8 @@ function apkWithIcon(opts: {
   withManifest?: boolean;
   keyNames?: string[];
   typeName?: string;
+  /** Entry indexes the compiled adaptive XML references, for sparse types. */
+  adaptiveEntries?: { colour?: number; foreground?: number };
 } ): Buffer {
   const projectRoot = opts.projectRoot;
   const idea = opts.idea || 'A todo list app';
@@ -568,7 +580,7 @@ function apkWithIcon(opts: {
   }
   for (const rel of paths.adaptive) {
     if (opts.omit?.includes(rel)) continue;
-    entries.push({ name: rel, data: buildAdaptiveXml() });
+    entries.push({ name: rel, data: buildAdaptiveXml(opts.adaptiveEntries) });
   }
   entries.push({ name: 'classes.dex', data: Buffer.concat([Buffer.from('dex\n035\0'), Buffer.alloc(4000, 1)]) });
   return zip(entries);
@@ -725,6 +737,25 @@ describe('APK launcher icon verification', () => {
     const r = verifyApkLauncherIconFromBuffer(zip(entries), expectations(root));
     assert.strictEqual(r.valid, true, r.errors.join('; '));
     assert.deepStrictEqual(r.matchedDensities, Object.keys(LEGACY_ICON_SIZES));
+  });
+
+  test('an APK whose icon keys sit behind an absent entry passes', () => {
+    // A key that is absent from every configuration still spends an entry index,
+    // so the icons' entry indexes no longer match their key indexes. Ids have to
+    // come from the entry index, or the manifest and the adaptive XML end up
+    // pointing at ids the table never assigned.
+    const root = realIconProject('sparse');
+    const apk = apkWithIcon({
+      projectRoot: root,
+      keyNames: ['unused_key', ICON_RESOURCE_NAME, ROUND_ICON_RESOURCE_NAME, FOREGROUND_RESOURCE_NAME, ICON_BACKGROUND_COLOR_NAME],
+      iconId: (PACKAGE_ID << 24) | (TYPE_ID << 16) | 1,
+      roundIconId: (PACKAGE_ID << 24) | (TYPE_ID << 16) | 2,
+      adaptiveEntries: { foreground: (PACKAGE_ID << 24) | (TYPE_ID << 16) | 3 }
+    });
+    const r = verifyApkLauncherIconFromBuffer(apk, expectations(root));
+    assert.strictEqual(r.valid, true, r.errors.join('; '));
+    assert.strictEqual(r.manifestIconResourceId, `0x${((PACKAGE_ID << 24) | (TYPE_ID << 16) | 1).toString(16)}`);
+    assert.strictEqual(r.manifestIconType, 'mipmap');
   });
 
   test('an APK carrying the generated icon passes', () => {

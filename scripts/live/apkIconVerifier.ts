@@ -472,14 +472,15 @@ export function indexResourceFiles(
               `key=${keyNames[arsc.readUInt32LE(p + 4)] ?? arsc.readUInt32LE(p + 4)}`);
           }
           const flags = arsc.readUInt16LE(p + 2);
-          // The id comes from the entry's own key index rather than its position
-          // in the chunk, so a name and the id it belongs to can never drift apart.
           const keyIndex = arsc.readUInt32LE(p + 4);
           const keyName = keyNames[keyIndex];
-          // Only a present entry owns an id. A zero-size gap holds no key, and
-          // recording one would claim another resource's id for a stale name.
+          // A resource id is the package, the type and the entry's own position in
+          // the chunk. The key index is only the entry's name, so it can drift from
+          // the id whenever a key is absent from a configuration: aapt2 still
+          // spends an entry index on that gap, and keying ids by key index instead
+          // hands out ids the manifest and the compiled XML never reference.
           if (ids && keyName && entrySize !== 0) {
-            ids.set((arsc.readUInt32LE(off + 8) << 24) | (typeId << 16) | keyIndex, `${typeName}/${keyName}`);
+            ids.set((arsc.readUInt32LE(off + 8) << 24) | (typeId << 16) | i, `${typeName}/${keyName}`);
           }
           // A configuration that does not carry an entry records size 0. Step over
           // the fixed header and keep going: stopping here drops every later entry,
