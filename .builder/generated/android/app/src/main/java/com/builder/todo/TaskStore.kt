@@ -3,7 +3,7 @@ package com.builder.todo
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Task model and in-memory store for: "A simple todo app".
+ * Task model and in-memory store for: "Build a simple todo app".
  *
  * Purpose: track things to get done. Pure Kotlin with no Android dependencies, so the
  * entire data layer is covered by JVM unit tests.

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">A simple todo app</string>
+    <string name="app_name">Build a simple todo app</string>
     <string name="field_title">Task</string>
     <string name="add_button">Add task</string>
     <string name="delete">Remove</string>

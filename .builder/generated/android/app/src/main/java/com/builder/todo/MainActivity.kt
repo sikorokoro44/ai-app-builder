@@ -29,7 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
- * Track things to get done, built from: "A simple todo app".
+ * Track things to get done, built from: "Build a simple todo app".
  *
  * All visible text comes from res/values/strings.xml, so the UI is localisable and
  * nothing here hard-codes user-facing copy.

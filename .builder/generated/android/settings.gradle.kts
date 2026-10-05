@@ -1,4 +1,4 @@
-rootProject.name = "asimpletodoapp"
+rootProject.name = "buildasimpletodoapp"
 pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }
