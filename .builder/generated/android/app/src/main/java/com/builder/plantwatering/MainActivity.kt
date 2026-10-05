@@ -1,4 +1,4 @@
-package com.builder.todo
+package com.builder.plantwatering
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,20 +29,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
- * Track things to get done, built from: "Build a simple todo app".
+ * Capture and revisit notes, built from: "A plant watering journal".
  *
  * All visible text comes from res/values/strings.xml, so the UI is localisable and
  * nothing here hard-codes user-facing copy.
  */
 class MainActivity : ComponentActivity() {
-    private val store = TaskStore()
+    private val store = NoteStore()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    TaskScreen(store)
+                    NoteScreen(store)
                 }
             }
         }
@@ -50,8 +50,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TaskScreen(store: TaskStore) {
+fun NoteScreen(store: NoteStore) {
     var draftTitle by remember { mutableStateOf("") }
+    var draftBody by remember { mutableStateOf("") }
     var rows by remember { mutableStateOf(store.all()) }
 
     fun refresh() {
@@ -79,10 +80,18 @@ fun TaskScreen(store: TaskStore) {
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
+            OutlinedTextField(
+                value = draftBody,
+                onValueChange = { draftBody = it },
+                label = { Text(stringResource(R.string.field_body)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
             Button(
                 onClick = {
-                    if (runCatching { store.add(draftTitle) }.isSuccess) {
+                    if (runCatching { store.add(draftTitle, draftBody) }.isSuccess) {
                         draftTitle = ""
+                        draftBody = ""
                         refresh()
                     }
                 }
@@ -99,15 +108,15 @@ fun TaskScreen(store: TaskStore) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                TaskRows(rows, store, ::refresh)
+                NoteRows(rows, store, ::refresh)
             }
         }
     }
 }
 
-private fun LazyListScope.TaskRows(
-    rows: List<Task>,
-    store: TaskStore,
+private fun LazyListScope.NoteRows(
+    rows: List<Note>,
+    store: NoteStore,
     onChanged: () -> Unit
 ) {
     items(rows, key = { it.id }) { item ->
@@ -117,12 +126,12 @@ private fun LazyListScope.TaskRows(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Checkbox(
-                checked = item.done,
+                checked = item.pinned,
                 onCheckedChange = { store.toggle(item.id); onChanged() }
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.title, style = MaterialTheme.typography.titleMedium)
-
+                Text(text = item.body, style = MaterialTheme.typography.bodyMedium)
 
             }
             Button(onClick = { store.toggle(item.id); onChanged() }) {

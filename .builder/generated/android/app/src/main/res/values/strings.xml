@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Build a simple todo app</string>
-    <string name="field_title">Task</string>
-    <string name="add_button">Add task</string>
+    <string name="app_name">A plant watering journal</string>
+    <string name="field_title">Title</string>
+    <string name="field_body">Body</string>
+    <string name="add_button">Add note</string>
     <string name="delete">Remove</string>
     <string name="mark_done">Mark done</string>
-    <string name="empty_list">No tasks yet. Add your first one.</string>
+    <string name="empty_list">No notes yet. Add your first one.</string>
 </resources>

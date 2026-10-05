@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.builder.todo"
+    namespace = "com.builder.plantwatering"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.builder.todo"
+        applicationId = "com.builder.plantwatering"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
