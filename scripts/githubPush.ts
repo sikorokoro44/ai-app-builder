@@ -98,7 +98,56 @@ if (staged === 0) {
 }
 
 execFileSync('git', ['commit', '-m', process.env.BUILDER_COMMIT_MESSAGE || 'builder: generated app sources'], { stdio: 'inherit' });
-execFileSync('git', ['push', 'origin', guard.branch], { stdio: 'inherit' });
+
+/**
+ * Pushes the commit, replaying it if the branch moved underneath this run.
+ *
+ * The branch is written by more than this run: recording a run request commits
+ * to it, and the request is pushed after the workflow is dispatched, so it
+ * routinely lands while the fleet is still generating the app. A bare push is
+ * then a non-fast-forward and the run dies having done all the work
+ * (37388576570). The tree is clean here, so replaying this one commit on top of
+ * the branch is safe, and the generated project it carries is exactly what the
+ * build must compile.
+ *
+ * git's own output is captured rather than inherited: an inherited failure
+ * reaches the agent as an error object with null streams, which is why that run
+ * reported `output: [null, null, null]` and no reason at all.
+ */
+function pushCommit(): void {
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      execFileSync('git', ['push', 'origin', guard.branch], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+      return;
+    } catch (e: any) {
+      const detail = (e.stderr?.toString() || e.stderr || e.message || '').toString().trim();
+      const moved = /cannot lock ref|fetch first|non-fast-forward|rejected|stale info/i.test(detail);
+      if (!moved || attempt === 4) {
+        console.error(`Refusing to push to ${guard.branch}: ${detail || 'git reported no reason'}`);
+        process.exit(1);
+      }
+      console.log(`${guard.branch} moved while this run was generating the app; replaying the commit on top of it (${attempt}/3).`);
+      try {
+        execFileSync('git', ['fetch', 'origin', guard.branch], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+        execFileSync('git', ['rebase', `origin/${guard.branch}`], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch (replay: any) {
+        try {
+          execFileSync('git', ['rebase', '--abort'], { stdio: 'ignore' });
+        } catch {
+          // Nothing to abort: the rebase never started.
+        }
+        const why = (replay.stderr?.toString() || replay.message || '').toString().trim();
+        console.error(
+          `The commit could not be replayed on top of the current ${guard.branch}, so it was not pushed.\n` +
+          `${why}\nThe run can be continued with --resume once the branch is settled.`
+        );
+        process.exit(1);
+      }
+    }
+  }
+}
+
+pushCommit();
 
 const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf-8' }).trim();
 s.cloudBuild.headSha = headSha;
