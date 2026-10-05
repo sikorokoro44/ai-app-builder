@@ -9,10 +9,12 @@ import { runCoordinator } from '../scripts/agents/coordinator.ts';
 import { AGENTS, executionWaves } from '../scripts/agents/registry.ts';
 import { ownsFile } from '../scripts/agents/ownership.ts';
 import { readArtifact, readLedger, readManifest, runDir } from '../scripts/agents/artifacts.ts';
-import { inspectRun, listRuns, resumeRun, invalidateFromStage, nextStage } from '../scripts/agents/recovery.ts';
+import { inspectRun, listRuns, resumeRun, restartRun, invalidateFromStage, nextStage } from '../scripts/agents/recovery.ts';
+import { listCheckpoints, loadCheckpoint } from '../scripts/live/checkpointStore.ts';
 import type { BuildPlan } from '../scripts/agents/planner.ts';
-import { readState } from '../scripts/live/stateStore.ts';
+import { readState, readEvents } from '../scripts/live/stateStore.ts';
 import { LifecycleStages } from '../scripts/live/evidenceChain.ts';
+import { Events } from '../shared/types.ts';
 import { AGENT_IDS } from '../scripts/agents/agentIds.ts';
 
 const GOLDEN_PATH = join(process.cwd(), 'test', 'fixtures', 'generatedProjectGolden.json');
@@ -214,5 +216,46 @@ describe('what a run reports about itself', () => {
     for (const id of AGENT_IDS.map((a) => a.id)) {
       assert.ok(registryIds.has(id), `${id} is missing from the registry`);
     }
+  });
+});
+
+describe('starting a new run', () => {
+  test('does not inherit what the previous run proved', async () => {
+    const previous = report.runId;
+    const before = readState();
+    assert.ok((before.evidence?.stages ?? []).length > 0, 'the run under test should have proved something');
+
+    const restarted = await restartRun('Book tracker for reading', { projectRoot: PROJECT_ROOT, mode: 'pre-cloud', echo: false });
+
+    assert.strictEqual(restarted.status, 'completed', JSON.stringify(restarted.failures));
+    assert.notStrictEqual(restarted.runId, previous, 'a restart must be a new run');
+    assert.strictEqual(readManifest(restarted.runId)!.idea, 'Book tracker for reading');
+
+    const chain = readState().evidence!.stages!;
+    assert.deepStrictEqual(chain.map((s) => s.stage), ['IDEA', 'ANALYZE', 'DESIGN', 'PLAN', 'SCAFFOLD', 'TESTGEN', 'VALIDATE']);
+    for (const stage of chain) {
+      assert.ok(!stage.notes?.includes(previous), `${stage.stage} quotes the run that came before it`);
+    }
+    assert.ok(inspectRun(restarted.runId).evidence.includes('IDEA'), 'the new run must prove its own idea');
+  });
+
+  test('records the abandonment in the log rather than hiding it', () => {
+    const events = readEvents();
+    const abandoned = events.find((e: any) => typeof e.activity === 'string' && e.activity.includes('abandoned'));
+    assert.ok(abandoned, 'the state change should say which run was given up');
+    assert.ok(String(abandoned.activity).includes('Book tracker for reading'), `the reason should name the new idea: ${abandoned.activity}`);
+    assert.ok(
+      events.some((e: any) => e.type === Events.REPAIR_STARTED && String(e.errors?.[0] ?? '').includes('before-restart')),
+      'the repair event should point at the checkpoint that kept the old evidence'
+    );
+    assert.strictEqual(readLedger(report.runId).length, 16, 'the run that was abandoned must stay on disk');
+  });
+
+  test('keeps what the previous run recorded readable', () => {
+    const names = listCheckpoints().map((c) => c.name);
+    assert.ok(names.includes('before-restart'), `expected a before-restart checkpoint, found ${names.join(', ') || 'none'}`);
+    const restored = loadCheckpoint(listCheckpoints().find((c) => c.name === 'before-restart')!.file);
+    assert.ok(restored, 'the checkpoint should load');
+    assert.ok((restored.evidence?.stages ?? []).length > 0, 'the checkpoint should still hold the old evidence');
   });
 });

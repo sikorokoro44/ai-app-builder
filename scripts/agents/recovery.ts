@@ -14,7 +14,9 @@ import { readState, writeState, appendEvent } from '../live/stateStore.ts';
 import { hasStage, missingStages, type LifecycleStage } from '../live/evidenceChain.ts';
 import { LifecycleStages } from '../live/evidenceChain.ts';
 import { invalidateFrom as invalidateEvidenceFrom } from '../live/recoveryManager.ts';
-import { Events } from '../../shared/types.ts';
+import { persistCheckpoint } from '../live/checkpointStore.ts';
+import { createInitialState } from '../../shared/state.ts';
+import { Events, ProjectStates } from '../../shared/types.ts';
 import { AGENT_IDS } from './agentIds.ts';
 import { agentIds } from './registry.ts';
 import {
@@ -83,8 +85,32 @@ export async function resumeRun(runId?: string, opts: Omit<CoordinatorOptions, '
   return report;
 }
 
-/** Start a fresh run for the same idea, leaving the old run on disk untouched. */
+/**
+ * Start a fresh run, leaving the old run on disk untouched.
+ *
+ * The live state is cleared first so a new run can never inherit the previous
+ * run's evidence: a chain that proves a release for the last idea says nothing
+ * about this one, and the state validator would happily let it through. Clearing
+ * is a deliberate abandonment rather than a silent reset — the state being
+ * replaced is checkpointed, the write names the state it came from, and the
+ * transition is logged like any other.
+ */
 export async function restartRun(idea: string, opts: Omit<CoordinatorOptions, 'runId' | 'idea'> = {}): Promise<CoordinatorReport> {
+  const previous = readState();
+  if (previous.projectState !== ProjectStates.NOT_STARTED || (previous.evidence?.stages ?? []).length > 0) {
+    persistCheckpoint('before-restart', previous);
+    const fresh = createInitialState();
+    fresh.latestActivity = `abandoned the run that was at ${previous.projectState} to start "${idea}" from nothing`;
+    writeState(fresh, {
+      allowUncheckedTransition: true,
+      reason: `restarting "${idea}" from ${previous.projectState}`
+    });
+    appendEvent({
+      type: Events.REPAIR_STARTED,
+      stage: 'IDEA',
+      errors: [`run abandoned at ${previous.projectState}; checkpoint before-restart kept the evidence it had`]
+    });
+  }
   return runCoordinator({ ...opts, idea });
 }
 

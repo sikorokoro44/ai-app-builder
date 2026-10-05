@@ -6,11 +6,14 @@ export const CHECKPOINT_DIR = process.env.BUILDER_CHECKPOINT_DIR || '.builder/ch
 const MAX_CHECKPOINTS = 40;
 
 export interface CheckpointMeta {
+  /** The label the checkpoint was written under, as it appears in the file name. */
   name: string;
   file: string;
   createdAt: string;
   projectState: string;
   version: number;
+  /** What the state said it was doing when it was captured. */
+  activity: string;
 }
 
 export function initCheckpoints(): void {
@@ -48,14 +51,15 @@ export function listCheckpoints(): CheckpointMeta[] {
       const stat = statSync(path);
       const raw = JSON.parse(readFileSync(path, 'utf-8'));
       out.push({
-        name: String(raw?.latestActivity || 'checkpoint'),
+        name: f.replace(/--.*\.json$/, ''),
         file: path,
         createdAt: stat.mtime.toISOString(),
         projectState: raw?.projectState || 'UNKNOWN',
-        version: raw?.version || 0
+        version: raw?.version || 0,
+        activity: String(raw?.latestActivity || '')
       });
     } catch {
-      out.push({ name: 'unreadable', file: path, createdAt: '', projectState: 'UNKNOWN', version: 0 });
+      out.push({ name: 'unreadable', file: path, createdAt: '', projectState: 'UNKNOWN', version: 0, activity: '' });
     }
   }
   return out.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
