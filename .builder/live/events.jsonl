@@ -518,3 +518,9 @@
 {"ts":"2026-10-05T23:27:31.392Z","type":"AGENT_ACTIVITY","agentId":"repo-publisher","activity":"started","at":"2026-10-05T23:27:31.391Z"}
 {"ts":"2026-10-05T23:27:31.394Z","type":"AGENT_ACTIVITY","agentId":"failure-diagnostician","activity":"started","at":"2026-10-05T23:27:31.392Z"}
 {"ts":"2026-10-05T23:27:31.564Z","type":"PROJECT_STATUS_CHANGED","projectState":"BUILDING","activity":"Pushing generated sources to GitHub"}
+{"ts":"2026-10-05T23:27:31.932Z","type":"PROJECT_STATUS_CHANGED","projectState":"TESTING","activity":"failure-diagnostician: started"}
+{"ts":"2026-10-05T23:27:31.934Z","type":"AGENT_FINISHED","agentId":"repo-publisher","ok":false,"error":"scripts/githubPush.ts failed with exit 1"}
+{"ts":"2026-10-05T23:27:31.985Z","type":"AGENT_ACTIVITY","agentId":"failure-diagnostician","activity":"health analysis: 1 check(s) failing","at":"2026-10-05T23:27:31.985Z"}
+{"ts":"2026-10-05T23:27:31.987Z","type":"AGENT_STATUS_CHANGED","agentId":"failure-diagnostician","agentState":"REVIEWING","at":"2026-10-05T23:27:31.985Z"}
+{"ts":"2026-10-05T23:27:31.990Z","type":"AGENT_STATUS_CHANGED","agentId":"failure-diagnostician","agentState":"COMPLETED","at":"2026-10-05T23:27:31.990Z"}
+{"ts":"2026-10-05T23:27:31.992Z","type":"AGENT_ACTIVITY","agentId":"failure-diagnostician","activity":"completed: 3/4 health checks passed, 0 observed failure(s)","at":"2026-10-05T23:27:31.992Z"}
