@@ -177,6 +177,8 @@ export interface ArscSummary {
   filePaths: Set<string>;
   /** Entry counts per type id, as declared by the type-spec chunks. */
   typeEntryCounts: Map<number, number>;
+  /** Where the package's pools were found, for diagnosing an unread table. */
+  poolDetail: string;
 }
 
 /**
@@ -214,7 +216,7 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
     // @264, keyStrings @268, lastPublicKey @272.
     const packageEnd = Math.min(off + size, tableSize);
 
-    const { typeNames, typeIds, keyNamesByType } = readPackagePools(arsc, off, arsc.readUInt16LE(off + 2), packageEnd);
+    const { typeNames, typeIds, keyNamesByType, detail } = readPackagePools(arsc, off, arsc.readUInt16LE(off + 2), packageEnd);
     // Each type numbers its keys from zero, so these are only meaningful for
     // display; use readPackagePools' per-type map when resolving an entry.
     const keyNames = [...keyNamesByType.values()].flat();
@@ -240,6 +242,7 @@ export function summariseResourceTable(arsc: Buffer): ArscSummary | null {
       typeNames,
       typeIds,
       keyNames,
+      poolDetail: detail,
       filePaths: new Set(globalStrings.filter((s) => s.startsWith('res/'))),
       typeEntryCounts
     };
@@ -311,7 +314,7 @@ function readPackagePools(
   off: number,
   headerSize: number,
   packageEnd: number
-): { typeNames: string[]; typeIds: number[]; keyNamesByType: Map<number, string[]> } {
+): { typeNames: string[]; typeIds: number[]; keyNamesByType: Map<number, string[]>; detail: string } {
   const typeIdsInOrder: number[] = [];
   let keyIndex = 0;
   for (let scan = off + headerSize; scan + 8 <= packageEnd;) {
@@ -327,6 +330,7 @@ function readPackagePools(
 
   const typeNames: string[] = [];
   const keyNamesByType = new Map<number, string[]>();
+  const detail: string[] = [];
   // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260,
   // lastPublicType @264, keyStrings @268, lastPublicKey @272.
   //
@@ -344,6 +348,7 @@ function readPackagePools(
     seen.add(at);
     if (arsc.readUInt16LE(at) !== AXML_TYPE_STRING_POOL) return false;
     const parsed = readStringPool(arsc, at);
+    detail.push(`pool@${at}(${arsc.readUInt16LE(at)} size=${arsc.readUInt32LE(at + 4)}) ${parsed ? `${parsed.strings.length} strings, first=${parsed.strings[0]}` : 'unreadable'}`);
     if (!parsed) return false;
     pools.push({ at, strings: parsed.strings });
     return true;
@@ -370,7 +375,8 @@ function readPackagePools(
     keyIndex++;
     if (id !== undefined) keyNamesByType.set(id, pool.strings);
   }
-  return { typeNames, typeIds: typeIdsInOrder, keyNamesByType };
+  detail.push(`typeStrings=${namedPool - off} keyStrings=${firstKeyPool - off} typeIds=${typeIdsInOrder.join(',')}`);
+  return { typeNames, typeIds: typeIdsInOrder, keyNamesByType, detail: detail.join('; ') };
 }
 
 /**
@@ -652,7 +658,7 @@ export function verifyApkLauncherIconFromBuffer(
   if (!iconTypeName) {
     errors.push(
       `Manifest icon references resource type id ${iconTypeId}, which the package does not declare ` +
-      `(declared types: ${table.typeIds.map((id, i) => `${id}=${table.typeNames[i]}`).join(', ') || 'none'})`
+      `(declared types: ${table.typeIds.map((id, i) => `${id}=${table.typeNames[i]}`).join(', ') || 'none'}; ${table.poolDetail})`
     );
     return result;
   }
