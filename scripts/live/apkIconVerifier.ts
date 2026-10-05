@@ -327,8 +327,16 @@ function readPackagePools(
   const typeNames: string[] = [];
   const keyNamesByType = new Map<number, string[]>();
   // ResTable_package: id @0, name @4 (256 bytes), typeStrings @260,
-  // lastPublicType @264, keyStrings @268, lastPublicKey @272.
-  let poolOff = off + arsc.readUInt32LE(off + 260);
+  // lastPublicType @264, keyStrings @268, lastPublicKey @272. The pools are
+  // written before the type chunks, so the header offsets are what locate them.
+  const typeStringsOffset = arsc.readUInt32LE(off + 260);
+  const keyStringsOffset = arsc.readUInt32LE(off + 268);
+  const namedPool = off + typeStringsOffset;
+  if (typeStringsOffset > 0 && namedPool + 8 <= packageEnd) {
+    const parsed = readStringPool(arsc, namedPool);
+    if (parsed) typeNames.push(...parsed.strings);
+  }
+  let poolOff = off + keyStringsOffset;
   let poolIndex = 0;
   while (poolOff + 8 <= packageEnd) {
     const poolType = arsc.readUInt16LE(poolOff);
@@ -337,12 +345,11 @@ function readPackagePools(
     if (poolType !== AXML_TYPE_STRING_POOL) break;
     const parsed = readStringPool(arsc, poolOff);
     if (!parsed) break;
-    if (poolIndex === 0) typeNames.push(...parsed.strings);
-    else {
-      const id = typeIdsInOrder[poolIndex - 1];
+    if (poolOff !== namedPool) {
+      const id = typeIdsInOrder[poolIndex];
+      poolIndex++;
       if (id !== undefined) keyNamesByType.set(id, parsed.strings);
     }
-    poolIndex++;
     // Offsets inside a package are aligned relative to its start, so stepping by
     // the raw size would land inside the next pool's padding and end the walk.
     poolOff = off + ((poolOff - off + poolSize + 3) & ~3);
@@ -627,7 +634,10 @@ export function verifyApkLauncherIconFromBuffer(
   const iconTypeName = table.typeNames[table.typeIds.indexOf(iconTypeId)];
   result.manifestIconType = iconTypeName;
   if (!iconTypeName) {
-    errors.push(`Manifest icon references resource type id ${iconTypeId}, which the package does not declare`);
+    errors.push(
+      `Manifest icon references resource type id ${iconTypeId}, which the package does not declare ` +
+      `(declared types: ${table.typeIds.map((id, i) => `${id}=${table.typeNames[i]}`).join(', ') || 'none'})`
+    );
     return result;
   }
   const declaredCount = table.typeEntryCounts.get(iconTypeId);
