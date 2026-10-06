@@ -1,4 +1,5 @@
 import https from 'https';
+import { createHash } from 'crypto';
 
 export interface ReleaseVerificationResult {
   valid: boolean;
@@ -8,6 +9,8 @@ export interface ReleaseVerificationResult {
   finalUrl?: string;
   contentType?: string;
   contentLength?: string;
+  /** Every URL the download was actually served from, in order. */
+  redirects?: string[];
 }
 
 const FAKE_HOST_PATTERNS = /(^|[.-])(example|example\.com|example\.org|example\.net|placeholder|fake|invalid|test\.local)([.-]|$)/i;
@@ -135,8 +138,15 @@ const defaultFetch: FetchLike = (url, maxRedirects) =>
           resolve({ valid: false, errors: ['Too many redirects'], status });
           return;
         }
-        const next = location.startsWith('http') ? location : `https://${location}`;
-        defaultFetch(next, maxRedirects - 1).then((r) => resolve({ ...r, status, finalUrl: r.finalUrl || next }));
+        const next = new URL(location, url).toString();
+        // A release asset redirects to wherever GitHub is serving the bytes
+        // from, and that hop is not a failure. The status that answers "is this
+        // downloadable" is the last one, so that is the one reported: keeping
+        // the 302 here reported a working download as broken, which is how
+        // run 37399628858 failed release-publisher on a URL that served fine.
+        defaultFetch(next, maxRedirects - 1).then((r) =>
+          resolve({ ...r, redirects: [next, ...(r.redirects || [])] })
+        );
         return;
       }
       const errors: string[] = [];
@@ -174,6 +184,96 @@ export async function verifyPublicDownload(url: string, fetchImpl: FetchLike = d
   }
   return { ...res, valid: true, warnings };
 }
+export interface DownloadResult {
+  ok: boolean;
+  errors: string[];
+  sha256?: string;
+  bytes?: number;
+  finalUrl?: string;
+  contentType?: string;
+}
+
+/** Streams a URL to the caller; the default speaks https, tests substitute a local server. */
+export type DownloadLike = (url: string) => Promise<{ status: number; headers: Record<string, any>; body: Buffer }>;
+
+const httpsDownload: DownloadLike = (url) =>
+  new Promise((resolve, reject) => {
+    const req = https.request(url, { method: 'GET' }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c) => chunks.push(c as Buffer));
+      res.on('end', () => resolve({
+        status: res.statusCode || 0,
+        headers: res.headers as Record<string, any>,
+        body: Buffer.concat(chunks)
+      }));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(60000, () => req.destroy(new Error('Public download timed out')));
+    req.end();
+  });
+
+/**
+ * Downloads a URL and hashes what actually came back.
+ *
+ * A `200` proves something is being served at an address. It does not prove it
+ * is the artifact this run verified: the release asset could have been replaced
+ * after the APK was checked, and every other gate in the chain would still
+ * read as passed. So the public check hashes the bytes it receives and compares
+ * them to the verified checksum, which is the only statement that means
+ * "a member of the public can download this exact APK".
+ */
+export async function downloadAndHash(
+  url: string,
+  expectedSha256: string,
+  maxRedirects = 5,
+  transport: DownloadLike = httpsDownload
+): Promise<DownloadResult> {
+  if (!isValidHttpsUrl(url)) return { ok: false, errors: ['Not a genuine HTTPS URL'] };
+
+  const seen: string[] = [];
+  let current = url;
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    let res: { status: number; headers: Record<string, any>; body: Buffer };
+    try {
+      res = await transport(current);
+    } catch (e: any) {
+      return { ok: false, errors: [`Network error: ${e.message}`] };
+    }
+    const status = res.status;
+    const location = res.headers.location;
+    if (status >= 300 && status < 400 && location) {
+      if (hop === maxRedirects) return { ok: false, errors: ['Too many redirects'] };
+      // A `Location` is allowed to be relative, and resolving it by hand
+      // (`https://${location}`) turns `/asset` into a broken address.
+      const next = new URL(location, current).toString();
+      // The redirect target has to be as genuine as the address it came from,
+      // or the check verifies whatever the redirect chose to point at.
+      if (!isValidHttpsUrl(next)) return { ok: false, errors: [`Redirected to a non-HTTPS URL: ${next}`] };
+      seen.push(next);
+      current = next;
+      continue;
+    }
+    if (status !== 200) return { ok: false, errors: [`Public download returned HTTP ${status}`] };
+
+    const sha256 = createHash('sha256').update(res.body).digest('hex');
+    const bytes = res.body.length;
+    // An empty body would otherwise be "verified" against nothing.
+    if (bytes === 0) return { ok: false, errors: ['Public download returned an empty body'] };
+    if (expectedSha256 && sha256 !== expectedSha256) {
+      return {
+        ok: false,
+        errors: [`public download hash ${sha256} does not match the verified APK ${expectedSha256}`],
+        sha256,
+        bytes,
+        finalUrl: current
+      };
+    }
+    return { ok: true, errors: [], sha256, bytes, finalUrl: current, contentType: res.headers['content-type'] };
+  }
+  return { ok: false, errors: ['Too many redirects'] };
+}
+
 export type ReleaseAction = 'reuse' | 'create-release' | 'upload-asset' | 'replace-asset';
 
 export interface ReleasePlanInput {

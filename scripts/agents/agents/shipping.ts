@@ -263,6 +263,7 @@ export const releasePublisherAgent: AgentSpec<void, ReleaseArtifact> = {
       sha256: String(published.sha256 ?? build.sha256),
       finalDownloadUrl: String(ready.url ?? published.assetUrl),
       httpStatus: Number(served.status ?? 0),
+      publicSha256: String(served.sha256 ?? ''),
       state: String(ready.state ?? '')
     };
     ctx.publish('release', out);
@@ -278,6 +279,11 @@ export const releasePublisherAgent: AgentSpec<void, ReleaseArtifact> = {
     if (!/^[0-9a-f]{64}$/.test(out.sha256 || '')) errors.push(`the release has no real checksum (${out.sha256})`);
     if (out.finalDownloadUrl !== out.assetUrl) errors.push('the final download url is not the verified asset url');
     if (out.httpStatus !== 200) errors.push(`the public download answered HTTP ${out.httpStatus}, not 200`);
+    // The published bytes have to be the bytes this run verified. A matching
+    // status and a plausible URL are not that.
+    if (out.publicSha256 !== out.sha256) {
+      errors.push(`the public download hash ${out.publicSha256 || 'missing'} is not the verified APK ${out.sha256}`);
+    }
     if (out.state !== 'DOWNLOAD_READY') errors.push(`the run is in ${out.state}, not DOWNLOAD_READY`);
     return errors.length ? invalid(errors) : ok();
   }
