@@ -1,9 +1,9 @@
 {
-  "version": 100,
-  "projectState": "BUILDING",
-  "overallProgressPct": 0,
+  "version": 132,
+  "projectState": "DOWNLOAD_READY",
+  "overallProgressPct": 100,
   "elapsedMs": 0,
-  "latestActivity": "Pushing generated sources to GitHub",
+  "latestActivity": "release-publisher failed: the public download answered HTTP 302, not 200",
   "completedFeatures": 0,
   "totalFeatures": 0,
   "completedTasks": 0,
@@ -151,34 +151,36 @@
       "id": "repo-publisher",
       "index": 16,
       "name": "Repository Publisher",
-      "state": "WORKING",
-      "activity": "started",
-      "updatedAt": "2026-10-06T01:32:00.696Z",
+      "state": "COMPLETED",
+      "activity": "completed: 9ebb31d96f4af8ecc440677525cd92368cd73004",
+      "updatedAt": "2026-10-06T01:32:02.016Z",
       "startedAt": "2026-10-06T01:32:00.693Z"
     },
     "build-verifier": {
       "id": "build-verifier",
       "index": 17,
       "name": "Build Verifier",
-      "state": "IDLE",
-      "activity": "waiting for dependencies",
-      "updatedAt": "2026-10-06T01:31:59.949Z"
+      "state": "COMPLETED",
+      "activity": "completed: 9ebb31d96f4af8ecc440677525cd92368cd73004",
+      "updatedAt": "2026-10-06T01:33:40.927Z",
+      "startedAt": "2026-10-06T01:32:02.025Z"
     },
     "release-publisher": {
       "id": "release-publisher",
       "index": 18,
       "name": "Release Publisher",
-      "state": "IDLE",
-      "activity": "waiting for dependencies",
-      "updatedAt": "2026-10-06T01:31:59.949Z"
+      "state": "REVIEWING",
+      "activity": "published build-37399650541 and verified the public download (HTTP 302)",
+      "updatedAt": "2026-10-06T01:33:47.124Z",
+      "startedAt": "2026-10-06T01:33:40.930Z"
     },
     "failure-diagnostician": {
       "id": "failure-diagnostician",
       "index": 19,
       "name": "Failure Diagnostician",
-      "state": "WORKING",
-      "activity": "waiting for dependencies",
-      "updatedAt": "2026-10-06T01:32:00.696Z",
+      "state": "COMPLETED",
+      "activity": "completed: 4/4 health checks passed, 0 observed failure(s)",
+      "updatedAt": "2026-10-06T01:32:02.018Z",
       "startedAt": "2026-10-06T01:32:00.696Z"
     },
     "integration-supervisor": {
@@ -201,17 +203,54 @@
   "repairs": [],
   "githubStatus": "unknown",
   "cloudBuild": {
-    "state": "idle",
-    "stage": "QUEUED",
-    "status": "idle",
-    "output": []
+    "state": "running",
+    "stage": "COMPILING",
+    "status": "passed",
+    "output": [],
+    "headSha": "9ebb31d96f4af8ecc440677525cd92368cd73004",
+    "attempt": 1,
+    "workflowFile": ".github/workflows/builder-android-build.yml",
+    "dispatchedAt": "2026-10-06T01:32:03.039Z",
+    "runId": "37399650541",
+    "logsFetched": false,
+    "conclusion": "success",
+    "finishedAt": "2026-10-06T01:33:39.543Z",
+    "buildLogs": []
   },
-  "apkVerification": "idle",
+  "apkVerification": "passed",
   "icon": {
-    "status": "idle"
+    "status": "passed",
+    "category": "habits",
+    "fingerprint": "31d1876636a9ff25eca568c99bac53ea2bac73f83fdb86ef3f57aa7684eda628",
+    "manifestIcon": "@mipmap/ic_launcher",
+    "manifestRoundIcon": "@mipmap/ic_launcher_round",
+    "manifestIconResourceId": "0x7f080000",
+    "manifestIconType": "mipmap",
+    "matchedDensities": [
+      "mdpi",
+      "hdpi",
+      "xhdpi",
+      "xxhdpi",
+      "xxxhdpi"
+    ],
+    "matchedPath": "res/mipmap-mdpi-v4/ic_launcher.png",
+    "similarity": 0,
+    "byteIdentical": true,
+    "iconSignatureSha256": "47704148f0ea0a83e2c41700c2cf76b1a040c245691a9c7c350e07d34a5943e3",
+    "runId": "37399650541",
+    "apkSha256": "5e627927d55718780ae7a3d2c777cf5752af9b2d5d89d248dc519abba83ccd7b",
+    "verifiedAt": "2026-10-06T01:33:40.820Z"
   },
   "release": {
-    "status": "idle"
+    "status": "created",
+    "repo": "sikorokoro44/ai-app-builder",
+    "tag": "build-37399650541",
+    "assetName": "app-debug.apk",
+    "assetUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37399650541/app-debug.apk",
+    "assetSha256": "5e627927d55718780ae7a3d2c777cf5752af9b2d5d89d248dc519abba83ccd7b",
+    "runId": "37399650541",
+    "releaseUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/tag/build-37399650541",
+    "verifiedAt": "2026-10-06T01:33:46.345Z"
   },
   "failureRepair": {
     "state": "idle"
@@ -245,16 +284,88 @@
         "at": "2026-10-06T01:32:00.146Z"
       },
       {
+        "stage": "IMPLEMENT",
+        "evidence": "pushed commit 9ebb31d",
+        "at": "2026-10-06T01:32:01.957Z"
+      },
+      {
         "stage": "TESTGEN",
         "evidence": "registered 7 generated tests in NoteStoreTest",
         "at": "2026-10-06T01:32:00.623Z"
       },
       {
         "stage": "VALIDATE",
-        "evidence": "project validated, packageId=com.builder.plantwatering, 7 tests, 0 credential findings",
-        "at": "2026-10-06T01:32:00.687Z"
+        "evidence": "project validated, packageId=com.builder.plantwatering",
+        "at": "2026-10-06T01:32:02.204Z"
+      },
+      {
+        "stage": "CLOUD_BUILD",
+        "evidence": "run 37399650541 completed successfully",
+        "at": "2026-10-06T01:33:39.543Z",
+        "runId": "37399650541"
+      },
+      {
+        "stage": "BUILD_SUCCESS",
+        "evidence": "run 37399650541 conclusion=success",
+        "at": "2026-10-06T01:33:39.544Z",
+        "runId": "37399650541"
+      },
+      {
+        "stage": "REAL_APK",
+        "evidence": "apk=/tmp/builder-apk-37399650541-gIzXDq/app-debug.apk bytes=8685085",
+        "at": "2026-10-06T01:33:40.820Z",
+        "runId": "37399650541"
+      },
+      {
+        "stage": "APK_VERIFY",
+        "evidence": "sha256=5e627927d55718780ae7a3d2c777cf5752af9b2d5d89d248dc519abba83ccd7b package=com.builder.plantwatering",
+        "at": "2026-10-06T01:33:40.820Z",
+        "runId": "37399650541"
+      },
+      {
+        "stage": "REAL_ICON_VERIFY",
+        "evidence": "icon=@mipmap/ic_launcher category=habits fingerprint=31d1876636a9ff25eca568c99bac53ea2bac73f83fdb86ef3f57aa7684eda628 compiled=res/mipmap-mdpi-v4/ic_launcher.png densities=mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi similarity=0 resource=0x7f080000",
+        "at": "2026-10-06T01:33:40.820Z",
+        "runId": "37399650541"
+      },
+      {
+        "stage": "RELEASE",
+        "evidence": "tag=build-37399650541",
+        "at": "2026-10-06T01:33:46.345Z",
+        "runId": "37399650541"
+      },
+      {
+        "stage": "RELEASE_ASSET",
+        "evidence": "app-debug.apk sha256=5e627927d55718780ae7a3d2c777cf5752af9b2d5d89d248dc519abba83ccd7b",
+        "at": "2026-10-06T01:33:46.345Z",
+        "runId": "37399650541"
+      },
+      {
+        "stage": "PUBLIC_HTTPS_URL",
+        "evidence": "https url https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37399650541/app-debug.apk",
+        "at": "2026-10-06T01:33:46.626Z",
+        "runId": "37399650541"
+      },
+      {
+        "stage": "PUBLIC_DOWNLOAD",
+        "evidence": "HTTP 200 via https://release-assets.githubusercontent.com/github-production-release-asset/1403710635/74b8df89-e7a8-4c2e-b12a-c71ee9d33a35?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-10-06T02%3A26%3A48Z&rscd=attachment%3B+filename%3Dapp-debug.apk&rsct=application%2Fvnd.android.package-archive&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-10-06T01%3A26%3A25Z&ske=2026-10-06T02%3A26%3A48Z&sks=b&skv=2018-11-09&sig=AzrfUvGTwccPVLw%2F%2F1LlJUOMQ3FBAcVjt1ZaHy0wY4w%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc5MTI1MDcyNCwibmJmIjoxNzkxMjUwNDI0LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.38KCdH9LwffHTdUKYv0CHYktpWp0GC9EFmNpEuR7TY4&response-content-disposition=attachment%3B%20filename%3Dapp-debug.apk&response-content-type=application%2Fvnd.android.package-archive len=8685085",
+        "at": "2026-10-06T01:33:46.626Z",
+        "runId": "37399650541"
+      },
+      {
+        "stage": "FINAL_VERIFY",
+        "evidence": "download_ready url=https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37399650541/app-debug.apk",
+        "at": "2026-10-06T01:33:47.097Z",
+        "runId": "37399650541"
       }
-    ]
+    ],
+    "publicDownloadVerified": true,
+    "publicDownloadUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37399650541/app-debug.apk",
+    "finalVerifyAt": "2026-10-06T01:33:46.626Z"
   },
-  "lastUpdated": "2026-10-06T01:32:00.818Z"
+  "lastUpdated": "2026-10-06T01:33:47.129Z",
+  "apkPath": "/tmp/builder-apk-37399650541-gIzXDq/app-debug.apk",
+  "apkSha256": "5e627927d55718780ae7a3d2c777cf5752af9b2d5d89d248dc519abba83ccd7b",
+  "apkPackageId": "com.builder.plantwatering",
+  "finalDownloadUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37399650541/app-debug.apk"
 }
