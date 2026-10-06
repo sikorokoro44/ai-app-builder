@@ -419,6 +419,70 @@ export function writeState(state: LiveState, opts: WriteStateOptions = {}): Live
   return next;
 }
 
+/**
+ * Rebases one writer's changes onto a state another writer has moved on.
+ *
+ * `base` is what the caller read, `ours` is what it changed that into, and
+ * `fresh` is what is on disk now. None of the three is sufficient alone: `ours`
+ * knows this caller's intent and nothing about what happened since it read;
+ * `fresh` knows everything that happened since and nothing about the intent.
+ *
+ * So each field goes to whoever changed it. A field `ours` did not touch
+ * belongs to `fresh`, because the other writer changed it deliberately and this
+ * caller never had an opinion about it. That is the whole difference between a
+ * conflict that gets resolved and one that gets lost — an evidence link
+ * recorded while this caller was busy validating a project is a field this
+ * caller never touched.
+ *
+ * Fields that accumulate rather than replace are merged by key, because
+ * replacing is precisely the wrong operation on them: two stages recorded by
+ * two writers are two stages, not one stage chosen between them.
+ */
+export function mergeConcurrentState(fresh: LiveState, base: LiveState, ours: LiveState): LiveState {
+  const merged: any = { ...fresh };
+  const same = (a: any, b: any) => JSON.stringify(a) === JSON.stringify(b);
+
+  for (const key of Object.keys(ours)) {
+    if (same((ours as any)[key], (base as any)[key])) continue;
+    merged[key] = (ours as any)[key];
+  }
+
+  const baseStages = new Map<string, any>((base.evidence?.stages || []).map((s: any) => [s.stage, s]));
+  const ourStages = new Map<string, any>((ours.evidence?.stages || []).map((s: any) => [s.stage, s]));
+  const freshStages = new Map<string, any>((fresh.evidence?.stages || []).map((s: any) => [s.stage, s]));
+  const stages = new Map<string, any>();
+  // Keep everything the other writer recorded, including stages this caller
+  // had not reached yet when it read the state.
+  for (const [stage, value] of freshStages) stages.set(stage, value);
+  for (const [stage, value] of ourStages) {
+    // Ours wins only where we actually advanced a stage. Where ours is just the
+    // older copy we read, the recorded one stands.
+    if (!same(value, baseStages.get(stage)) || !freshStages.has(stage)) stages.set(stage, value);
+  }
+  if (!same(ourStages, freshStages) || !same(baseStages, freshStages)) {
+    merged.evidence = {
+      ...(fresh.evidence || {}),
+      stages: LifecycleStages.filter((stage) => stages.has(stage)).map((stage) => stages.get(stage))
+    };
+  }
+
+  for (const key of ['agents', 'tasks', 'features']) {
+    const baseMap = (base as any)[key] || {};
+    const ourMap = (ours as any)[key] || {};
+    const freshMap = (fresh as any)[key] || {};
+    if (same(ourMap, baseMap) && same(ourMap, freshMap)) continue;
+    const out: any = { ...freshMap };
+    for (const id of Object.keys(ourMap)) {
+      if (same(ourMap[id], baseMap[id])) continue;
+      out[id] = ourMap[id];
+    }
+    merged[key] = out;
+  }
+
+  merged.version = fresh.version;
+  return merged as LiveState;
+}
+
 export function appendEvent(event: any) {
   const line = JSON.stringify({ ts: new Date().toISOString(), ...event }) + '\n';
   mkdirSync(STATE_DIR, { recursive: true });

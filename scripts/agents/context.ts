@@ -11,7 +11,7 @@
 import { execFileSync } from 'child_process';
 import { mkdirSync, readFileSync } from 'fs';
 import { dirname, isAbsolute, join, resolve } from 'path';
-import { readState, writeState, appendEvent, withStateLock } from '../live/stateStore.ts';
+import { readState, writeState, appendEvent, withStateLock, mergeConcurrentState } from '../live/stateStore.ts';
 import { recordStage, type LifecycleStage } from '../live/evidenceChain.ts';
 import { Events, AgentStates } from '../../shared/types.ts';
 import type { LiveState } from '../../shared/state.ts';
@@ -140,6 +140,9 @@ export class AgentContext implements AgentExecutionContext {
   async mutate<T>(fn: (state: LiveState) => T | Promise<T>): Promise<T> {
     const run = AgentContext.queue.then(async () => {
       const state = readState();
+      // Kept as the merge base: what this call read, before it changed anything,
+      // is the only way to tell its own changes from the other's.
+      const base = state;
       const before = JSON.stringify(state);
       const readVersion = state.version;
       const result = await fn(state);
@@ -151,18 +154,27 @@ export class AgentContext implements AgentExecutionContext {
       // 37391565852 published a chain with every stage except IMPLEMENT.
       if (JSON.stringify(state) !== before) {
         // The lock keeps this write from landing in the middle of another
-        // writer's read-modify-write, and the version check catches the one
-        // thing the lock cannot: a writer that committed while `fn` awaited.
-        // That fails the agent loudly rather than dropping the other write.
+        // writer's read-modify-write. When another writer did commit while `fn`
+        // awaited, this one rebases onto that state rather than overwriting it:
+        // both writers had real work to record, and the fields this caller never
+        // touched are not this caller's to discard.
         withStateLock(() => {
           const current = readState();
-          if ((current.version || 0) !== (readVersion || 0)) {
-            throw new Error(
-              `Refusing to persist a state read at version ${readVersion || 0} over version ${current.version}: ` +
-              `another writer advanced the state while this one was working.`
-            );
+          if ((current.version || 0) === (readVersion || 0)) {
+            writeState(state);
+            return;
           }
-          writeState(state);
+          const rebased = mergeConcurrentState(current, base, state);
+          writeState(rebased);
+          // Recorded because a rebase means two writers interleaved. Without it
+          // the log shows a single linear history for work that overlapped, and
+          // the next lost update here would be as invisible as this one was.
+          appendEvent({
+            type: Events.STATE_REBASED,
+            agentId: this.agentId,
+            fromVersion: readVersion,
+            ontoVersion: current.version
+          });
         });
       }
       return result;

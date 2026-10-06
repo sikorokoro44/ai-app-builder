@@ -93,6 +93,12 @@ export const Events = {
   BUILD_STARTED: 'BUILD_STARTED',
   BUILD_STAGE_CHANGED: 'BUILD_STAGE_CHANGED',
   BUILD_OUTPUT: 'BUILD_OUTPUT',
+  /**
+   * One writer's changes were rebased onto a state another writer had advanced.
+   * Recorded because a rebase means two writers interleaved: without it the log
+   * reads as a single linear history for work that overlapped.
+   */
+  STATE_REBASED: 'STATE_REBASED',
   BUILD_FAILED: 'BUILD_FAILED',
   BUILD_PASSED: 'BUILD_PASSED',
   ARTIFACT_CREATED: 'ARTIFACT_CREATED',

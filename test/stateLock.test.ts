@@ -42,11 +42,17 @@ describe('a state snapshot cannot be written over one that moved on', () => {
     assert.ok(compareAt < writeAt, 'the change has to be decided before the write');
   });
 
-  test('a write that lost the race fails the agent instead of dropping the other write', () => {
+  test('a write that lost the race rebases onto the newer state', () => {
     const mutate = context.slice(context.indexOf('async mutate'), context.indexOf('async evidence('));
     assert.match(mutate, /withStateLock\(\(\) => \{/, 'the write must not land inside another writer');
-    assert.match(mutate, /another writer advanced the state while this one was working/,
-      'a conflict must be reported, not resolved in favour of whoever wrote last');
+    // Refusing was tried first and it failed run 37397529479 at
+    // `failure-diagnostician`: the conflict is real and will happen again, so
+    // the only question is whose work survives it.
+    assert.match(mutate, /mergeConcurrentState\(current, base, state\)/,
+      'the loser must rebase, not overwrite the winner');
+    assert.doesNotMatch(mutate, /another writer advanced the state while this one was working/,
+      'a conflict that ends the run is not resolved');
+    assert.match(mutate, /STATE_REBASED/, 'an interleaving has to be visible in the log');
   });
 
   test('a spawned script holds the lock for as long as it runs', () => {
@@ -57,6 +63,11 @@ describe('a state snapshot cannot be written over one that moved on', () => {
     const lockAt = runScript.indexOf('withStateLock');
     const spawnAt = runScript.indexOf('execFileSync(process.execPath');
     assert.ok(lockAt < spawnAt, 'the lock must be held while the child runs');
+  });
+
+  test('a rebase is visible in the event log', () => {
+    assert.match(store, /export function mergeConcurrentState/, 'the merge must be part of the store');
+    assert.match(context, /Events\.STATE_REBASED/, 'and the rebase must be recorded');
   });
 
   test('a stale snapshot written over a newer state is refused', () => {
@@ -85,6 +96,55 @@ describe('a state snapshot cannot be written over one that moved on', () => {
 
     const after = execFileSync('cat', [join(dir, 'state.json')], { encoding: 'utf-8' });
     assert.match(after, /"latestActivity": "first writer"/, 'the newer write must survive');
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test('two writers that overlap both keep their work', async () => {
+    const stages = ['IDEA', 'ANALYZE', 'DESIGN', 'PLAN', 'SCAFFOLD'];
+    const dir = join(tmpdir(), `builder-rebase-${process.pid}`);
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { recursive: true });
+
+    const script = join(dir, 'rebase.mjs');
+    writeFileSync(script, `
+      import { readState, writeState, withStateLock } from ${JSON.stringify(join(REPO, 'scripts/live/stateStore.ts'))};
+      import { recordStage } from ${JSON.stringify(join(REPO, 'scripts/live/evidenceChain.ts'))};
+      const stages = ${JSON.stringify(stages)};
+
+      // The diagnostician's shape: read the state, do slow work, write back.
+      const base = readState();
+      for (const stage of stages.slice(0, 4)) recordStage(base, stage, 'early');
+      const baseCopy = JSON.parse(JSON.stringify(base));
+      await new Promise((r) => setTimeout(r, 400));
+      writeState(base, { allowUncheckedTransition: true });
+
+      // The publisher's shape, landing in the middle of that work.
+      const theirs = readState();
+      recordStage(theirs, 'SCAFFOLD', 'pushed commit 049f1f1');
+      writeState(theirs, { allowUncheckedTransition: true });
+
+      // The diagnostician comes back and finds a newer state than it read.
+      const fresh = readState();
+      const { mergeConcurrentState } = await import(${JSON.stringify(join(REPO, 'scripts/live/stateStore.ts'))});
+      writeState(mergeConcurrentState(fresh, baseCopy, base), { allowUncheckedTransition: true });
+    `);
+
+    const res = spawnSync(process.execPath, ['--experimental-strip-types', script], {
+      env: { ...process.env, BUILDER_STATE_DIR: dir },
+      encoding: 'utf-8'
+    });
+    assert.equal(res.status, 0, res.stderr);
+
+    const state = JSON.parse(execFileSync('cat', [join(dir, 'state.json')], { encoding: 'utf-8' }));
+    const recorded = new Map(state.evidence.stages.map((s) => [s.stage, s.evidence]));
+    // The overlap must cost neither writer its work: this is precisely the pair
+    // that left run 37391565852 with a chain missing IMPLEMENT.
+    assert.equal(recorded.get('SCAFFOLD'), 'pushed commit 049f1f1', "the publisher's evidence must survive the rebase");
+    for (const stage of stages.slice(0, 4)) {
+      assert.equal(recorded.get(stage), 'early', `${stage} must survive the rebase`);
+    }
+    const order = state.evidence.stages.map((s) => s.stage);
+    assert.deepEqual(order, stages, 'and the chain must stay in lifecycle order');
     rmSync(dir, { recursive: true, force: true });
   });
 
