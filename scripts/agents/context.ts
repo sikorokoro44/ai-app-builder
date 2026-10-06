@@ -11,7 +11,7 @@
 import { execFileSync } from 'child_process';
 import { mkdirSync, readFileSync } from 'fs';
 import { dirname, isAbsolute, join, resolve } from 'path';
-import { readState, writeState, appendEvent } from '../live/stateStore.ts';
+import { readState, writeState, appendEvent, withStateLock } from '../live/stateStore.ts';
 import { recordStage, type LifecycleStage } from '../live/evidenceChain.ts';
 import { Events, AgentStates } from '../../shared/types.ts';
 import type { LiveState } from '../../shared/state.ts';
@@ -140,8 +140,31 @@ export class AgentContext implements AgentExecutionContext {
   async mutate<T>(fn: (state: LiveState) => T | Promise<T>): Promise<T> {
     const run = AgentContext.queue.then(async () => {
       const state = readState();
+      const before = JSON.stringify(state);
+      const readVersion = state.version;
       const result = await fn(state);
-      writeState(state);
+      // A mutation that changed nothing has nothing to persist, and persisting
+      // it anyway is how another agent's write gets lost: the state read here is
+      // a snapshot, and agents run concurrently, so an unchanged snapshot is
+      // still the only thing this call knows about. Writing it back would
+      // overwrite whatever landed during the await — which is how run
+      // 37391565852 published a chain with every stage except IMPLEMENT.
+      if (JSON.stringify(state) !== before) {
+        // The lock keeps this write from landing in the middle of another
+        // writer's read-modify-write, and the version check catches the one
+        // thing the lock cannot: a writer that committed while `fn` awaited.
+        // That fails the agent loudly rather than dropping the other write.
+        withStateLock(() => {
+          const current = readState();
+          if ((current.version || 0) !== (readVersion || 0)) {
+            throw new Error(
+              `Refusing to persist a state read at version ${readVersion || 0} over version ${current.version}: ` +
+              `another writer advanced the state while this one was working.`
+            );
+          }
+          writeState(state);
+        });
+      }
       return result;
     });
     AgentContext.queue = run.then(() => undefined, () => undefined);
@@ -161,18 +184,28 @@ export class AgentContext implements AgentExecutionContext {
   runScript(args: string[], env: Record<string, string> = {}): { stdout: string; stderr: string; code: number } {
     const script = isAbsolute(args[0]) ? args[0] : join(this.repoRoot, args[0]);
     const rest = args.slice(1);
+    // The script reads and writes the same state file this process holds, so the
+    // lock is held for its whole run. Without it, an agent that is part-way
+    // through `mutate` can have its snapshot overwritten by the script, or the
+    // reverse, and whichever lands last silently wins.
     try {
-      const stdout = execFileSync(process.execPath, ['--experimental-strip-types', script, ...rest], {
-        cwd: this.repoRoot,
-        encoding: 'utf-8',
-        maxBuffer: 64 * 1024 * 1024,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, BUILDER_REPO_ROOT: this.repoRoot, BUILDER_AGENT_RUN_ID: this.runId, ...env }
+      return withStateLock(() => {
+        try {
+          const stdout = execFileSync(process.execPath, ['--experimental-strip-types', script, ...rest], {
+            cwd: this.repoRoot,
+            encoding: 'utf-8',
+            maxBuffer: 64 * 1024 * 1024,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env: { ...process.env, BUILDER_REPO_ROOT: this.repoRoot, BUILDER_AGENT_RUN_ID: this.runId, ...env }
+          });
+          return { stdout, stderr: '', code: 0 };
+        } catch (e) {
+          const err = e as { status?: number; stdout?: string; stderr?: string; message?: string };
+          return { stdout: err.stdout ?? '', stderr: err.stderr ?? err.message ?? '', code: typeof err.status === 'number' ? err.status : 1 };
+        }
       });
-      return { stdout, stderr: '', code: 0 };
-    } catch (e) {
-      const err = e as { status?: number; stdout?: string; stderr?: string; message?: string };
-      return { stdout: err.stdout ?? '', stderr: err.stderr ?? err.message ?? '', code: typeof err.status === 'number' ? err.status : 1 };
+    } catch (e: any) {
+      return { stdout: '', stderr: e.message || String(e), code: 1 };
     }
   }
 

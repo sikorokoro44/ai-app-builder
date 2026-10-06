@@ -5,15 +5,19 @@ import { assertValidTransition } from './stateValidator.ts';
 import { LifecycleStages, type LifecycleStage } from './evidenceChain.ts';
 import {
   readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, openSync, fsyncSync,
-  closeSync, appendFileSync, readdirSync, rmSync
+  closeSync, appendFileSync, readdirSync, rmSync, statSync
 } from 'fs';
-import { basename, join } from 'path';
-import { randomBytes } from 'crypto';
+import { basename, join, resolve } from 'path';
+import { tmpdir } from 'os';
+import { createHash, randomBytes } from 'crypto';
 
 export const STATE_DIR = process.env.BUILDER_STATE_DIR || '.builder/live';
 const STATE_FILE = join(STATE_DIR, 'state.json');
 const STATE_BAK = join(STATE_DIR, 'state.json.bak');
 const EVENTS_FILE = join(STATE_DIR, 'events.jsonl');
+
+/** Long enough for a Gradle-backed lifecycle script, short enough to notice a hang. */
+const LOCK_TIMEOUT_MS = Number(process.env.BUILDER_LOCK_TIMEOUT_MS || 15 * 60 * 1000);
 
 export function initStateStore() {
   mkdirSync(STATE_DIR, { recursive: true });
@@ -22,6 +26,74 @@ export function initStateStore() {
   }
   if (!existsSync(EVENTS_FILE)) {
     writeFileSync(EVENTS_FILE, '');
+  }
+}
+
+/**
+ * Serialises every writer of the live state, in this process and in any script
+ * it spawns.
+ *
+ * The state is one file, and it is written from several directions at once:
+ * lifecycle scripts run as their own processes, and agents run concurrently
+ * with each other. A read-modify-write is therefore not atomic across those
+ * writers, and the last one to write wins with whatever it read. That is how
+ * run 37391565852 published a run whose evidence chain had every stage except
+ * IMPLEMENT: `failure-diagnostician` depends only on `quality-auditor`, so it
+ * ran alongside `repo-publisher`, read the state, awaited a project validation
+ * for over a second, and wrote back a snapshot taken before `githubPush.ts`
+ * recorded the push. The link was not wrong, it was overwritten.
+ *
+ * Holding an exclusive file for the whole read-modify-write is what makes the
+ * snapshot and the write belong together. Scripts that write the state from
+ * another process are covered too, because the caller holds the lock for the
+ * duration of the child it spawned.
+ */
+let lockHeld = false;
+
+function sleepSync(ms: number): void {
+  // A synchronous wait, because the lock is held across synchronous work: an
+  // agent's script runs to completion while this process waits for it.
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+export function withStateLock<T>(fn: () => T): T {
+  // Re-entrant within one process: a caller already holding the lock owns the
+  // state until it returns, so waiting on itself would deadlock.
+  if (lockHeld) return fn();
+
+  mkdirSync(STATE_DIR, { recursive: true });
+  // Outside the state directory on purpose: `.builder/live` is tracked so a run
+  // can be resumed, and `githubPush` stages it with `git add -A` while it holds
+  // this very lock, so a lock kept in there would be committed and published.
+  const lockPath = join(tmpdir(), `builder-state-${createHash('sha1').update(resolve(STATE_DIR)).digest('hex').slice(0, 12)}.lock`);
+  const deadline = Date.now() + LOCK_TIMEOUT_MS;
+  let fd: number | undefined;
+
+  for (;;) {
+    try {
+      fd = openSync(lockPath, 'wx');
+      break;
+    } catch (e: any) {
+      if (e?.code !== 'EEXIST') throw e;
+      // A lock left behind by a killed process would otherwise block the run
+      // forever, so one older than any writer could have held is broken.
+      try {
+        if (Date.now() - statSync(lockPath).mtimeMs > LOCK_TIMEOUT_MS) rmSync(lockPath, { force: true });
+      } catch { /* another writer released it first */ }
+      if (Date.now() > deadline) {
+        throw new Error(`Timed out after ${LOCK_TIMEOUT_MS}ms waiting for the live state lock at ${lockPath}`);
+      }
+      sleepSync(20);
+    }
+  }
+
+  lockHeld = true;
+  try {
+    return fn();
+  } finally {
+    lockHeld = false;
+    try { closeSync(fd as number); } catch { /* already closed */ }
+    try { rmSync(lockPath, { force: true }); } catch { }
   }
 }
 
@@ -90,9 +162,7 @@ function parseState(raw: string): LiveState | null {
 
 export function readState(): LiveState {
   if (!existsSync(STATE_FILE)) {
-    const s = createInitialState();
-    writeState(s, { allowUncheckedTransition: true, reason: 'initialising the state store' });
-    return s;
+    return writeState(createInitialState(), { allowUncheckedTransition: true, reason: 'initialising the state store' });
   }
   let parsed: LiveState | null = null;
   try {
@@ -278,7 +348,7 @@ export interface WriteStateOptions {
  * bypass by omission, so a silent skip-ahead fails loudly instead of producing a
  * state file that claims work that never happened.
  */
-export function writeState(state: LiveState, opts: WriteStateOptions = {}) {
+export function writeState(state: LiveState, opts: WriteStateOptions = {}): LiveState {
   const next = normalizeState(state);
 
   let prev: LiveState | null = null;
@@ -342,6 +412,11 @@ export function writeState(state: LiveState, opts: WriteStateOptions = {}) {
       activity: next.latestActivity || `entered ${next.projectState}`
     });
   }
+
+  // Handed back so a caller that holds this object writes the version that is
+  // actually on disk. Without it the first write after a fresh store looks like
+  // a stale snapshot of a state this same call was the writer of.
+  return next;
 }
 
 export function appendEvent(event: any) {
