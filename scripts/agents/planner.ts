@@ -195,6 +195,8 @@ export function deriveSections(idea: string): DerivedSections {
   const roles = numericRoles(spec);
   const cls = spec.className;
   const textFields = spec.fields.filter((f) => f.type === 'text');
+  const requiredText = textFields.filter((f) => !f.optional);
+  const optionalText = textFields.filter((f) => f.optional);
   const boolField = spec.fields.find((f) => f.type === 'bool');
   const actionWords = spec.actions.length ? spec.actions : ['toggle'];
   // Counted from the emitter, never estimated: the plan's test requirement and
@@ -211,7 +213,11 @@ export function deriveSections(idea: string): DerivedSections {
     requirement('req-002',
       `${indefiniteArticle(spec.noun)} ${spec.noun} can be captured with: ${spec.fields.map((f) => f.label).join(', ')}.`,
       'Every field of the derived entity is user visible and editable.',
-      textFields.map((f) => `A ${f.label.toLowerCase()} field rejects blank input.`)),
+      [
+        ...requiredText.map((f) => `A ${f.label.toLowerCase()} field rejects blank input.`),
+        ...optionalText.map((f) => `The ${f.label.toLowerCase()} field may be left empty.`),
+        ...(requiredText.length + optionalText.length === 0 ? ['The capture form writes every declared field.'] : [])
+      ]),
     requirement('req-003',
       `Stored ${spec.plural} are listed with their detail after a restart.`,
       'Capture without review is not a usable app.',
@@ -483,7 +489,7 @@ export function planForIdea(idea: string): BuildPlan {
     workstream: 'implement',
     ownerAgent: 'data-engineer',
     dependsOn: [manifestFeature.id],
-    acceptance: ['add() trims and rejects blank text.', 'Each derived action has a store method.'],
+    acceptance: ['add() trims every text field and rejects blank required text.', 'Each derived action has a store method.'],
     files: [`${javaRoot}/${cls}Store.kt`]
   });
   const tData = addTask(dataFeature, 'Emit the model and store', 'data-engineer', 'implement', [tManifest], [`${javaRoot}/${cls}Store.kt`], 'Store source contains add, remove and every derived action');

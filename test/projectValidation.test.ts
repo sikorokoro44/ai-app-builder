@@ -326,7 +326,8 @@ describe('idea-to-domain selection', () => {
     ['A water intake tracker', 'Entry'],
     ['A plant watering schedule', 'Entry'],
     ['A contact phonebook', 'Contact'],
-    ['A book reading list', 'Item'],
+    ['A book reading list', 'Book'],
+    ['Book tracker for reading', 'Book'],
     ['A gift wishlist', 'Item'],
     ['something completely unrecognised zzz', 'Record']
   ];
@@ -348,7 +349,7 @@ describe('idea-to-domain selection', () => {
       assert.ok(spec.fields.some((f) => f.type === 'text'), `${spec.className} has no text field`);
       assert.ok(spec.plural.endsWith('s'), `${spec.className} plural looks wrong`);
     }
-    assert.strictEqual(seen.size, 10);
+    assert.strictEqual(seen.size, 11);
   });
 
   test('numeric roles pick target, streak and progress deterministically', () => {

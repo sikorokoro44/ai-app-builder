@@ -6,6 +6,8 @@ export interface EntityField {
   label: string;
   hint?: string;
   initial?: string | number | boolean;
+  /** When true the store accepts an empty value; the field is genuinely optional in the domain. */
+  optional?: boolean;
 }
 
 export interface EntitySpec {
@@ -20,6 +22,8 @@ export interface EntitySpec {
   actions: Array<'toggle' | 'increment' | 'complete'>;
   /** One-line description of what the app is for. */
   purpose: string;
+  /** Copy for the per-row advancement control, derived from the domain. Defaults to a generic "Log one". */
+  incrementLabel?: string;
 }
 
 export interface NumericRoles {
@@ -150,13 +154,29 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
+    match: /\b(book|books|reading|reads|read|reader|readers|author|authors|novel|novels|library|libraries|literature|fiction|nonfiction|chapter|chapters|kindle|audiobook|audiobooks|bookshelf|bookshelves)\b/i,
+    spec: {
+      className: 'Book', noun: 'book', plural: 'books',
+      purpose: 'track books and how far each one has been read',
+      incrementLabel: 'Log one page',
+      fields: [
+        { name: 'title', type: 'text', label: 'Title', hint: 'Book title' },
+        { name: 'author', type: 'text', label: 'Author', hint: 'Who wrote it' },
+        { name: 'pagesRead', type: 'int', label: 'Pages read', initial: '0' },
+        { name: 'notes', type: 'text', label: 'Notes', hint: 'Where you left off or a quote', optional: true },
+        { name: 'finished', type: 'bool', label: 'Finished', initial: false }
+      ],
+      actions: ['toggle', 'increment']
+    }
+  },
+  {
     match: /\b(book\w*|read\w*|article\w*|link\w*|url|feed|news|playlist\w*|album\w*|movie\w*|wish\w*|list)\b/i,
     spec: {
       className: 'Item', noun: 'item', plural: 'items',
       purpose: 'keep a list worth coming back to',
       fields: [
         { name: 'title', type: 'text', label: 'Title', hint: 'What is it?' },
-        { name: 'detail', type: 'text', label: 'Link or note', hint: 'Optional' },
+        { name: 'detail', type: 'text', label: 'Link or note', hint: 'Optional', optional: true },
         { name: 'finished', type: 'bool', label: 'Finished', initial: false }
       ],
       actions: ['toggle']

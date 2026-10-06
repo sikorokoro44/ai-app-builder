@@ -100,17 +100,18 @@ export function escapeXml(s: string): string {
 export function storeSource(spec: EntitySpec, idea: string): string {
   const cls = spec.className;
   const textFields = spec.fields.filter((f) => f.type === 'text');
+  const requiredText = textFields.filter((f) => !f.optional);
   const boolField = spec.fields.find((f) => f.type === 'bool');
   const { progress: progressField, target: targetField, streak: streakField, primary } = numericRoles(spec);
 
 
-  const addParams = textFields.map((f) => `${f.name}: String`).join(', ');
-  const validations = textFields.map((f) => {
+  const addParams = textFields.map((f) => f.optional ? `${f.name}: String = ""` : `${f.name}: String`).join(', ');
+  const validations = requiredText.map((f) => {
     const v = `clean${cap(f.name)}`;
     return `        val ${v} = ${f.name}.trim()\n        require(${v}.isNotEmpty()) { "${f.label} must not be blank" }`;
   }).join('\n');
   const ctorArgs = spec.fields.map((f) => {
-    if (f.type === 'text') return `${f.name} = clean${cap(f.name)}`;
+    if (f.type === 'text') return f.optional ? `${f.name} = ${f.name}.trim()` : `${f.name} = clean${cap(f.name)}`;
     return `${f.name} = ${defaultFor(f)}`;
   }).join(', ');
 
@@ -191,7 +192,7 @@ class ${cls}Store {
     private val nextId = AtomicLong(1)
     private val items = LinkedHashMap<Long, ${cls}>()
 
-    /** Adds a${article(spec.noun)} ${spec.noun}; every text field must be non-blank. */
+    /** Adds a${article(spec.noun)} ${spec.noun}; every required text field must be non-blank, optional ones default to "". */
     fun add(${addParams}): ${cls} {
 ${validations}
         val created = ${cls}(id = nextId.getAndIncrement(), ${ctorArgs})
@@ -400,7 +401,11 @@ export function testSource(spec: EntitySpec): string {
   const cls = spec.className;
   const boolField = spec.fields.find((f) => f.type === 'bool');
   const { progress: progressField } = numericRoles(spec);
-  const textArgs = spec.fields.filter((f) => f.type === 'text').map((f) => `"${f.label}"`).join(', ');
+  const textFields = spec.fields.filter((f) => f.type === 'text');
+  const requiredText = textFields.filter((f) => !f.optional);
+  const optionalText = textFields.filter((f) => f.optional);
+  const textArgs = textFields.map((f) => `"${f.label}"`).join(', ');
+  const requiredArgs = requiredText.map((f) => `"${f.label}"`).join(', ');
   const tests: string[] = [
     `    @Test
     fun addTrimsAndStores${cls}() {
@@ -412,7 +417,7 @@ export function testSource(spec: EntitySpec): string {
 
     @Test(expected = IllegalArgumentException::class)
     fun addRejectsBlank${cls}Name() {
-        ${cls}Store().add(${textArgs.split(', ').map(() => '"   "').join(', ')})
+        ${cls}Store().add(${requiredText.map(() => '"   "').join(', ')})
     }
 
     @Test
@@ -432,6 +437,16 @@ export function testSource(spec: EntitySpec): string {
         assertEquals(listOf(1L, 2L), store.all().map { it.id })
     }`
   ];
+  if (optionalText.length > 0) {
+    const field = optionalText[0];
+    tests.push(`
+    @Test
+    fun addAcceptsBlankOptional${cap(field.name)}() {
+        val store = ${cls}Store()
+        val created = store.add(${requiredArgs})
+        assertEquals("", created.${field.name})
+    }`);
+  }
   if (boolField) {
     tests.push(`
     @Test
@@ -694,8 +709,8 @@ export function plannedStrings(spec: EntitySpec, appName: string): string[] {
     ...spec.fields.filter((f) => f.type === 'text').map((f) => `    <string name="field_${f.name}">${escapeXml(f.label)}</string>`),
     `    <string name="add_button">Add ${escapeXml(spec.noun)}</string>`,
     `    <string name="delete">Remove</string>`,
-    ...(spec.actions.includes('increment') ? [`    <string name="increment">Log one</string>`] : []),
-    ...(boolField ? [`    <string name="mark_done">Mark done</string>`] : []),
+    ...(spec.actions.includes('increment') ? [`    <string name="increment">${escapeXml(spec.incrementLabel ?? 'Log one')}</string>`] : []),
+    ...(boolField ? [`    <string name="mark_done">Mark ${escapeXml(boolField.label.toLowerCase())}</string>`] : []),
     `    <string name="empty_list">No ${escapeXml(spec.plural)} yet. Add your first one.</string>`
   ];
   if (intField) {
