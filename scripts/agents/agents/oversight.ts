@@ -225,6 +225,11 @@ export const integrationSupervisorAgent: AgentSpec<void, SupervisionArtifact> = 
     if (!out) return invalid(['no supervision report']);
     if (out.agents.length !== 20) errors.push(`supervised ${out.agents.length} agents, not 20`);
     for (const agent of out.agents) {
+      // Not itself, for the same reason as in execute: this snapshot was taken
+      // while this agent was still running, so its own entry reads as unfinished
+      // in the very report it is validating. Run 37404619109 got all twenty
+      // agents verified, closed the run, and then failed here on itself.
+      if (agent.id === 'integration-supervisor') continue;
       if (agent.status !== 'completed') errors.push(`${agent.id} is ${agent.status}`);
       if (!agent.hasOutput) errors.push(`${agent.id} published no output artifact`);
     }

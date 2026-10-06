@@ -29,12 +29,19 @@ describe('the integration supervisor', () => {
   });
 
   test('does not count its own unfinished entry against itself', () => {
+    // Both places: the audit while executing, and the validation of the report
+    // that audit produced. Run 37404619109 closed the run and still failed the
+    // second one, on a snapshot taken before it had finished.
     assert.match(source, /a\.id !== 'integration-supervisor'/,
-      'the supervisor must exclude itself, or it can never pass');
+      'the executing audit must exclude the supervisor itself');
+    assert.match(source, /if \(agent\.id === 'integration-supervisor'\) continue;/,
+      'and so must the validation of its own report');
     // Excluding itself must not quietly become excluding everyone: the other
     // nineteen are still required to be complete, with a persisted artifact.
     assert.match(source, /a\.status !== 'completed' \|\| !a\.hasOutput/,
       'every other agent is still required to be complete, with an output artifact');
+    assert.match(source, /agent\.status !== 'completed'\) errors\.push/,
+      'and the report validation still checks every other agent');
   });
 
   test('still refuses to close the run on missing evidence', () => {
