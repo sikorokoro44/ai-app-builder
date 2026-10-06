@@ -2,9 +2,12 @@
 <resources>
     <string name="app_name">Book tracker for reading</string>
     <string name="field_title">Title</string>
-    <string name="field_detail">Link or note</string>
-    <string name="add_button">Add item</string>
+    <string name="field_author">Author</string>
+    <string name="field_notes">Notes</string>
+    <string name="add_button">Add book</string>
     <string name="delete">Remove</string>
-    <string name="mark_done">Mark done</string>
-    <string name="empty_list">No items yet. Add your first one.</string>
+    <string name="increment">Log one page</string>
+    <string name="mark_done">Mark finished</string>
+    <string name="empty_list">No books yet. Add your first one.</string>
+    <string name="progress_format">Pages read: %1$d</string>
 </resources>

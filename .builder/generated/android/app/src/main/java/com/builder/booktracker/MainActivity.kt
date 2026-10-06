@@ -29,20 +29,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
- * Keep a list worth coming back to, built from: "Book tracker for reading".
+ * Track books and how far each one has been read, built from: "Book tracker for reading".
  *
  * All visible text comes from res/values/strings.xml, so the UI is localisable and
  * nothing here hard-codes user-facing copy.
  */
 class MainActivity : ComponentActivity() {
-    private val store = ItemStore()
+    private val store = BookStore()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    ItemScreen(store)
+                    BookScreen(store)
                 }
             }
         }
@@ -50,9 +50,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ItemScreen(store: ItemStore) {
+fun BookScreen(store: BookStore) {
     var draftTitle by remember { mutableStateOf("") }
-    var draftDetail by remember { mutableStateOf("") }
+    var draftAuthor by remember { mutableStateOf("") }
+    var draftNotes by remember { mutableStateOf("") }
     var rows by remember { mutableStateOf(store.all()) }
 
     fun refresh() {
@@ -81,17 +82,25 @@ fun ItemScreen(store: ItemStore) {
                 modifier = Modifier.weight(1f)
             )
             OutlinedTextField(
-                value = draftDetail,
-                onValueChange = { draftDetail = it },
-                label = { Text(stringResource(R.string.field_detail)) },
+                value = draftAuthor,
+                onValueChange = { draftAuthor = it },
+                label = { Text(stringResource(R.string.field_author)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = draftNotes,
+                onValueChange = { draftNotes = it },
+                label = { Text(stringResource(R.string.field_notes)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
             Button(
                 onClick = {
-                    if (runCatching { store.add(draftTitle, draftDetail) }.isSuccess) {
+                    if (runCatching { store.add(draftTitle, draftAuthor, draftNotes) }.isSuccess) {
                         draftTitle = ""
-                        draftDetail = ""
+                        draftAuthor = ""
+                        draftNotes = ""
                         refresh()
                     }
                 }
@@ -108,15 +117,15 @@ fun ItemScreen(store: ItemStore) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ItemRows(rows, store, ::refresh)
+                BookRows(rows, store, ::refresh)
             }
         }
     }
 }
 
-private fun LazyListScope.ItemRows(
-    rows: List<Item>,
-    store: ItemStore,
+private fun LazyListScope.BookRows(
+    rows: List<Book>,
+    store: BookStore,
     onChanged: () -> Unit
 ) {
     items(rows, key = { it.id }) { item ->
@@ -131,11 +140,15 @@ private fun LazyListScope.ItemRows(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.title, style = MaterialTheme.typography.titleMedium)
-                Text(text = item.detail, style = MaterialTheme.typography.bodyMedium)
-
+                Text(text = item.author, style = MaterialTheme.typography.bodyMedium)
+                Text(text = item.notes, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = stringResource(R.string.progress_format, item.pagesRead),
+                    style = MaterialTheme.typography.labelMedium
+                )
             }
-            Button(onClick = { store.toggle(item.id); onChanged() }) {
-                Text(stringResource(R.string.mark_done))
+            Button(onClick = { store.increment(item.id); onChanged() }) {
+                Text(stringResource(R.string.increment))
             }
             Button(onClick = { store.remove(item.id); onChanged() }) {
                 Text(stringResource(R.string.delete))
