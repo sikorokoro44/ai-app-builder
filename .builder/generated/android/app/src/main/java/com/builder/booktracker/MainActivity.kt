@@ -1,4 +1,4 @@
-package com.builder.plantwatering
+package com.builder.booktracker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,20 +29,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
- * Capture and revisit notes, built from: "A plant watering journal".
+ * Keep a list worth coming back to, built from: "Book tracker for reading".
  *
  * All visible text comes from res/values/strings.xml, so the UI is localisable and
  * nothing here hard-codes user-facing copy.
  */
 class MainActivity : ComponentActivity() {
-    private val store = NoteStore()
+    private val store = ItemStore()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    NoteScreen(store)
+                    ItemScreen(store)
                 }
             }
         }
@@ -50,9 +50,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun NoteScreen(store: NoteStore) {
+fun ItemScreen(store: ItemStore) {
     var draftTitle by remember { mutableStateOf("") }
-    var draftBody by remember { mutableStateOf("") }
+    var draftDetail by remember { mutableStateOf("") }
     var rows by remember { mutableStateOf(store.all()) }
 
     fun refresh() {
@@ -81,17 +81,17 @@ fun NoteScreen(store: NoteStore) {
                 modifier = Modifier.weight(1f)
             )
             OutlinedTextField(
-                value = draftBody,
-                onValueChange = { draftBody = it },
-                label = { Text(stringResource(R.string.field_body)) },
+                value = draftDetail,
+                onValueChange = { draftDetail = it },
+                label = { Text(stringResource(R.string.field_detail)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
             Button(
                 onClick = {
-                    if (runCatching { store.add(draftTitle, draftBody) }.isSuccess) {
+                    if (runCatching { store.add(draftTitle, draftDetail) }.isSuccess) {
                         draftTitle = ""
-                        draftBody = ""
+                        draftDetail = ""
                         refresh()
                     }
                 }
@@ -108,15 +108,15 @@ fun NoteScreen(store: NoteStore) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                NoteRows(rows, store, ::refresh)
+                ItemRows(rows, store, ::refresh)
             }
         }
     }
 }
 
-private fun LazyListScope.NoteRows(
-    rows: List<Note>,
-    store: NoteStore,
+private fun LazyListScope.ItemRows(
+    rows: List<Item>,
+    store: ItemStore,
     onChanged: () -> Unit
 ) {
     items(rows, key = { it.id }) { item ->
@@ -126,12 +126,12 @@ private fun LazyListScope.NoteRows(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Checkbox(
-                checked = item.pinned,
+                checked = item.finished,
                 onCheckedChange = { store.toggle(item.id); onChanged() }
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.title, style = MaterialTheme.typography.titleMedium)
-                Text(text = item.body, style = MaterialTheme.typography.bodyMedium)
+                Text(text = item.detail, style = MaterialTheme.typography.bodyMedium)
 
             }
             Button(onClick = { store.toggle(item.id); onChanged() }) {
