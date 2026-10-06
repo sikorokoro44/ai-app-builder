@@ -178,7 +178,12 @@ export const integrationSupervisorAgent: AgentSpec<void, SupervisionArtifact> = 
       const status = entry?.status || readAgentStatus(ctx.runId, a.id)?.status || 'pending';
       return { id: a.id, status, summary: entry?.summary, hasOutput: isAgentComplete(ctx.runId, a.id) };
     });
-    const notDone = agents.filter((a) => a.status !== 'completed' || !a.hasOutput);
+    // Not itself. This agent is `running` with no artifact for as long as it is
+    // auditing, so counting its own entry here means it can never satisfy the
+    // check it is performing — run 37402835314 failed on exactly that, seconds
+    // after every other agent had passed. Its own completion is recorded when it
+    // publishes, and `markComplete.ts` below re-checks the whole chain anyway.
+    const notDone = agents.filter((a) => a.id !== 'integration-supervisor' && (a.status !== 'completed' || !a.hasOutput));
     const state = await ctx.mutate((s) => s);
     const missing = missingStages(state);
     const url = state.finalDownloadUrl || state.release.assetUrl || '';
