@@ -90,7 +90,7 @@ export function pluralOf(name: string): string {
 }
 
 export function escapeKotlin(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$');
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/\*\//g, '* /');
 }
 
 export function escapeXml(s: string): string {
@@ -701,8 +701,12 @@ export function emitManifest(layout: ProjectLayout): string {
 
 /** Every string the generated UI can reference, in emission order. */
 export function plannedStrings(spec: EntitySpec, appName: string): string[] {
-  const intField = spec.fields.find((f) => f.type === 'int');
-  const targetField = spec.fields.find((f) => f.type === 'int' && /target|goal/i.test(f.name));
+  // The progress line renders the *progress* counter, so its label is the
+  // progress field's label, not the first numeric field's. Session's targetMinutes
+  // is a target with no progress counter, so no progress_format is emitted at all;
+  // plannedStringKeys() derives from this same output, keeping the plan keys and
+  // the resource file in lockstep with the roles the planner resolved.
+  const roles = numericRoles(spec);
   const boolField = spec.fields.find((f) => f.type === 'bool');
   const strings = [
     `    <string name="app_name">${escapeXml(appName)}</string>`,
@@ -713,10 +717,10 @@ export function plannedStrings(spec: EntitySpec, appName: string): string[] {
     ...(boolField ? [`    <string name="mark_done">Mark ${escapeXml(boolField.label.toLowerCase())}</string>`] : []),
     `    <string name="empty_list">No ${escapeXml(spec.plural)} yet. Add your first one.</string>`
   ];
-  if (intField) {
-    strings.push(targetField
-      ? `    <string name="progress_format">${escapeXml(intField.label)}: %1$d of %2$d</string>`
-      : `    <string name="progress_format">${escapeXml(intField.label)}: %1$d</string>`);
+  if (roles.progress) {
+    strings.push(roles.target
+      ? `    <string name="progress_format">${escapeXml(roles.progress.label)}: %1$d of %2$d</string>`
+      : `    <string name="progress_format">${escapeXml(roles.progress.label)}: %1$d</string>`);
   }
   return strings;
 }

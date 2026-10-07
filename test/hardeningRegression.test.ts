@@ -481,8 +481,8 @@ describe('the completion gate can actually be satisfied, not just always refuse'
     s.completedTasks = 2;
     s.testStats = { discovered: 2, running: 0, passed: 2, failed: 0 };
     s.cloudBuild = {
-      state: 'passed', stage: 'RELEASE', status: 'passed', output: [],
-      runId: '9001', headSha: 'b'.repeat(40), artifactSha256: SHA
+      state: 'succeeded', stage: 'RELEASE', status: 'passed', output: [],
+      runId: '9001', headSha: 'b'.repeat(40), artifactSha256: SHA, finishedAt: '2026-10-07T00:00:00.000Z'
     };
     s.apkVerification = 'passed';
     s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };

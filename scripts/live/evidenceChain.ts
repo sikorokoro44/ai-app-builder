@@ -63,7 +63,7 @@ export interface ChainGateInput {
   projectState: string;
   overallProgressPct: number;
   currentStagePct: number | null | undefined;
-  cloudBuild: { status: string; runId?: string; artifactSha256?: string };
+  cloudBuild: { status: string; state?: string; finishedAt?: string; runId?: string; artifactSha256?: string };
   apkVerification: string;
   iconVerification?: string;
   apkPath?: string;
@@ -83,6 +83,10 @@ export function assertLifecycleEvidence(g: ChainGateInput): void {
   if (g.currentStagePct !== 100) problems.push(`currentStagePct=${g.currentStagePct} (want 100)`);
 
   if (g.cloudBuild.status !== 'passed') problems.push(`cloudBuild.status=${g.cloudBuild.status} (want passed)`);
+  if (g.cloudBuild.state !== 'succeeded') {
+    problems.push(`cloudBuild.state=${g.cloudBuild.state ?? 'not recorded'} (want succeeded; the run must have finished)`);
+  }
+  if (!g.cloudBuild.finishedAt) problems.push('cloud build has no finishedAt timestamp (the run never proved to finish)');
   if (!g.cloudBuild.runId) problems.push('cloud build has no run id (build success not proven)');
 
   if (g.apkVerification !== 'passed') problems.push(`apkVerification=${g.apkVerification} (want passed)`);

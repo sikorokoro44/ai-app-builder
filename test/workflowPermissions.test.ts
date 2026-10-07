@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REPO = join(import.meta.dirname, '..');
@@ -55,4 +55,50 @@ describe('the coordinator can dispatch the build it waits for', () => {
     assert.strictEqual(permissions.contents, 'read');
     assert.ok(!('actions' in permissions), 'the build dispatches nothing, so it needs no actions permission');
   });
+});
+
+describe('no workflow interpolates an expression into a shell block', () => {
+  // GitHub substitutes `${{ ... }}` *before* the step text reaches the shell, so
+  // quoting provides no protection: a crafted input or matrix row becomes code.
+  // The safe pattern is to bind the value in the job's env and reference $VAR in
+  // the run block, which is what these workflows must keep doing.
+  function runLines(workflowFile: string): ReturnType<typeof shellLines> {
+    const source = readFileSync(join(REPO, '.github/workflows', workflowFile), 'utf-8');
+    return shellLines(source);
+  }
+
+  function shellLines(source: string): Array<{ line: number; text: string }> {
+    const found: Array<{ line: number; text: string }> = [];
+    const lines = source.split('\n');
+    let indent = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^ {2,}run:\s*$/.test(line)) {
+        indent = line.search(/\S/);
+        continue;
+      }
+      const inline = line.match(/^(\s*)run:\s+(.*)$/);
+      if (inline) {
+        found.push({ line: i + 1, text: inline[2] });
+        continue;
+      }
+      if (indent > -1 && indent + 2 <= (line.match(/^\s*/)![0].length) && line.trim()) {
+        found.push({ line: i + 1, text: line });
+      } else {
+        indent = -1;
+      }
+    }
+    return found.filter((x) => x.text.trim());
+  }
+
+  for (const file of readdirSync(join(REPO, '.github/workflows')).filter((f) => f.endsWith('.yml'))) {
+    test(`${file} leaves expressions out of its run blocks`, () => {
+      const hits = runLines(file).filter(({ text }) => text.includes('${{'));
+      assert.deepStrictEqual(
+        hits.map(({ line, text }) => `${line}: ${text.trim()}`),
+        [],
+        `${file} must env-bind inputs/matrix values instead of interpolating them into shell text`
+      );
+    });
+  }
 });

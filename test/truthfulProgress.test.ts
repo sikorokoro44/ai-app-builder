@@ -22,7 +22,7 @@ function fullyEvidenced(overrides: any = {}) {
   for (const stage of LifecycleStages) recordStage(s, stage as any, 'verified');
   s.projectState = ProjectStates.DOWNLOAD_READY;
   s.overallProgressPct = 100;
-  s.cloudBuild = { state: 'passed', stage: 'RELEASE', status: 'passed', output: [], runId: '9001', headSha: 'abc', artifactSha256: SHA };
+  s.cloudBuild = { state: 'succeeded', stage: 'RELEASE', status: 'passed', output: [], runId: '9001', headSha: 'abc', artifactSha256: SHA, finishedAt: '2026-10-07T00:00:00.000Z' };
   s.apkVerification = 'passed';
   s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
   s.apkPath = '/data/data/com.termux/files/usr/tmp/opencode/app-debug.apk';
@@ -104,6 +104,28 @@ describe('truthful state invariants', () => {
     const s = fullyEvidenced();
     s.cloudBuild.status = 'running';
     assert.throws(() => assertTruthful(s), /passed cloud build/);
+  });
+
+  test('DOWNLOAD_READY with a passed status but a run that never finished is rejected', () => {
+    const s = fullyEvidenced();
+    s.cloudBuild.status = 'passed';
+    s.cloudBuild.state = 'running';
+    s.cloudBuild.finishedAt = undefined;
+    assert.throws(() => assertTruthful(s), /state is running, not succeeded/);
+  });
+
+  test('DOWNLOAD_READY with a terminal state but no finishedAt is rejected', () => {
+    const s = fullyEvidenced();
+    s.cloudBuild.finishedAt = undefined;
+    assert.throws(() => assertTruthful(s), /finishedAt/);
+  });
+
+  test('COMPLETED can never be claimed by a build still running', () => {
+    const s = fullyEvidenced({ projectState: ProjectStates.COMPLETED });
+    s.cloudBuild.status = 'passed';
+    s.cloudBuild.state = 'running';
+    s.cloudBuild.finishedAt = undefined;
+    assert.throws(() => assertTruthful(s), /state is running, not succeeded/);
   });
 
   test('DOWNLOAD_READY without a verified download is rejected', () => {
@@ -220,13 +242,21 @@ describe('DOWNLOAD_READY gate', () => {
     releaseStatus: 'created',
     releaseAssetUrl: URL,
     finalDownloadUrl: URL,
-    cloudBuildStatus: 'passed'
+    cloudBuildStatus: 'passed',
+    cloudBuildState: 'succeeded',
+    cloudBuildFinishedAt: '2026-10-07T00:00:00.000Z'
   };
   test('a fully evidenced gate passes', () => {
     assert.doesNotThrow(() => assertDownloadReadyGate(base));
   });
   test('fails when the build is not passed', () => {
     assert.throws(() => assertDownloadReadyGate({ ...base, cloudBuildStatus: 'running' }), /cloud build not passed/);
+  });
+  test('fails when the build is passed but never finished', () => {
+    assert.throws(() => assertDownloadReadyGate({ ...base, cloudBuildState: 'running', cloudBuildFinishedAt: undefined }), /not finished/);
+  });
+  test('fails when the build finished but lost its finishedAt', () => {
+    assert.throws(() => assertDownloadReadyGate({ ...base, cloudBuildState: 'succeeded', cloudBuildFinishedAt: undefined }), /finishedAt/);
   });
   test('fails when the APK is unverified', () => {
     assert.throws(() => assertDownloadReadyGate({ ...base, apkVerification: 'verifying' }), /APK verification not passed/);
@@ -314,6 +344,18 @@ describe('full lifecycle evidence chain', () => {
     const s = fullyEvidenced();
     s.cloudBuild.status = 'running';
     assert.throws(() => assertLifecycleEvidence(gateInput({ cloudBuild: s.cloudBuild })), /want passed/);
+  });
+  test('a build marked passed while still running blocks completion', () => {
+    const s = fullyEvidenced();
+    s.cloudBuild.status = 'passed';
+    s.cloudBuild.state = 'running';
+    s.cloudBuild.finishedAt = undefined;
+    assert.throws(() => assertLifecycleEvidence(gateInput({ cloudBuild: s.cloudBuild })), /state=running/);
+  });
+  test('a passed build with no finishedAt blocks completion', () => {
+    const s = fullyEvidenced();
+    s.cloudBuild.finishedAt = undefined;
+    assert.throws(() => assertLifecycleEvidence(gateInput({ cloudBuild: s.cloudBuild })), /finishedAt/);
   });
   test('a build without a run id blocks completion', () => {
     const cb = fullyEvidenced().cloudBuild;

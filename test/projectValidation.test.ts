@@ -17,7 +17,9 @@ const IDEAS = [
   'A pomodoro focus timer',
   'A habit tracker with daily streaks',
   'A contact phonebook',
-  'A book reading list'
+  'A book reading list',
+  'A movie watchlist',
+  'A video game collection'
 ];
 
 const TMP = join(process.env.PREFIX || process.env.HOME, 'tmp', 'opencode', 'builder-test-project');

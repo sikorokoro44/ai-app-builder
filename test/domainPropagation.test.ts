@@ -1,6 +1,6 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert';
-import { rmSync, readFileSync, mkdirSync } from 'fs';
+import { rmSync, readFileSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { specForIdea } from '../scripts/domainModels.ts';
 import { storeSource, activitySource, testSource, plannedStrings } from '../scripts/project/emitters.ts';
@@ -73,5 +73,56 @@ describe('the Book archetype propagates optional fields and an increment label',
     assert.match(strings, /Log one page/);
     const resources = readFileSync(join(root, 'app/src/main/res/values/strings.xml'), 'utf-8');
     assert.match(resources, /Mark finished/);
+  });
+
+  test('an idea containing a Kotlin comment terminator still generates and validates', () => {
+    const root = join(TMP, 'kdoc');
+    mkdirSync(root, { recursive: true });
+    const sketchy = 'A note list */ terminated idea';
+    generateAndroidApp({ idea: sketchy, outDir: root });
+    const v = validateGeneratedProject(root, sketchy);
+    assert.strictEqual(v.valid, true, v.errors.join('; '));
+    const ktFiles: string[] = [];
+    const visit = (d: string): void => {
+      for (const name of readdirSync(d)) {
+        const p = join(d, name);
+        if (statSync(p).isDirectory()) visit(p);
+        else if (p.endsWith('.kt')) ktFiles.push(p);
+      }
+    };
+    visit(join(root, 'app/src/main'));
+    const sources = ktFiles.map((f) => readFileSync(f, 'utf-8')).join('\n');
+    assert.match(sources, /A note list \* \/ terminated idea/,
+      'the idea must be quoted with */ neutralised to "* /" so the KDoc stays closed at the right point');
+  });
+});
+
+describe('the progress line renders the progress counter, not the target field', () => {
+  test('Entry labels the resource by the progress field and reads count against target', () => {
+    const spec = specForIdea('Habit tracker with daily streaks');
+    assert.strictEqual(spec.className, 'Entry');
+    const all = plannedStrings(spec, 'Habit tracker').join(' ');
+    assert.match(all, /<string name="progress_format">Done today: %1\$d of %2\$d<\/string>/,
+      'the progress_format label is the progress field (Done today), not the target field');
+    const activity = activitySource(spec, 'Habit tracker with daily streaks');
+    assert.match(activity, /stringResource\(R\.string\.progress_format, item\.count, item\.target\)/,
+      'the rendered call passes count (slot 1) and target (slot 2) in that order');
+  });
+
+  test('projects with a plain numeric field keep a single-placeholder progress line', () => {
+    const recipe = specForIdea('A recipe organiser for my kitchen');
+    assert.match(plannedStrings(recipe, 'recipes').join(' '), /<string name="progress_format">Servings: %1\$d<\/string>/);
+    const expense = specForIdea('An expense tracker with budget');
+    assert.match(plannedStrings(expense, 'expenses').join(' '), /<string name="progress_format">Amount \(cents\): %1\$d<\/string>/);
+  });
+
+  test('Session has a target but no progress counter, so no progress_format exists', () => {
+    const spec = specForIdea('A pomodoro focus timer');
+    assert.strictEqual(spec.className, 'Session');
+    const all = plannedStrings(spec, 'Pomodoro').join(' ');
+    assert.doesNotMatch(all, /progress_format/,
+      'targetMinutes is a target with no counter to render, so the dead key must not exist');
+    const activity = activitySource(spec, 'A pomodoro focus timer');
+    assert.doesNotMatch(activity, /R\.string\.progress_format/);
   });
 });

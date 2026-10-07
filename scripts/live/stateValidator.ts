@@ -150,4 +150,18 @@ export function assertTruthful(s: any): void {
     if (!url.startsWith('https://')) throw new Error('COMPLETED requires an HTTPS public URL');
     if (!s.evidence?.publicDownloadVerified) throw new Error('COMPLETED requires a verified public download');
   }
+
+  // A build marked `passed` must also have reached its terminal state. `status`
+  // alone can be written by code that saw a green run before the workflow had
+  // actually finished; `state` only becomes `succeeded` alongside `finishedAt`
+  // when cloudBuildExecute has observed the run conclude. Requiring all three at
+  // the gates below is what distinguishes a finished build from a hopeful one.
+  if ((state === ProjectStates.DOWNLOAD_READY || state === ProjectStates.COMPLETED) && s.cloudBuild?.status === 'passed') {
+    if (s.cloudBuild.state !== 'succeeded') {
+      throw new Error(`cloud build marked passed but its state is ${s.cloudBuild.state ?? 'missing'}, not succeeded`);
+    }
+    if (!s.cloudBuild.finishedAt) {
+      throw new Error('cloud build marked passed without a finishedAt timestamp');
+    }
+  }
 }

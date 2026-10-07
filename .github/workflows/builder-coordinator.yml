@@ -96,6 +96,9 @@ jobs:
       - name: Run the fleet
         env:
           BUILDER_IDEA: ${{ inputs.idea }}
+          BUILDER_RUN_ID: ${{ inputs.runId }}
+          BUILDER_MODE: ${{ inputs.mode }}
+          BUILDER_CONCURRENCY: ${{ inputs.concurrency || '4' }}
           BUILDER_CONFIG_PATH: config/builder.json
           BUILDER_AGENT_DIR: .builder/agents
           BUILDER_PROJECT_DIR: .builder/generated/android
@@ -109,14 +112,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          args=(--concurrency "${{ inputs.concurrency || '4' }}")
-          if [ "${{ inputs.mode }}" = "pre-cloud" ]; then
+          # Inputs are passed through the environment, never interpolated into
+          # the shell: a crafted idea/runId value must not become code in a job
+          # that holds contents + issues + pull-requests write and the token.
+          args=(--concurrency "$BUILDER_CONCURRENCY")
+          if [ "$BUILDER_MODE" = "pre-cloud" ]; then
             args+=(--pre-cloud)
           fi
-          if [ -n "${{ inputs.runId }}" ]; then
-            node --experimental-strip-types scripts/coordinator.ts --resume "${{ inputs.runId }}" "${args[@]}"
+          if [ -n "$BUILDER_RUN_ID" ]; then
+            node --experimental-strip-types scripts/coordinator.ts --resume "$BUILDER_RUN_ID" "${args[@]}"
           else
-            node --experimental-strip-types scripts/coordinator.ts "${{ inputs.idea }}" "${args[@]}"
+            node --experimental-strip-types scripts/coordinator.ts "$BUILDER_IDEA" "${args[@]}"
           fi
 
       - name: Report what the run proved

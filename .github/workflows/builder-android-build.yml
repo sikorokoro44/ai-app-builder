@@ -66,12 +66,14 @@ jobs:
 
       - name: Verify the workflow ran for the commit that was requested
         id: commit
+        env:
+          INPUT_HEAD_SHA: ${{ inputs.head_sha }}
         run: |
           set -euo pipefail
           head="$(git rev-parse HEAD)"
           echo "head_sha=$head" >> "$GITHUB_OUTPUT"
-          if [ -n "${{ inputs.head_sha }}" ] && [ "${{ inputs.head_sha }}" != "$head" ]; then
-            echo "::error::This run built $head but ${{ inputs.head_sha }} was requested."
+          if [ -n "$INPUT_HEAD_SHA" ] && [ "$INPUT_HEAD_SHA" != "$head" ]; then
+            echo "::error::This run built $head but $INPUT_HEAD_SHA was requested."
             exit 1
           fi
 
@@ -88,6 +90,8 @@ jobs:
       # modes are ignored because they depend on the runner's umask, not on the
       # generator.
       - name: Refuse to build a project that differs from the committed one
+        env:
+          COMMIT_HEAD_SHA: ${{ steps.commit.outputs.head_sha }}
         run: |
           set -euo pipefail
           root=.builder/generated/android
@@ -98,7 +102,7 @@ jobs:
           if git -c core.fileMode=false diff --quiet -- "$root"; then
             echo "The regenerated project is byte-identical to the committed one."
           else
-            echo "::error::The project regenerated here differs from the one committed at ${{ steps.commit.outputs.head_sha }}"
+            echo "::error::The project regenerated here differs from the one committed at $COMMIT_HEAD_SHA"
             git -c core.fileMode=false diff --stat -- "$root" | head -40
             exit 1
           fi

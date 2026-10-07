@@ -31,6 +31,24 @@ export interface GateInput {
   releaseAssetUrl?: string;
   finalDownloadUrl?: string;
   cloudBuildStatus: string;
+  cloudBuildState?: string;
+  cloudBuildFinishedAt?: string;
+}
+
+/**
+ * A cloud build is only "passed" once the observed run has concluded: status is
+ * written alongside state=succeeded and finishedAt by cloudBuildExecute, and a
+ * state still mid-flight (running/queued) means the verdict is a guess.
+ */
+function cloudBuildProblem(cb: Pick<GateInput, 'cloudBuildStatus' | 'cloudBuildState' | 'cloudBuildFinishedAt'>): string | null {
+  if (cb.cloudBuildStatus !== 'passed') return null;
+  if (cb.cloudBuildState !== 'succeeded') {
+    return `cloudBuildState is ${cb.cloudBuildState ?? 'not recorded'}, not succeeded (the run has not finished)`;
+  }
+  if (!cb.cloudBuildFinishedAt) {
+    return 'cloud build finished but no finishedAt timestamp was recorded';
+  }
+  return null;
 }
 
 /**
@@ -52,6 +70,8 @@ export function assertCompleteLifecycle(g: GateInput) {
   if (g.overallProgressPct !== 100) errors.push('overallProgressPct !== 100');
   if (g.currentStagePct !== 100) errors.push('currentStagePct !== 100');
   if (g.cloudBuildStatus !== 'passed') errors.push(`cloudBuildStatus is ${g.cloudBuildStatus}, not passed`);
+  const buildState = cloudBuildProblem(g);
+  if (buildState) errors.push(buildState);
   if (g.apkVerification !== 'passed') errors.push(`apkVerification is ${g.apkVerification}, not passed`);
   const icon = iconProblem(g.iconVerification);
   if (icon) errors.push(icon);
@@ -71,6 +91,8 @@ export function assertCompleteLifecycle(g: GateInput) {
 export function assertDownloadReadyGate(g: GateInput) {
   const errors: string[] = [];
   if (g.cloudBuildStatus !== 'passed') errors.push('cloud build not passed');
+  const buildState = cloudBuildProblem(g);
+  if (buildState) errors.push(buildState);
   if (g.apkVerification !== 'passed') errors.push('APK verification not passed');
   const icon = iconProblem(g.iconVerification);
   if (icon) errors.push(icon);
@@ -95,6 +117,8 @@ export function assertStateTruthfulAndComplete(s: any) {
     releaseStatus: s.release?.status,
     releaseAssetUrl: s.release?.assetUrl,
     finalDownloadUrl: s.finalDownloadUrl,
-    cloudBuildStatus: s.cloudBuild?.status
+    cloudBuildStatus: s.cloudBuild?.status,
+    cloudBuildState: s.cloudBuild?.state,
+    cloudBuildFinishedAt: s.cloudBuild?.finishedAt
   });
 }

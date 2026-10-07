@@ -103,13 +103,19 @@ jobs:
           BUILDER_AGENT_DIR: workspace/.builder/agents
           BUILDER_STATE_DIR: workspace/.builder/live
           BUILDER_REPO_ROOT: .
+          BUILDER_MODE: ${{ inputs.mode }}
+          BUILDER_AGENT: ${{ matrix.agent }}
+          BUILDER_RUN_ID: ${{ inputs.runId }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "${{ inputs.mode }}" = "pre-cloud" ]; then
-            node --experimental-strip-types scripts/worker.ts --agent "${{ matrix.agent }}" --run "${{ inputs.runId }}" --pre-cloud
+          # env-bound rather than interpolated: `matrix.agent` comes from the
+          # caller-supplied `agents` list, and this job holds contents + issues
+          # write and the token, so a crafted value must never reach the shell.
+          if [ "$BUILDER_MODE" = "pre-cloud" ]; then
+            node --experimental-strip-types scripts/worker.ts --agent "$BUILDER_AGENT" --run "$BUILDER_RUN_ID" --pre-cloud
           else
-            node --experimental-strip-types scripts/worker.ts --agent "${{ matrix.agent }}" --run "${{ inputs.runId }}"
+            node --experimental-strip-types scripts/worker.ts --agent "$BUILDER_AGENT" --run "$BUILDER_RUN_ID"
           fi
       - name: Upload what this agent produced
         uses: actions/upload-artifact@v4

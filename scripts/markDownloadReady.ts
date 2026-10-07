@@ -29,7 +29,9 @@ try {
     releaseStatus: s.release.status,
     releaseAssetUrl: s.release.assetUrl,
     finalDownloadUrl: s.finalDownloadUrl,
-    cloudBuildStatus: s.cloudBuild.status
+    cloudBuildStatus: s.cloudBuild.status,
+    cloudBuildState: s.cloudBuild.state,
+    cloudBuildFinishedAt: s.cloudBuild.finishedAt
   });
 } catch (e: any) {
   console.error(`DOWNLOAD_READY gate rejected:\n${e.message}`);
