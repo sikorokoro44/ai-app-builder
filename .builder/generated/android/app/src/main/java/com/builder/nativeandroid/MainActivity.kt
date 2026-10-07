@@ -1,4 +1,4 @@
-package com.builder.offlinegrocery
+package com.builder.nativeandroid
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,20 +29,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
- * Track things to get done, built from: "Simple offline grocery list with categories, quantities, checkboxes, search, and local persistence".
+ * Capture and organise records, built from: "Build a native Android My Tasks app with add, edit, delete, mark complete, search, All/Active/Completed filters, local persistent offline-first storage, clean native UI, and persistence after reopening.".
  *
  * All visible text comes from res/values/strings.xml, so the UI is localisable and
  * nothing here hard-codes user-facing copy.
  */
 class MainActivity : ComponentActivity() {
-    private val store = TaskStore()
+    private val store = RecordStore()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    TaskScreen(store)
+                    RecordScreen(store)
                 }
             }
         }
@@ -50,8 +50,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TaskScreen(store: TaskStore) {
+fun RecordScreen(store: RecordStore) {
     var draftTitle by remember { mutableStateOf("") }
+    var draftDetail by remember { mutableStateOf("") }
     var rows by remember { mutableStateOf(store.all()) }
 
     fun refresh() {
@@ -79,10 +80,18 @@ fun TaskScreen(store: TaskStore) {
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
+            OutlinedTextField(
+                value = draftDetail,
+                onValueChange = { draftDetail = it },
+                label = { Text(stringResource(R.string.field_detail)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
             Button(
                 onClick = {
-                    if (runCatching { store.add(draftTitle) }.isSuccess) {
+                    if (runCatching { store.add(draftTitle, draftDetail) }.isSuccess) {
                         draftTitle = ""
+                        draftDetail = ""
                         refresh()
                     }
                 }
@@ -99,15 +108,15 @@ fun TaskScreen(store: TaskStore) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                TaskRows(rows, store, ::refresh)
+                RecordRows(rows, store, ::refresh)
             }
         }
     }
 }
 
-private fun LazyListScope.TaskRows(
-    rows: List<Task>,
-    store: TaskStore,
+private fun LazyListScope.RecordRows(
+    rows: List<Record>,
+    store: RecordStore,
     onChanged: () -> Unit
 ) {
     items(rows, key = { it.id }) { item ->
@@ -122,7 +131,7 @@ private fun LazyListScope.TaskRows(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.title, style = MaterialTheme.typography.titleMedium)
-
+                Text(text = item.detail, style = MaterialTheme.typography.bodyMedium)
 
             }
             Button(onClick = { store.toggle(item.id); onChanged() }) {

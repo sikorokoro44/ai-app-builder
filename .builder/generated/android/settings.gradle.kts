@@ -1,4 +1,4 @@
-rootProject.name = "simpleofflinegrocerylistwithcategor"
+rootProject.name = "buildanativeandroidmytasksappwith"
 pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }

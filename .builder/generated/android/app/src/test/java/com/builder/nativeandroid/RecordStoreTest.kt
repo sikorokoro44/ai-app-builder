@@ -1,29 +1,29 @@
-package com.builder.offlinegrocery
+package com.builder.nativeandroid
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Unit tests for the Task data layer: track things to get done. */
-class TaskStoreTest {
+/** Unit tests for the Record data layer: capture and organise records. */
+class RecordStoreTest {
     @Test
-    fun addTrimsAndStoresTask() {
-        val store = TaskStore()
-        val created = store.add("Task")
-        assertEquals("Task", created.title)
+    fun addTrimsAndStoresRecord() {
+        val store = RecordStore()
+        val created = store.add("Title", "Details")
+        assertEquals("Title", created.title)
         assertEquals(1, store.count())
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun addRejectsBlankTaskName() {
-        TaskStore().add("   ")
+    fun addRejectsBlankRecordName() {
+        RecordStore().add("   ", "   ")
     }
 
     @Test
-    fun removeDeletesTask() {
-        val store = TaskStore()
-        val created = store.add("Task")
+    fun removeDeletesRecord() {
+        val store = RecordStore()
+        val created = store.add("Title", "Details")
         assertTrue(store.remove(created.id))
         assertFalse(store.remove(created.id))
         assertEquals(0, store.count())
@@ -31,17 +31,17 @@ class TaskStoreTest {
 
     @Test
     fun allReturnsInsertionOrder() {
-        val store = TaskStore()
-        store.add("Task")
-        store.add("Task")
+        val store = RecordStore()
+        store.add("Title", "Details")
+        store.add("Title", "Details")
         assertEquals(listOf(1L, 2L), store.all().map { it.id })
     }
 
 
     @Test
     fun toggleFlipsDone() {
-        val store = TaskStore()
-        val created = store.add("Task")
+        val store = RecordStore()
+        val created = store.add("Title", "Details")
         assertTrue(store.toggle(created.id))
         assertEquals(true, store.find(created.id)?.done)
         assertTrue(store.toggle(created.id))
@@ -50,14 +50,14 @@ class TaskStoreTest {
 
     @Test
     fun toggleOnMissingIdReturnsFalse() {
-        assertFalse(TaskStore().toggle(999L))
+        assertFalse(RecordStore().toggle(999L))
     }
 
 
     @Test
     fun clearRemovesEverything() {
-        val store = TaskStore()
-        store.add("Task")
+        val store = RecordStore()
+        store.add("Title", "Details")
         store.clear()
         assertEquals(0, store.count())
     }

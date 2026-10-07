@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.builder.offlinegrocery"
+    namespace = "com.builder.nativeandroid"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.builder.offlinegrocery"
+        applicationId = "com.builder.nativeandroid"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
