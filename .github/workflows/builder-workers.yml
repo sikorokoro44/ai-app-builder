@@ -31,18 +31,26 @@ on:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    permissions:
+      # Downloads the coordinator's run store artifact from another run.
+      actions: read
     outputs:
       agents: ${{ steps.plan.outputs.agents }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: '24'
+      # The store was uploaded by the coordinator's own run; downloading from the
+      # current run (the default) would find nothing. run-id + the token are what
+      # make this cross-run download real.
       - name: Download the run store
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: builder-run-state-${{ inputs.coordinatorRunId }}
           path: workspace
+          run-id: ${{ inputs.coordinatorRunId }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Work out which agents this invocation covers
         id: plan
         env:
@@ -75,20 +83,26 @@ jobs:
     permissions:
       contents: write
       issues: write
+      # Downloads the coordinator's run store artifact from another run.
+      actions: read
     strategy:
       fail-fast: false
       matrix:
         agent: ${{ fromJSON(needs.prepare.outputs.agents) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: '24'
+      # Same cross-run download as prepare: the store lives in the coordinator's
+      # run, not this one, so run-id + github-token must be explicit.
       - name: Download the run store
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: builder-run-state-${{ inputs.coordinatorRunId }}
           path: workspace
+          run-id: ${{ inputs.coordinatorRunId }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Use the project the coordinator generated
         run: |
           if [ -d workspace/.builder/generated/android ]; then
@@ -118,7 +132,7 @@ jobs:
             node --experimental-strip-types scripts/worker.ts --agent "$BUILDER_AGENT" --run "$BUILDER_RUN_ID"
           fi
       - name: Upload what this agent produced
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: builder-agent-${{ matrix.agent }}-${{ github.run_id }}
           path: workspace/.builder/agents/${{ inputs.runId }}/${{ matrix.agent }}

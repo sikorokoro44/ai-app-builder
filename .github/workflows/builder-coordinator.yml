@@ -51,7 +51,7 @@ jobs:
     steps:
       # `repo-publisher` refuses to push from a detached HEAD, and githubPush.ts
       # compares origin/main with HEAD, so the branch and its history are needed.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
@@ -69,7 +69,7 @@ jobs:
           git config --get user.email
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
 
@@ -81,7 +81,7 @@ jobs:
       # The key is the commit, and the restore prefix reaches back through it, so
       # an interrupted run is picked up from the store the last attempt left.
       - name: Restore the run store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             .builder/agents
@@ -162,7 +162,7 @@ jobs:
 
       - name: Upload the run store and live state
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: builder-run-state-${{ github.run_id }}
           path: |

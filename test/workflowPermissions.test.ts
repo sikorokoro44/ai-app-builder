@@ -102,3 +102,68 @@ describe('no workflow interpolates an expression into a shell block', () => {
     });
   }
 });
+
+describe('the workers workflow can read the coordinator run store across runs', () => {
+  // The run store artifact is uploaded by the coordinator's own run, never by the
+  // run the workers are executing in. download-artifact defaults to the current
+  // run, so every download that points at `coordinatorRunId` must also say which
+  // run to read and give it a token, or the workers silently find no store.
+  test('every coordinator-store download sets run-id and the token', () => {
+    const workers = readFileSync(join(REPO, '.github/workflows', 'builder-workers.yml'), 'utf-8');
+    const downloads = [...workers.matchAll(/name:\s*builder-run-state-\${{[^}]+coordinatorRunId[^}]+}}/g)];
+    assert.ok(downloads.length >= 2, 'expected one store download per worker job');
+    for (const download of downloads) {
+      const from = workers.slice(download.index);
+      const block = from.slice(0, from.indexOf('\n  \n') === -1 ? 400 : from.indexOf('\n  \n'));
+      assert.match(block, /run-id:\s*\${{[^}]+coordinatorRunId/);
+      assert.match(block, /github-token:\s*\${{[^}]+GITHUB_TOKEN/);
+    }
+  });
+});
+
+describe('no workflow pins a deprecated action major', () => {
+  // GitHub drops node20 from the runner on 2026-09-16 and forces node20 actions
+  // onto node24, which is why the node20-era majors are deprecated and stop
+  // receiving maintenance. Each minimum below is the first major of that action
+  // that runs node24 (upload-artifact@v6 / download-artifact@v7 shipped node24
+  // on 2025-12-12; v5/v6 of download still ran node20).
+  const FIRST_NODE24_MAJOR: Record<string, number> = {
+    'actions/checkout': 5,
+    'actions/setup-node': 5,
+    'actions/setup-java': 5,
+    'actions/cache': 5,
+    'actions/upload-artifact': 6,
+    'actions/download-artifact': 7,
+    'android-actions/setup-android': 4,
+    'gradle/actions/setup-gradle': 5
+  };
+
+  function actionUses(source: string): Array<{ line: number; ref: string }> {
+    const found: Array<{ line: number; ref: string }> = [];
+    for (const [i, raw] of source.split('\n').entries()) {
+      const hit = raw.match(/uses:\s*([\w.-]+\/[\w.-]+)@(\S+)/);
+      if (hit) found.push({ line: i + 1, ref: `${hit[1]}@${hit[2]}` });
+    }
+    return found;
+  }
+
+  for (const file of readdirSync(join(REPO, '.github/workflows')).filter((f) => f.endsWith('.yml'))) {
+    test(`${file} only uses current, maintained action majors`, () => {
+      const source = readFileSync(join(REPO, '.github/workflows', file), 'utf-8');
+      const violations = actionUses(source).filter(({ line, ref }) => {
+        const at = ref.lastIndexOf('@');
+        const ownerAction = ref.slice(0, at);
+        const major = Number(ref.slice(at + 1).match(/\d+/)?.[0] ?? '');
+        const min = FIRST_NODE24_MAJOR[ownerAction];
+        if (min === undefined) return false;
+        if (!major) return false;
+        return major < min;
+      });
+      assert.deepStrictEqual(
+        violations.map(({ line, ref }) => `${line}: ${ref}`),
+        [],
+        `${file} reverts to a deprecated action major; pin the current node24 major instead`
+      );
+    });
+  }
+});

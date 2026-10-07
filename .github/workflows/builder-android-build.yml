@@ -37,14 +37,14 @@ jobs:
       apk_size: ${{ steps.identity.outputs.apk_size }}
       head_sha: ${{ steps.identity.outputs.head_sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '24'
 
@@ -54,12 +54,12 @@ jobs:
       # gradle/wrapper/gradle-wrapper.properties; test/hardeningRegression.test.ts
       # fails if the two drift apart.
       - name: Set up Android build tools
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: build-tools;35.0.0 platform-tools
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.7'
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
@@ -214,7 +214,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the verified APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-debug-apk
           path: ${{ steps.identity.outputs.apk_path }}
@@ -223,7 +223,7 @@ jobs:
 
       - name: Upload unit test and lint reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android-test-reports
           path: |
