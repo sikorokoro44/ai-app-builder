@@ -97,6 +97,11 @@ jobs:
           dispatch_and_wait() {
             local agents="$1"
             local expect="$2"
+            local rid=""
+            local known
+            known=$(gh run list --workflow builder-workers.yml --limit 10 \
+              --json databaseId,event,headSha --jq \
+              '.[] | select(.event=="workflow_dispatch") | select(.headSha=="'"$GITHUB_SHA"'") | .databaseId' | sort -u)
             gh workflow run builder-workers.yml \
               -f runId="$SEED_RUN_ID" \
               -f agents="$agents" \
@@ -104,22 +109,29 @@ jobs:
               -f mode=pre-cloud
             for i in $(seq 1 60); do
               sleep 5
-              newest=$(gh run list --workflow builder-workers.yml --limit 10 \
-                --json databaseId,event,headSha,createdAt,status \
-                --jq "[.[] | select(.event==\"workflow_dispatch\") | select(.headSha==\"$GITHUB_SHA\") | select(.status==\"completed\")] | sort_by(.createdAt) | .[-1].databaseId" || true)
-              if [ -n "$newest" ]; then
-                conclusion=$(gh run view "$newest" --json conclusion --jq '.conclusion')
-                echo "dispatched run $newest (agents='$agents') concluded: $conclusion (expected $expect)"
-                if [ "$conclusion" != "$expect" ]; then
-                  echo "::error::worker run $newest concluded $conclusion, expected $expect"
-                  return 1
-                fi
-                RUN_ID="$newest"
-                return 0
-              fi
+              # the freshly dispatched run is the one whose id was not there
+              # before the dispatch; wait for it to exist, then to complete
+              now=$(gh run list --workflow builder-workers.yml --limit 10 \
+                --json databaseId,event,headSha --jq \
+                '.[] | select(.event=="workflow_dispatch") | select(.headSha=="'"$GITHUB_SHA"'") | .databaseId' | sort -u)
+              rid=$(comm -13 <(printf '%s\n' "$known") <(printf '%s\n' "$now") | tail -1)
+              [ -n "$rid" ] || continue
+              st=$(gh run view "$rid" --json status --jq '.status')
+              [ "$st" = "completed" ] && break
+              rid=""
             done
-            echo "::error::no workflow_dispatch run surfaced for sha $GITHUB_SHA (agents='$agents')"
-            return 1
+            if [ -z "$rid" ]; then
+              echo "::error::no workflow_dispatch run surfaced for sha $GITHUB_SHA (agents='$agents')"
+              return 1
+            fi
+            conclusion=$(gh run view "$rid" --json conclusion --jq '.conclusion')
+            echo "dispatched run $rid (agents='$agents') concluded: $conclusion (expected $expect)"
+            if [ "$conclusion" != "$expect" ]; then
+              echo "::error::worker run $rid concluded $conclusion, expected $expect"
+              return 1
+            fi
+            RUN_ID="$rid"
+            return 0
           }
           RUN_ID=""
           dispatch_and_wait "1" "success"
@@ -165,6 +177,11 @@ jobs:
           dispatch_and_wait() {
             local agents="$1"
             local expect="$2"
+            local rid=""
+            local known
+            known=$(gh run list --workflow builder-workers.yml --limit 10 \
+              --json databaseId,event,headSha --jq \
+              '.[] | select(.event=="workflow_dispatch") | select(.headSha=="'"$GITHUB_SHA"'") | .databaseId' | sort -u)
             gh workflow run builder-workers.yml \
               -f runId="$SEED_RUN_ID" \
               -f agents="$agents" \
@@ -172,22 +189,29 @@ jobs:
               -f mode=pre-cloud
             for i in $(seq 1 60); do
               sleep 5
-              newest=$(gh run list --workflow builder-workers.yml --limit 10 \
-                --json databaseId,event,headSha,createdAt,status \
-                --jq "[.[] | select(.event==\"workflow_dispatch\") | select(.headSha==\"$GITHUB_SHA\") | select(.status==\"completed\")] | sort_by(.createdAt) | .[-1].databaseId" || true)
-              if [ -n "$newest" ]; then
-                conclusion=$(gh run view "$newest" --json conclusion --jq '.conclusion')
-                echo "dispatched run $newest (agents='$agents') concluded: $conclusion (expected $expect)"
-                if [ "$conclusion" != "$expect" ]; then
-                  echo "::error::worker run $newest concluded $conclusion, expected $expect"
-                  return 1
-                fi
-                RUN_ID="$newest"
-                return 0
-              fi
+              # the freshly dispatched run is the one whose id was not there
+              # before the dispatch; wait for it to exist, then to complete
+              now=$(gh run list --workflow builder-workers.yml --limit 10 \
+                --json databaseId,event,headSha --jq \
+                '.[] | select(.event=="workflow_dispatch") | select(.headSha=="'"$GITHUB_SHA"'") | .databaseId' | sort -u)
+              rid=$(comm -13 <(printf '%s\n' "$known") <(printf '%s\n' "$now") | tail -1)
+              [ -n "$rid" ] || continue
+              st=$(gh run view "$rid" --json status --jq '.status')
+              [ "$st" = "completed" ] && break
+              rid=""
             done
-            echo "::error::no workflow_dispatch run surfaced for sha $GITHUB_SHA (agents='$agents')"
-            return 1
+            if [ -z "$rid" ]; then
+              echo "::error::no workflow_dispatch run surfaced for sha $GITHUB_SHA (agents='$agents')"
+              return 1
+            fi
+            conclusion=$(gh run view "$rid" --json conclusion --jq '.conclusion')
+            echo "dispatched run $rid (agents='$agents') concluded: $conclusion (expected $expect)"
+            if [ "$conclusion" != "$expect" ]; then
+              echo "::error::worker run $rid concluded $conclusion, expected $expect"
+              return 1
+            fi
+            RUN_ID="$rid"
+            return 0
           }
           # Exactly what a hostile caller could put in the `agents` input: shell
           # metacharacters plus a marker side effect, none of which may execute.
