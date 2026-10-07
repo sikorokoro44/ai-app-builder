@@ -19,7 +19,8 @@ const IDEAS = [
   'A contact phonebook',
   'A book reading list',
   'A movie watchlist',
-  'A video game collection'
+  'A video game collection',
+  'A genuine modern calculator'
 ];
 
 const TMP = join(process.env.PREFIX || process.env.HOME, 'tmp', 'opencode', 'builder-test-project');
@@ -331,6 +332,8 @@ describe('idea-to-domain selection', () => {
     ['A book reading list', 'Book'],
     ['Book tracker for reading', 'Book'],
     ['A gift wishlist', 'Item'],
+    ['A genuine modern calculator', 'Calculator'],
+    ['A calculator for my budget', 'Calculator'],
     ['something completely unrecognised zzz', 'Record']
   ];
   for (const [idea, cls] of cases) {
@@ -351,7 +354,7 @@ describe('idea-to-domain selection', () => {
       assert.ok(spec.fields.some((f) => f.type === 'text'), `${spec.className} has no text field`);
       assert.ok(spec.plural.endsWith('s'), `${spec.className} plural looks wrong`);
     }
-    assert.strictEqual(seen.size, 11);
+    assert.strictEqual(seen.size, 12);
   });
 
   test('numeric roles pick target, streak and progress deterministically', () => {

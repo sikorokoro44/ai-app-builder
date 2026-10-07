@@ -14,6 +14,7 @@
  */
 
 export type IconCategory =
+  | 'calculator'
   | 'tasks'
   | 'notes'
   | 'timer'
@@ -60,6 +61,7 @@ export interface IconDefinition {
 
 /** Ordered so the first matching group wins; more specific groups come first. */
 const KEYWORDS: Array<{ category: IconCategory; match: RegExp }> = [
+  { category: 'calculator', match: /\b(calc\w*|arithmetic|math\w*)\b/i },
   { category: 'timer', match: /\b(timer|timers|stopwatch|countdown|pomodoro|session|sessions|focus|interval|practice)\b/i },
   { category: 'recipes', match: /\b(recipe|recipes|cook|cooking|cookbook|meal|meals|menu|ingredient|ingredients|kitchen|bake|baking)\b/i },
   { category: 'finance', match: /\b(expense|expenses|budget|budgets|money|saving|savings|finance|financial|spend|spending|cost|costs|invoice|invoices|price|prices|billing|wallet|expensetracker)\b/i },
@@ -107,6 +109,21 @@ function hashString(s: string): number {
 }
 
 const DEFINITIONS: Record<Exclude<IconCategory, 'generic'>, Omit<IconDefinition, 'category'>> = {
+  calculator: {
+    purpose: 'doing sums and reviewing past calculations',
+    palette: { from: '#1F2937', to: '#0F172A', fg: '#FFFFFF' },
+    glyph: [
+      { kind: 'roundRect', x: 0.22, y: 0.14, w: 0.56, h: 0.72, radius: 0.09 },
+      { kind: 'roundRect', x: 0.29, y: 0.21, w: 0.42, h: 0.13, radius: 0.03, fill: '#0F172A' },
+      { kind: 'circle', cx: 0.34, cy: 0.47, r: 0.045, fill: '#0F172A' },
+      { kind: 'circle', cx: 0.50, cy: 0.47, r: 0.045, fill: '#0F172A' },
+      { kind: 'circle', cx: 0.66, cy: 0.47, r: 0.045, fill: '#0F172A' },
+      { kind: 'circle', cx: 0.34, cy: 0.63, r: 0.045, fill: '#0F172A' },
+      { kind: 'circle', cx: 0.50, cy: 0.63, r: 0.045, fill: '#0F172A' },
+      { kind: 'circle', cx: 0.66, cy: 0.63, r: 0.045, fill: '#0F172A' },
+      { kind: 'capsule', x1: 0.34, y1: 0.76, x2: 0.66, y2: 0.76, stroke: 0.05, fill: '#0F172A' }
+    ]
+  },
   tasks: {
     purpose: 'getting things done',
     palette: { from: '#2563EB', to: '#1D4ED8', fg: '#FFFFFF' },

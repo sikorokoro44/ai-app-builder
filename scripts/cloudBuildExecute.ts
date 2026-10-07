@@ -31,6 +31,7 @@ import {
 } from './live/workflowWatcher.ts';
 import { recordStage, missingStages } from './live/evidenceChain.ts';
 import { validateGeneratedProject } from './live/projectValidator.ts';
+import { checkIntentFit } from './live/intentFit.ts';
 import { assertRepoSafety, assertNoSecretsInFiles } from './live/repoGuard.ts';
 import { ProjectStates, Events } from '../shared/types.ts';
 
@@ -106,6 +107,23 @@ if (process.argv.includes('--prepare')) {
     fail(`Refusing to build an invalid generated project:\n - ${validation.errors.join('; ')}`);
   }
   recordStage(s, 'VALIDATE', `project validated, packageId=${validation.packageId}`);
+
+  /*
+   * The structural check above proves the project is well-formed; this check
+   * proves it is the app the idea asked for. Both must pass before anything is
+   * dispatched, because a well-formed build of the wrong app is still the wrong
+   * app.
+   */
+  const intentFit = checkIntentFit(projectDir, IDEA);
+  if (!intentFit.ok) {
+    const fitErrors = intentFit.errors.map((e) => ` - ${e}`);
+    s.latestActivity = 'Generated project does not fit the requested idea';
+    s.failureRepair = { state: 'FAILURE_DETECTED', rootCause: intentFit.errors.join('; ') };
+    s.projectState = ProjectStates.REPAIRING;
+    appendEvent({ type: Events.BUILD_FAILED, stage: 'VALIDATE', errors: intentFit.errors });
+    writeState(s);
+    fail(`Refusing to build a generated project that does not fit "${IDEA}":\n${fitErrors.join('\n')}`);
+  }
 
   /*
    * Record what the generator decided for the launcher icon before anything is

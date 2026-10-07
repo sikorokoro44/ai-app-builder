@@ -49,7 +49,40 @@ export function numericRoles(spec: EntitySpec): NumericRoles {
   return { progress, target, streak, primary: ints[0] };
 }
 
+/**
+ * Calculator intent, matched case-insensitively over the raw idea.
+ *
+ * "calculator", "calculate", "calculation" and every other calc* word share the
+ * calc prefix, so one alternative covers all of them, alongside arithmetic and
+ * math*. This matcher is deliberately first in ARCHETYPES: a calculator idea must
+ * never fall through to another archetype and must never reach the generic
+ * record model.
+ */
+export const CALCULATOR_MATCH: RegExp = /\b(calc\w*|arithmetic|math\w*)\b/i;
+
+/** True when the idea asks for a calculator rather than a record-keeping app. */
+export function isCalculatorIdea(idea: string): boolean {
+  return CALCULATOR_MATCH.test(idea || '');
+}
+
+/** True when the resolved model is the calculator archetype. */
+export function isCalculatorSpec(spec: EntitySpec): boolean {
+  return spec.className === 'Calculator';
+}
+
 export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
+  {
+    match: CALCULATOR_MATCH,
+    spec: {
+      className: 'Calculator', noun: 'calculator', plural: 'calculators',
+      purpose: 'calculate expressions and review calculation history',
+      fields: [
+        { name: 'expression', type: 'text', label: 'Expression', hint: 'e.g. 2+3*4' },
+        { name: 'result', type: 'text', label: 'Result', hint: 'What the expression came to', optional: true }
+      ],
+      actions: []
+    }
+  },
   {
     match: /\b(note|notebook|journal|diary|scratchpad|memo|notes)\b/i,
     spec: {

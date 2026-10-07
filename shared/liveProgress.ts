@@ -47,6 +47,37 @@ export const ProgressStages = [
 
 export type ProgressStage = typeof ProgressStages[number];
 
+/**
+ * Cumulative percentage each stage stands for. The steps are not uniform: they
+ * map to real milestones of this pipeline, so an app that only reached SCAFFOLD
+ * reads as 40%, not 22%. The numbers and their order are pinned by tests, and
+ * buildLiveProgress blends the in-flight sub-stage percentage into the gap
+ * between one mark and the next so the number only moves forward, never at a
+ * uniform pace.
+ */
+export const PROGRESS_LADDER: readonly [ProgressStage, number][] = [
+  ['IDEA', 5],
+  ['ANALYZE', 10],
+  ['DESIGN', 20],
+  ['PLAN', 30],
+  ['SCAFFOLD', 40],
+  ['IMPLEMENT', 55],
+  ['TESTGEN', 65],
+  ['VALIDATE', 75],
+  ['GITHUB_PUSH', 82],
+  ['CLOUD_BUILD', 90],
+  ['BUILD_SUCCESS', 92],
+  ['REAL_APK', 93],
+  ['APK_VERIFY', 95],
+  ['REAL_ICON_VERIFY', 96],
+  ['RELEASE', 97],
+  ['RELEASE_ASSET', 98],
+  ['DOWNLOAD_READY', 99],
+  ['COMPLETED', 100]
+];
+
+const LADDER_PCT = new Map<ProgressStage, number>(PROGRESS_LADDER);
+
 export type ProgressStageStatus = 'completed' | 'running' | 'pending' | 'failed';
 
 export interface ProgressStageView {
@@ -363,11 +394,17 @@ export function buildLiveProgress(state: LiveState): LiveProgressView {
     };
   });
 
-  const perStage = 100 / ProgressStages.length;
-  let overallPct = Math.floor(completedCount * perStage);
-  if (!completed && currentStage && enriched.currentStagePct !== null) {
-    // Sub-stage progress from the existing helper, never persisted.
-    overallPct += Math.round((Math.max(0, Math.min(100, enriched.currentStagePct)) / 100) * perStage);
+  const base = completedCount ? LADDER_PCT.get(ProgressStages[completedCount - 1])! : 0;
+  let overallPct = base;
+  if (!completed && currentStage) {
+    // Sub-stage progress from the existing helper, never persisted, blended into
+    // this stage's own rung. The blend is capped before the next rung so the
+    // percentage only ever reaches the next mark by proving the evidence for it.
+    const increment = LADDER_PCT.get(currentStage)! - base;
+    if (enriched.currentStagePct !== null) {
+      const blended = Math.round((Math.max(0, Math.min(100, enriched.currentStagePct)) / 100) * increment);
+      overallPct = base + Math.min(blended, increment - 1);
+    }
   }
   // 100% means every link is proven. A state that claims COMPLETED while the
   // chain still lacks a link must not be allowed to read as finished, so the

@@ -8,7 +8,7 @@
  * and no work that the downstream agents cannot actually perform.
  */
 
-import { specForIdea, numericRoles, ARCHETYPES, type EntitySpec } from '../domainModels.ts';
+import { specForIdea, numericRoles, ARCHETYPES, isCalculatorSpec, type EntitySpec } from '../domainModels.ts';
 import { decideIcon } from '../iconCatalog.ts';
 import { AGENT_ID_NAMES, isAgentId, agentIndex } from './agentIds.ts';
 import { ownedPathsOf } from './ownership.ts';
@@ -194,6 +194,7 @@ export function deriveSections(idea: string): DerivedSections {
   };
   const roles = numericRoles(spec);
   const cls = spec.className;
+  const calculator = isCalculatorSpec(spec);
   const textFields = spec.fields.filter((f) => f.type === 'text');
   const requiredText = textFields.filter((f) => !f.optional);
   const optionalText = textFields.filter((f) => f.optional);
@@ -222,10 +223,21 @@ export function deriveSections(idea: string): DerivedSections {
       `Stored ${spec.plural} are listed with their detail after a restart.`,
       'Capture without review is not a usable app.',
       ['The list shows every stored item in insertion order.', 'The list survives process death.']),
-    ...actionWords.map((a, i) => requirement(`req-00${4 + i}`,
-      `Each ${spec.noun} can ${actionLabel(a)}.`,
-      `The derived entity supports the "${a}" action.`,
-      [`The ${a} control changes exactly one stored item.`, `The ${a} control reports failure for an unknown id.`])),
+    ...(calculator
+      ? [
+          requirement('req-004',
+            'Operator precedence and parentheses are evaluated correctly.',
+            'A generator that summed input left-to-right would silently produce wrong arithmetic, which is the one thing a calculator must never do.',
+            ['Multiplication and division bind tighter than addition and subtraction.', 'Parentheses override precedence.']),
+          requirement('req-005',
+            'Percentages follow calculator convention.',
+            'The percent key must behave like a physical calculator, not like a bare decimal shift.',
+            ['200 * 10% is 20.', '50 + 10% is 55.'])
+        ]
+      : actionWords.map((a, i) => requirement(`req-00${4 + i}`,
+        `Each ${spec.noun} can ${actionLabel(a)}.`,
+        `The derived entity supports the "${a}" action.`,
+        [`The ${a} control changes exactly one stored item.`, `The ${a} control reports failure for an unknown id.`]))),
     requirement('req-010',
       'The app runs offline with no backend.',
       'A generated app must not depend on infrastructure it cannot provision.',
@@ -256,7 +268,42 @@ export function deriveSections(idea: string): DerivedSections {
       [`The ${roles.primary.label.toLowerCase()} total is computed from the store.`])] : [])
   ];
 
-  const screens: PlannedScreen[] = [
+  const screens: PlannedScreen[] = calculator
+    ? [
+        {
+          id: 'screen-workspace',
+          name: 'Workspace',
+          purpose: 'The only screen: keypad, live display and the recorded calculation history.',
+          elements: [
+            'App title',
+            'Expression display',
+            'Answer and error display',
+            'Digit, operator, percent, clear and equals keys',
+            'History list',
+            'Use-a-history-entry control per row',
+            'Remove control per row'
+          ],
+          states: REQUIRED_SCREEN_STATES,
+          copyKeys: [
+            'app_name',
+            'empty_list',
+            'delete',
+            'history_heading',
+            'display_hint',
+            'key_open_paren',
+            'key_close_paren',
+            'key_percent',
+            'key_clear',
+            'key_divide',
+            'key_multiply',
+            'key_minus',
+            'key_plus',
+            'key_equals',
+            'key_decimal'
+          ]
+        }
+      ]
+    : [
     {
       id: 'screen-workspace',
       name: 'Workspace',

@@ -1,4 +1,4 @@
-rootProject.name = "buildanativeandroidcalculatorappwi"
+rootProject.name = "calculator"
 pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }

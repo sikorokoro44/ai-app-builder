@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.builder.nativeandroid"
+    namespace = "com.builder.calculator"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.builder.nativeandroid"
+        applicationId = "com.builder.calculator"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

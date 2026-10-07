@@ -358,5 +358,41 @@
       "gradlew": "9ba409be31baca0906806e3dbcda91d9874672c1afee0c0fe4b3e4bb08177a71",
       "settings.gradle.kts": "11f0c5b8106f19b4dadc803c564a4c9283a09d0e42490b6ce71f08e005517d61"
     }
+  },
+  "A genuine modern calculator": {
+    "files": {
+      "app/build.gradle.kts": "456155507f298849e21ffaad122c2e65ea6469be30a95dfbba4cd5805898d481",
+      "app/proguard-rules.pro": "113c525c8a4e6efe0d3693c7c33b5c3decb0805fb6d73ce70c54032a7334b649",
+      "app/src/main/AndroidManifest.xml": "fce90bd381bf953a17fcdc7da0bbac5bb3a25dbcf6955a4cf3f1c2710f0e5925",
+      "app/src/main/java/com/builder/calculator/CalculatorStore.kt": "8b24698051a2234eacfd3b5f265e1deb87dfb939d4f03e5bf9b121b78dbb9064",
+      "app/src/main/java/com/builder/calculator/MainActivity.kt": "d1c5fe3189389506372f6a57b9828fbde32c8c074af7d9bee6540bd774f3f438",
+      "app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml": "ddf8416ebdaaa45e8ba37a861036e2054e50e0c7046f096f7fa4c124e417b798",
+      "app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml": "ddf8416ebdaaa45e8ba37a861036e2054e50e0c7046f096f7fa4c124e417b798",
+      "app/src/main/res/mipmap-hdpi/ic_launcher.png": "69643922cabcbbee0d8ee52f326036c261d7f629a3f14a2bd58f6fc821153fa4",
+      "app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png": "c214b88d0f7a65aff199ba3122d045eb97d2bbc919729a2d177be272da54c5f3",
+      "app/src/main/res/mipmap-hdpi/ic_launcher_round.png": "fa627cc792deac932cf22641ac206d7bdc492f2c1e06f4bb043d10b0e7dc650e",
+      "app/src/main/res/mipmap-mdpi/ic_launcher.png": "d2aad3bbb33e0b600ea8eb4c58320edd3a0e440f3ff0b19fa441fc8764704208",
+      "app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png": "f7ce844ec995f7aee67aee5b24165ba91c013a66f92d69e4385b77b05c6576d0",
+      "app/src/main/res/mipmap-mdpi/ic_launcher_round.png": "feb779a7a7ee6c4d7b352784a2e92322d9b2228b02525bc485f0b46c1affd4e6",
+      "app/src/main/res/mipmap-xhdpi/ic_launcher.png": "b825efbfcebe7a2fbbcd804b7db0071f8680ca524234cf33d04cfd6a72f06a67",
+      "app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png": "766a3d50d52e4c61395f0f5dfc5c5d92359accfb10d0f77313983a8120e05fa8",
+      "app/src/main/res/mipmap-xhdpi/ic_launcher_round.png": "5a4a372ed6d93193195011a9b13110a51b52b808e09feb6680ede9e776dbb543",
+      "app/src/main/res/mipmap-xxhdpi/ic_launcher.png": "aeb08abd79f35ec43a7196fffefdaa066cf5441c62528c19b2ca4c85d7ba3d1e",
+      "app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png": "55d1a2deef0d3388ebf83d8af7b74534b5baa961dd17ba2d007a8a99107a3e09",
+      "app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png": "a4e9e362292e0c520bb5016c5b4a91332e56d0843c80f4be790473fdbf60a7d7",
+      "app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": "e1aedd7157d172c5b51730f920b8696dea8e6cb0d5856d604d38307b683c4bf1",
+      "app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png": "c4a09a6a4571f22747728475803c0bb5eb85beb3505266818e00222ddeaafe71",
+      "app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png": "df7def1805dd010f5d358276bd63e4f92b19bb7dc2b1f7cc2bc35de07acab56b",
+      "app/src/main/res/values/colors.xml": "1e02f6bf2916b37c9a24510e838993fc8c019f2db7ac088872f9cd84b0f83427",
+      "app/src/main/res/values/ic_launcher_colors.xml": "32f1012c9425d41f90c494a2f655c27682c0f23fca313c9218e69729595a6104",
+      "app/src/main/res/values/strings.xml": "9c83c5e9a1d4de4b87614e4da03f054f1af42fd1a62753dd920a4c816ed7d616",
+      "app/src/main/res/values/themes.xml": "3c839dbea600e3a48c534d9c4ceb004f2aac01f419e01d09eb67ac997940ceeb",
+      "app/src/test/java/com/builder/calculator/CalculatorStoreTest.kt": "015e04da5f311c6632809f7ddd724016f5c332c41ea35a1c5c6fd6017bdf6eb2",
+      "build.gradle.kts": "7559f2c38569343eeff4e2905e90cca74b4b95cd3d9e47d21042921f51fa5ee3",
+      "gradle/wrapper/gradle-wrapper.properties": "efa4245a68c56c8bb873611ade567981727262d994b419f77d1be873ad6ffd02",
+      "gradle.properties": "b5948d2cae56b10f0556660fca9477e8a1750ccc86b39c8780aafcb1e63f5691",
+      "gradlew": "9ba409be31baca0906806e3dbcda91d9874672c1afee0c0fe4b3e4bb08177a71",
+      "settings.gradle.kts": "04e022b31075558f36019f18f72e8e196e4649203b3d719eb3974b7d460ef7fc"
+    }
   }
 }

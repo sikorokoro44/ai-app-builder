@@ -6,7 +6,7 @@ import { generateAndroidApp } from '../generateAndroidApp.ts';
 import { decodePng } from '../live/png.ts';
 
 const GOLDEN = 'test/fixtures/generatedProjectGolden.json';
-const ideas = ['A simple todo app', 'Book tracker for reading', 'Fitness workout log with sets', 'Expense tracker with budget', 'Plant watering journal', 'Recipe collection', 'Study flashcard app', 'Habit streak tracker', 'Movie watchlist', 'Contact notes'];
+const ideas = ['A simple todo app', 'Book tracker for reading', 'Fitness workout log with sets', 'Expense tracker with budget', 'Plant watering journal', 'Recipe collection', 'Study flashcard app', 'Habit streak tracker', 'Movie watchlist', 'Contact notes', 'A genuine modern calculator'];
 
 function fileHash(file: string): string {
   const buf = readFileSync(file);
