@@ -26,8 +26,12 @@ function runWorker(args: string[]): { status: number; stdout: string; stderr: st
 }
 
 /** A genuine store: the real registry computes the waves, startRun writes them. */
+let seedSeq = 0;
 function seedRun(): string {
-  const idea = 'Workout log with sets and reps';
+  seedSeq += 1;
+  // newRunId is timestamp-fine, so consecutive seeds in the same second would
+  // collide and the second run would inherit the first's completed agents.
+  const idea = `Workout log with sets and reps #${seedSeq}`;
   const runId = newRunId(idea);
   startRun({
     runId,

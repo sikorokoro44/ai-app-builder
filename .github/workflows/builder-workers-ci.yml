@@ -34,6 +34,8 @@ jobs:
             import { startRun } from "./scripts/agents/artifacts.ts";
             import { newRunId } from "./scripts/agents/coordinator.ts";
             import { AGENT_ID_NAMES, executionWaves } from "./scripts/agents/registry.ts";
+            import { readState, writeState } from "./scripts/live/stateStore.ts";
+            import { createInitialState } from "./shared/state.ts";
             const idea = process.env.WORKER_IDEA;
             const runId = newRunId(idea);
             startRun({
@@ -44,6 +46,15 @@ jobs:
               agents: AGENT_ID_NAMES,
               waves: executionWaves()
             });
+            // This CI run checks out `main`, which carries the live state of
+            // whatever ran last (COMPLETED). Faithfully mimic startNewRun: the
+            // run is abandoned and replaced with a fresh NOT_STARTED state, so
+            // the dispatched worker sees exactly the disk a real awakening run
+            // sees.
+            const previous = readState();
+            const fresh = createInitialState();
+            fresh.latestActivity = `abandoned the run that was at ${previous.projectState} to start "${idea}" from nothing`;
+            writeState(fresh, { allowUncheckedTransition: true, reason: `restarting "${idea}" from ${previous.projectState}` });
           '
           runId=$(node --experimental-strip-types -e '
             import { currentRunId } from "./scripts/agents/artifacts.ts";
