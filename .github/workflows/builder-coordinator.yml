@@ -133,21 +133,23 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          # Fetch latest to avoid rebasing away our final state
-          git fetch origin main
-          git pull --rebase --autostash origin main || true
           git add -A .builder/live
-          if git diff --cached --quiet && git diff --quiet origin/main..HEAD; then
+          if git diff --cached --quiet; then
             echo "The live state did not change."
             exit 0
           fi
           git commit -m "builder: live state after run ${{ github.run_id }}" || echo "nothing to commit"
-          # Push our final state
+          # Push our final state, rebasing over any remote changes that don't conflict
           for attempt in 1 2 3; do
             if git push origin HEAD:main; then
               exit 0
             fi
-            git pull --rebase --autostash origin main
+            git fetch origin main
+            git pull --rebase --autostash origin main || true
+            # If rebase brought in conflicts with our committed state, try to keep our version
+            git checkout --ours .builder/live 2>/dev/null || true
+            git add .builder/live 2>/dev/null || true
+            git rebase --continue 2>/dev/null || true
           done
           echo '::error::Could not publish the live state after three attempts.'
           exit 1
