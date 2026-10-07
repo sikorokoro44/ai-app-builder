@@ -3,7 +3,7 @@ package com.builder.nativeandroid
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Record model and in-memory store for: "Build a native Android My Tasks app with add, edit, delete, mark complete, search, All/Active/Completed filters, local persistent offline-first storage, clean native UI, and persistence after reopening.".
+ * Record model and in-memory store for: "Build a native Android Calculator app with addition, subtraction, multiplication, division, decimal numbers, percentage, plus/minus, clear, delete, correct operator precedence, negative numbers, division-by-zero protection, calculation history, clean responsive native UI, offline-first operation, persistent history after reopening, and comprehensive automated tests. No account or internet connection required.".
  *
  * Purpose: capture and organise records. Pure Kotlin with no Android dependencies, so the
  * entire data layer is covered by JVM unit tests.

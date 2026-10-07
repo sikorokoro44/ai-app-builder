@@ -29,7 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
- * Capture and organise records, built from: "Build a native Android My Tasks app with add, edit, delete, mark complete, search, All/Active/Completed filters, local persistent offline-first storage, clean native UI, and persistence after reopening.".
+ * Capture and organise records, built from: "Build a native Android Calculator app with addition, subtraction, multiplication, division, decimal numbers, percentage, plus/minus, clear, delete, correct operator precedence, negative numbers, division-by-zero protection, calculation history, clean responsive native UI, offline-first operation, persistent history after reopening, and comprehensive automated tests. No account or internet connection required.".
  *
  * All visible text comes from res/values/strings.xml, so the UI is localisable and
  * nothing here hard-codes user-facing copy.
