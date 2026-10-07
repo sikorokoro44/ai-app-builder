@@ -153,15 +153,16 @@ export const buildVerifierAgent: AgentSpec<void, BuildArtifact> = {
   failurePolicy: { retryable: true, maxAttempts: 3, repairable: false, maxRepairs: 0, onExhausted: 'rollback' },
   execute(ctx) {
     const plan = planFrom(ctx);
-    ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--prepare']);
-    ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--dispatch']);
+    const ideaEnv = { BUILDER_IDEA: plan.idea };
+    ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--prepare'], ideaEnv);
+    ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--dispatch'], ideaEnv);
     ctx.activity('waiting for the GitHub Actions build to finish');
     // `--watch` reports the run it waited for. Asking artifactVerify.ts for it
     // was wrong twice over: the gate legitimately refuses before an APK has been
     // downloaded and verified, so the call threw before the download began, and
     // using a verification gate to read a field makes the gate depend on the
     // order it is called in.
-    const watched = lastJson(ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--watch'])) as { runId?: string; headSha?: string } | null;
+    const watched = lastJson(ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--watch'], ideaEnv)) as { runId?: string; headSha?: string } | null;
     const runId = watched?.runId || '';
     if (!runId) fail('build-verifier', 'the cloud build did not record a run id');
 
