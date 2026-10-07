@@ -133,14 +133,16 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Fetch latest to avoid rebasing away our final state
+          git fetch origin main
+          git pull --rebase --autostash origin main || true
           git add -A .builder/live
-          if git diff --cached --quiet; then
+          if git diff --cached --quiet && git diff --quiet origin/main..HEAD; then
             echo "The live state did not change."
             exit 0
           fi
-          git commit -m "builder: live state after run ${{ github.run_id }}"
-          # Another run may have pushed while this one was running; the branch is
-          # the truth, so rebase onto it rather than force anything.
+          git commit -m "builder: live state after run ${{ github.run_id }}" || echo "nothing to commit"
+          # Push our final state
           for attempt in 1 2 3; do
             if git push origin HEAD:main; then
               exit 0
