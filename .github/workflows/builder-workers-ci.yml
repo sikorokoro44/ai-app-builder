@@ -146,12 +146,14 @@ jobs:
           gh run download "$run1" -n "builder-agent-idea-intake-$run1" -D "$RUNNER_TEMP/agent"
           # upload-artifact lands a directory's contents at the artifact root,
           # so find the published files rather than assume a nested path.
+          # find -print -quit terminates itself, so no pipe goes stale under
+          # pipefail (echo|grep -q and echo|head close the pipe early).
           for f in idea.json output.json status.json; do
-            find "$RUNNER_TEMP/agent" -type f -name "$f" | grep -q . \
+            [ -n "$(find "$RUNNER_TEMP/agent" -type f -name "$f" -print -quit)" ] \
               || { echo "::error::worker artifact lacks $f"; exit 1; }
           done
-          status_file=$(find "$RUNNER_TEMP/agent" -type f -name status.json | head -1)
-          idea_file=$(find "$RUNNER_TEMP/agent" -type f -name idea.json | head -1)
+          status_file=$(find "$RUNNER_TEMP/agent" -type f -name status.json -print -quit)
+          idea_file=$(find "$RUNNER_TEMP/agent" -type f -name idea.json -print -quit)
           ST=$(STATE_FILE="$status_file" node --experimental-strip-types -e '
             const fs = await import("node:fs");
             const rec = JSON.parse(fs.readFileSync(process.env.STATE_FILE, "utf-8"));
@@ -225,7 +227,11 @@ jobs:
           count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run2/artifacts" --jq '.artifacts | length')
           echo "hostile run artifacts: $count"
           test "$count" = "0" || { echo "::error::the hostile run uploaded artifacts"; exit 1; }
-          logs=$(gh run view "$run2" --log 2>/dev/null || true)
-          echo "$logs" | grep -q "Unknown agent" || { echo "::error::worker did not refuse the hostile agent"; exit 1; }
-          echo "$logs" | grep -q "agent-pwned.txt" || { echo "::error::refusal did not name the entire hostile token"; exit 1; }
+          # grep -q down a pipe makes echo hit SIGPIPE as soon as the first line
+          # matches, which pipefail reports as failure; grep files instead.
+          gh run view "$run2" --log > "$RUNNER_TEMP/hostile.log"
+          grep -q "Unknown agent" "$RUNNER_TEMP/hostile.log" \
+            || { echo "::error::worker did not refuse the hostile agent"; exit 1; }
+          grep -q "agent-pwned.txt" "$RUNNER_TEMP/hostile.log" \
+            || { echo "::error::refusal did not name the entire hostile token"; exit 1; }
           echo "hostile agent id handled as data"
