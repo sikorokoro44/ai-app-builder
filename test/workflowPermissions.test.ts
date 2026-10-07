@@ -119,6 +119,28 @@ describe('the workers workflow can read the coordinator run store across runs', 
       assert.match(block, /github-token:\s*\${{[^}]+GITHUB_TOKEN/);
     }
   });
+
+  // upload-artifact v4-v7 do not keep the leading `path` components: a single
+  // directory arrives as its contents, a path list as basename roots. The worker
+  // reads `.builder/agents/<runId>`, so every store download has to be followed
+  // by a normalization step that moves whichever layout arrived into place, and
+  // that step must fail loudly if the manifest never landed.
+  test('every store download is followed by a layout normalization step', () => {
+    const workers = readFileSync(join(REPO, '.github/workflows', 'builder-workers.yml'), 'utf-8');
+    const blocks = workers.split('\n\n');
+    for (let i = 0; i < blocks.length; i++) {
+      if (!blocks[i].startsWith('        - name: Download the run store')) continue;
+      const next = blocks
+        .slice(i + 1)
+        .find((b) => /^\S/.test(b.trim()) || b.trim().startsWith('- name:'));
+      assert.match(
+        blocks[i + 1],
+        /Normalize the downloaded run store/,
+        'store download must be followed by a normalization step'
+      );
+      assert.match(blocks[i + 1], /workspace\/\.builder\/agents\/\$BUILDER_RUN_ID\/manifest\.json/);
+    }
+  });
 });
 
 describe('no workflow pins a deprecated action major', () => {

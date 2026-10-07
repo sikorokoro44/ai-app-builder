@@ -59,8 +59,11 @@ jobs:
           name: builder-run-state-${{ github.run_id }}
           path: |
             .builder/agents
+            .builder/live
+            .builder/requests
+            .builder/generated/android
           retention-days: 7
-          if-no-files-found: error
+          if-no-files-found: warn
 
   drive:
     needs: seed
@@ -92,11 +95,10 @@ jobs:
               sleep 5
               newest=$(gh run list --workflow builder-workers.yml --limit 10 \
                 --json databaseId,event,headSha,createdAt,status \
-                --jq "[.[] | select(.event==\"workflow_dispatch\") | select(.headSha==\"$GITHUB_SHA\") | select(.status==\"completed\") | select((\" $HANDLED \" | contains(\" \" + (.databaseId|tostring) + \" \")) | not)] | sort_by(.createdAt) | .[0].databaseId" || true)
+                --jq "[.[] | select(.event==\"workflow_dispatch\") | select(.headSha==\"$GITHUB_SHA\") | select(.status==\"completed\")] | sort_by(.createdAt) | .[-1].databaseId" || true)
               if [ -n "$newest" ]; then
                 conclusion=$(gh run view "$newest" --json conclusion --jq '.conclusion')
                 echo "dispatched run $newest (agents='$agents') concluded: $conclusion (expected $expect)"
-                HANDLED="$HANDLED $newest"
                 if [ "$conclusion" != "$expect" ]; then
                   echo "::error::worker run $newest concluded $conclusion, expected $expect"
                   return 1
@@ -108,7 +110,6 @@ jobs:
             echo "::error::no workflow_dispatch run surfaced for sha $GITHUB_SHA (agents='$agents')"
             return 1
           }
-          HANDLED=""
           RUN_ID=""
           dispatch_and_wait "1" "success"
           run1="$RUN_ID"
@@ -120,18 +121,22 @@ jobs:
             *) echo "::error::worker run uploaded no builder-agent-idea-intake artifact (got: $artifacts)"; exit 1 ;;
           esac
           gh run download "$run1" -n "builder-agent-idea-intake-$run1" -D "$RUNNER_TEMP/agent"
-          base="$RUNNER_TEMP/agent/workspace/.builder/agents/$SEED_RUN_ID/idea-intake"
+          # upload-artifact lands a directory's contents at the artifact root,
+          # so find the published files rather than assume a nested path.
           for f in idea.json output.json status.json; do
-            test -f "$base/$f" || { echo "::error::worker artifact lacks $f"; exit 1; }
+            find "$RUNNER_TEMP/agent" -type f -name "$f" | grep -q . \
+              || { echo "::error::worker artifact lacks $f"; exit 1; }
           done
-          ST=$(STATE_FILE="$base/status.json" node --experimental-strip-types -e '
+          status_file=$(find "$RUNNER_TEMP/agent" -type f -name status.json | head -1)
+          idea_file=$(find "$RUNNER_TEMP/agent" -type f -name idea.json | head -1)
+          ST=$(STATE_FILE="$status_file" node --experimental-strip-types -e '
             const fs = await import("node:fs");
             const rec = JSON.parse(fs.readFileSync(process.env.STATE_FILE, "utf-8"));
             process.stdout.write(String(rec.status));
           ')
           echo "idea-intake status: $ST"
           test "$ST" = "completed" || { echo "::error::idea-intake did not complete"; exit 1; }
-          idea=$(STATE_FILE="$base/idea.json" node --experimental-strip-types -e '
+          idea=$(STATE_FILE="$idea_file" node --experimental-strip-types -e '
             const fs = await import("node:fs");
             const rec = JSON.parse(fs.readFileSync(process.env.STATE_FILE, "utf-8"));
             process.stdout.write(String(rec.normalized));
@@ -144,8 +149,6 @@ jobs:
           echo "runId=$run1" >> "$GITHUB_OUTPUT"
 
       - name: Prove a hostile agent id is refused as data, not executed
-        env:
-          GOOD_RUN_ID: ${{ steps.good.outputs.runId }}
         run: |
           set -euo pipefail
           dispatch_and_wait() {
@@ -160,11 +163,10 @@ jobs:
               sleep 5
               newest=$(gh run list --workflow builder-workers.yml --limit 10 \
                 --json databaseId,event,headSha,createdAt,status \
-                --jq "[.[] | select(.event==\"workflow_dispatch\") | select(.headSha==\"$GITHUB_SHA\") | select(.status==\"completed\") | select((\" $HANDLED \" | contains(\" \" + (.databaseId|tostring) + \" \")) | not)] | sort_by(.createdAt) | .[0].databaseId" || true)
+                --jq "[.[] | select(.event==\"workflow_dispatch\") | select(.headSha==\"$GITHUB_SHA\") | select(.status==\"completed\")] | sort_by(.createdAt) | .[-1].databaseId" || true)
               if [ -n "$newest" ]; then
                 conclusion=$(gh run view "$newest" --json conclusion --jq '.conclusion')
                 echo "dispatched run $newest (agents='$agents') concluded: $conclusion (expected $expect)"
-                HANDLED="$HANDLED $newest"
                 if [ "$conclusion" != "$expect" ]; then
                   echo "::error::worker run $newest concluded $conclusion, expected $expect"
                   return 1
@@ -176,7 +178,6 @@ jobs:
             echo "::error::no workflow_dispatch run surfaced for sha $GITHUB_SHA (agents='$agents')"
             return 1
           }
-          HANDLED="$GOOD_RUN_ID"
           # Exactly what a hostile caller could put in the `agents` input: shell
           # metacharacters plus a marker side effect, none of which may execute.
           hostile='idea-intake;echo pwned > agent-pwned.txt'

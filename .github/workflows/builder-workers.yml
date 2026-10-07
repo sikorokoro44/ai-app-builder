@@ -103,6 +103,29 @@ jobs:
           path: workspace
           run-id: ${{ inputs.coordinatorRunId }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Normalize the downloaded run store
+        env:
+          BUILDER_RUN_ID: ${{ inputs.runId }}
+        run: |
+          set -euo pipefail
+          # upload-artifact keeps whatever implicit layout each major produced:
+          # a single directory path arrives as the directory contents (the run
+          # dir next to current-run.json), while a path list arrives as
+          # basename roots (agents/, live/, ...). Pull every variant into the
+          # fixed .builder/ layout the scripts read from.
+          if [ -f workspace/current-run.json ]; then
+            mkdir -p workspace/.builder/agents
+            [ -d "workspace/$BUILDER_RUN_ID" ] && mv "workspace/$BUILDER_RUN_ID" "workspace/.builder/agents/$BUILDER_RUN_ID"
+            mv workspace/current-run.json workspace/.builder/agents/current-run.json
+          fi
+          for name in agents live requests generated; do
+            if [ -d "workspace/$name" ] && [ ! -d "workspace/.builder/$name" ]; then
+              mkdir -p workspace/.builder
+              mv "workspace/$name" "workspace/.builder/$name"
+            fi
+          done
+          test -f "workspace/.builder/agents/$BUILDER_RUN_ID/manifest.json" \
+            || { echo "::error::the run store did not arrive in a readable layout"; exit 1; }
       - name: Use the project the coordinator generated
         run: |
           if [ -d workspace/.builder/generated/android ]; then
