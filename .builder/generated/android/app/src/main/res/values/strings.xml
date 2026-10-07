@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Book tracker for reading</string>
-    <string name="field_title">Title</string>
-    <string name="field_author">Author</string>
-    <string name="field_notes">Notes</string>
-    <string name="add_button">Add book</string>
+    <string name="app_name">Simple offline grocery list with categor</string>
+    <string name="field_title">Task</string>
+    <string name="add_button">Add task</string>
     <string name="delete">Remove</string>
-    <string name="increment">Log one page</string>
-    <string name="mark_done">Mark finished</string>
-    <string name="empty_list">No books yet. Add your first one.</string>
-    <string name="progress_format">Pages read: %1$d</string>
+    <string name="mark_done">Mark done</string>
+    <string name="empty_list">No tasks yet. Add your first one.</string>
 </resources>

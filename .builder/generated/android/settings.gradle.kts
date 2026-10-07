@@ -1,4 +1,4 @@
-rootProject.name = "booktrackerforreading"
+rootProject.name = "simpleofflinegrocerylistwithcategor"
 pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }

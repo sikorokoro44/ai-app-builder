@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.builder.booktracker"
+    namespace = "com.builder.offlinegrocery"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.builder.booktracker"
+        applicationId = "com.builder.offlinegrocery"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

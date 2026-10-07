@@ -1,4 +1,4 @@
-package com.builder.booktracker
+package com.builder.offlinegrocery
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,20 +29,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
- * Track books and how far each one has been read, built from: "Book tracker for reading".
+ * Track things to get done, built from: "Simple offline grocery list with categories, quantities, checkboxes, search, and local persistence".
  *
  * All visible text comes from res/values/strings.xml, so the UI is localisable and
  * nothing here hard-codes user-facing copy.
  */
 class MainActivity : ComponentActivity() {
-    private val store = BookStore()
+    private val store = TaskStore()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    BookScreen(store)
+                    TaskScreen(store)
                 }
             }
         }
@@ -50,10 +50,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun BookScreen(store: BookStore) {
+fun TaskScreen(store: TaskStore) {
     var draftTitle by remember { mutableStateOf("") }
-    var draftAuthor by remember { mutableStateOf("") }
-    var draftNotes by remember { mutableStateOf("") }
     var rows by remember { mutableStateOf(store.all()) }
 
     fun refresh() {
@@ -81,26 +79,10 @@ fun BookScreen(store: BookStore) {
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
-            OutlinedTextField(
-                value = draftAuthor,
-                onValueChange = { draftAuthor = it },
-                label = { Text(stringResource(R.string.field_author)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = draftNotes,
-                onValueChange = { draftNotes = it },
-                label = { Text(stringResource(R.string.field_notes)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
             Button(
                 onClick = {
-                    if (runCatching { store.add(draftTitle, draftAuthor, draftNotes) }.isSuccess) {
+                    if (runCatching { store.add(draftTitle) }.isSuccess) {
                         draftTitle = ""
-                        draftAuthor = ""
-                        draftNotes = ""
                         refresh()
                     }
                 }
@@ -117,15 +99,15 @@ fun BookScreen(store: BookStore) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                BookRows(rows, store, ::refresh)
+                TaskRows(rows, store, ::refresh)
             }
         }
     }
 }
 
-private fun LazyListScope.BookRows(
-    rows: List<Book>,
-    store: BookStore,
+private fun LazyListScope.TaskRows(
+    rows: List<Task>,
+    store: TaskStore,
     onChanged: () -> Unit
 ) {
     items(rows, key = { it.id }) { item ->
@@ -135,20 +117,16 @@ private fun LazyListScope.BookRows(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Checkbox(
-                checked = item.finished,
+                checked = item.done,
                 onCheckedChange = { store.toggle(item.id); onChanged() }
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.title, style = MaterialTheme.typography.titleMedium)
-                Text(text = item.author, style = MaterialTheme.typography.bodyMedium)
-                Text(text = item.notes, style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    text = stringResource(R.string.progress_format, item.pagesRead),
-                    style = MaterialTheme.typography.labelMedium
-                )
+
+
             }
-            Button(onClick = { store.increment(item.id); onChanged() }) {
-                Text(stringResource(R.string.increment))
+            Button(onClick = { store.toggle(item.id); onChanged() }) {
+                Text(stringResource(R.string.mark_done))
             }
             Button(onClick = { store.remove(item.id); onChanged() }) {
                 Text(stringResource(R.string.delete))
