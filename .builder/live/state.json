@@ -1,9 +1,9 @@
 {
-  "version": 102,
-  "projectState": "TESTING",
+  "version": 104,
+  "projectState": "CLOUD_BUILDING",
   "overallProgressPct": 0,
   "elapsedMs": 0,
-  "latestActivity": "failure-diagnostician: completed: 4/4 health checks passed, 0 observed failure(s)",
+  "latestActivity": "Prepared cloud build",
   "completedFeatures": 0,
   "totalFeatures": 0,
   "completedTasks": 0,
@@ -200,20 +200,28 @@
   "repairs": [],
   "githubStatus": "unknown",
   "cloudBuild": {
-    "state": "idle",
+    "state": "running",
     "stage": "QUEUED",
-    "status": "idle",
-    "output": []
+    "status": "running",
+    "output": [],
+    "attempt": 1,
+    "workflowFile": ".github/workflows/builder-android-build.yml",
+    "headSha": "7fd38aead5dd273b2702c575999d7c9778fb9767"
   },
   "apkVerification": "idle",
   "icon": {
-    "status": "idle"
+    "status": "generated",
+    "category": "calculator",
+    "fingerprint": "a343670eb11cef67840635f0561ef7e0ebf88353b4609cea6e9f05001b3ac6b3",
+    "manifestIcon": "@mipmap/ic_launcher",
+    "manifestRoundIcon": "@mipmap/ic_launcher_round"
   },
   "release": {
     "status": "idle"
   },
   "failureRepair": {
-    "state": "idle"
+    "state": "FAILURE_DETECTED",
+    "rootCause": "app/src/main/java/com/builder/nativeandroid/MainActivity.kt declares package com.builder.nativeandroid, expected com.builder.calculator; app/src/main/java/com/builder/nativeandroid/RecordStore.kt declares package com.builder.nativeandroid, expected com.builder.calculator; app/src/test/java/com/builder/nativeandroid/RecordStoreTest.kt declares package com.builder.nativeandroid, expected com.builder.calculator; app/src/main/java/com/builder/nativeandroid/MainActivity.kt: package com.builder.nativeandroid does not match applicationId com.builder.calculator; app/src/main/java/com/builder/nativeandroid/MainActivity.kt: references R.string.field_title, which is not declared in strings.xml; app/src/main/java/com/builder/nativeandroid/MainActivity.kt: references R.string.field_detail, which is not declared in strings.xml; app/src/main/java/com/builder/nativeandroid/MainActivity.kt: references R.string.add_button, which is not declared in strings.xml; app/src/main/java/com/builder/nativeandroid/MainActivity.kt: references R.string.mark_done, which is not declared in strings.xml; app/src/main/java/com/builder/nativeandroid/RecordStore.kt: package com.builder.nativeandroid does not match applicationId com.builder.calculator; app/src/test/java/com/builder/nativeandroid/RecordStoreTest.kt: package com.builder.nativeandroid does not match applicationId com.builder.calculator"
   },
   "buildLogs": [],
   "evidence": {
@@ -250,10 +258,10 @@
       },
       {
         "stage": "VALIDATE",
-        "evidence": "project validated, packageId=com.builder.calculator, 17 tests, 0 credential findings",
-        "at": "2026-10-07T20:48:19.291Z"
+        "evidence": "project validated, packageId=com.builder.calculator",
+        "at": "2026-10-07T20:53:06.321Z"
       }
     ]
   },
-  "lastUpdated": "2026-10-07T20:48:19.849Z"
+  "lastUpdated": "2026-10-07T20:53:06.459Z"
 }
