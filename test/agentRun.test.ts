@@ -6,6 +6,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'no
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
+import { decodePng } from '../scripts/live/png.ts';
 import { runCoordinator } from '../scripts/agents/coordinator.ts';
 import { AGENTS, executionWaves } from '../scripts/agents/registry.ts';
 import { ownsFile } from '../scripts/agents/ownership.ts';
@@ -27,6 +28,20 @@ const PROJECT_ROOT = mkdtempSync(join(tmpdir(), 'builder-project-'));
 
 let report: Awaited<ReturnType<typeof runCoordinator>>;
 
+function fileHash(file: string): string {
+  const buf = readFileSync(file);
+  // PNGs must be compared by decoded pixels, not compressed bytes: the launcher
+  // icon raster is deterministic, but deflate output depends on the zlib linked
+  // into the Node build (this repo runs under Termux as well as GitHub Actions).
+  if (file.endsWith('.png')) {
+    const decoded = decodePng(buf);
+    if (!decoded) return createHash('sha256').update(buf).digest('hex');
+    const canonical = `${decoded.width}:${decoded.height}:`;
+    return createHash('sha256').update(canonical).update(decoded.rgba).digest('hex');
+  }
+  return createHash('sha256').update(buf).digest('hex');
+}
+
 function hashesOf(dir: string): Record<string, string> {
   const files: string[] = [];
   const walk = (at: string) => {
@@ -38,7 +53,7 @@ function hashesOf(dir: string): Record<string, string> {
   };
   if (existsSync(dir)) walk(dir);
   const out: Record<string, string> = {};
-  for (const file of files) out[relative(dir, file)] = createHash('sha256').update(readFileSync(file)).digest('hex');
+  for (const file of files) out[relative(dir, file)] = fileHash(file);
   return out;
 }
 
