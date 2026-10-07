@@ -422,9 +422,11 @@ if (!isSuccessfulRun(run)) {
 
   s.cloudBuild.status = 'failed';
   s.cloudBuild.conclusion = run.conclusion || 'failure';
+  s.cloudBuild.state = run.conclusion === 'cancelled' ? 'cancelled' : (run.conclusion === 'skipped' ? 'cancelled' : 'failed');
   s.cloudBuild.failureClass = classification.klass;
   s.cloudBuild.failedReason = `${classification.klass}: ${summary.failedStep || summary.failedJob || 'no step ran'} — ${classification.matched[0] || 'no diagnostic captured'}`.slice(0, 800);
   s.cloudBuild.retryable = decision.retry;
+  s.cloudBuild.finishedAt = new Date().toISOString();
   s.buildLogs = logs.slice(-200);
 
   if (platformFault) {
@@ -478,6 +480,7 @@ if (!isSuccessfulRun(run)) {
 
 s.cloudBuild.status = 'passed';
 s.cloudBuild.conclusion = run.conclusion;
+s.cloudBuild.state = 'succeeded';
 s.cloudBuild.finishedAt = new Date().toISOString();
 s.cloudBuild.failedReason = undefined;
 s.cloudBuild.buildLogs = logs.slice(-200);
