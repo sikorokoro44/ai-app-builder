@@ -130,7 +130,7 @@ fun CalculatorScreen(store: CalculatorStore, onHistoryPersistence: () -> Unit) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val keyHeight = minOf(maxWidth / 4.6f, maxHeight / 7.6f)
         Column(
-            modifier = Modifier.fillMaxHeight().fillMaxWidth().widthIn(max = 560.dp).align(Alignment.CenterHorizontally).padding(12.dp),
+            modifier = Modifier.fillMaxHeight().fillMaxWidth().widthIn(max = 560.dp).align(Alignment.Center).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(

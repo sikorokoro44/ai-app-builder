@@ -98,25 +98,27 @@ object CalculatorEngine {
         return value.stripTrailingZeros().toPlainString()
     }
 
-    private fun evaluateNode(node: Node): BigDecimal = when (node) {
+    private fun evaluateNode(node: Node): BigDecimal {
+      return when (node) {
         is Node.Num -> node.value
         is Node.UnaryMinus -> evaluateNode(node.inner).negate()
         is Node.Percent -> evaluateNode(node.value).multiply(BigDecimal("0.01"), MathContext.DECIMAL128)
         is Node.Bin -> {
-            val left = evaluateNode(node.left)
-            if (node.op == TokenType.PLUS && node.right is Node.Percent) {
-                val pct = node.right.value
-                return left.add(left.multiply(evaluateNode(pct)).divide(BigDecimal("100"), MathContext.DECIMAL128))
-            }
-            val right = evaluateNode(node.right)
-            when (node.op) {
-                TokenType.PLUS -> left.add(right)
-                TokenType.MINUS -> left.subtract(right)
-                TokenType.STAR -> left.multiply(right)
-                TokenType.SLASH -> left.divide(right, MathContext.DECIMAL128)
-                else -> left
-            }
+          val left = evaluateNode(node.left)
+          if (node.op == TokenType.PLUS && node.right is Node.Percent) {
+            val pct = node.right.value
+            return left.add(left.multiply(evaluateNode(pct)).divide(BigDecimal("100"), MathContext.DECIMAL128))
+          }
+          val right = evaluateNode(node.right)
+          when (node.op) {
+            TokenType.PLUS -> left.add(right)
+            TokenType.MINUS -> left.subtract(right)
+            TokenType.STAR -> left.multiply(right)
+            TokenType.SLASH -> left.divide(right, MathContext.DECIMAL128)
+            else -> left
+          }
         }
+      }
     }
 
     private fun tokenize(input: String): List<Token>? {
@@ -162,7 +164,7 @@ object CalculatorEngine {
         return tokens
     }
 
-    private inner class Parser(private val tokens: List<Token>) {
+    private class Parser(private val tokens: List<Token>) {
         private var pos = 0
         private val end = tokens.size - 1
 

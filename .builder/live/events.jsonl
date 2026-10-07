@@ -3645,3 +3645,12 @@
 {"ts":"2026-10-07T20:53:06.322Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.calculator","at":"2026-10-07T20:53:06.321Z"}
 {"ts":"2026-10-07T20:53:06.481Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
 {"ts":"2026-10-07T20:53:06.481Z","type":"BUILD_STARTED","stage":"QUEUED","headSha":"7fd38aead5dd273b2702c575999d7c9778fb9767"}
+{"ts":"2026-10-07T20:53:29.272Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.calculator","at":"2026-10-07T20:53:29.271Z"}
+{"ts":"2026-10-07T20:53:29.444Z","type":"BUILD_STARTED","stage":"QUEUED","headSha":"67ed087addb4f53ed001ff022e436a77d557fdaf"}
+{"ts":"2026-10-07T20:55:16.487Z","type":"BUILD_FAILED","runId":"37685570818","failureClass":"unknown","retry":false,"failedStep":"Refuse to build a project that differs from the committed one","basis":"no log evidence and no platform fault found"}
+{"ts":"2026-10-07T20:55:16.517Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (unknown)"}
+{"ts":"2026-10-07T20:57:40.773Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.calculator","at":"2026-10-07T20:57:40.771Z"}
+{"ts":"2026-10-07T20:57:40.916Z","type":"PROJECT_STATUS_CHANGED","projectState":"CLOUD_BUILDING","activity":"Prepared cloud build"}
+{"ts":"2026-10-07T20:57:40.917Z","type":"BUILD_STARTED","stage":"QUEUED","headSha":"c3d8d348765d6ddd3336f536399c9167973d6bf5"}
+{"ts":"2026-10-07T21:01:00.444Z","type":"BUILD_FAILED","runId":"37686194256","failureClass":"source_code","retry":false,"failedStep":"Run the JVM unit tests for the generated data layer","basis":"log evidence: Assemble debug APK\tRun the JVM unit tests for the generated data layer\t2026-10-07T21:00:34.7791640Z > Task :app:compileDebugKotlin FAILED"}
+{"ts":"2026-10-07T21:01:00.471Z","type":"PROJECT_STATUS_CHANGED","projectState":"REPAIRING","activity":"Cloud build failed (source_code)"}
