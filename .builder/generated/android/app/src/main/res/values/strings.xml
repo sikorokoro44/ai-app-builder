@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Reading tracker that records finished bo</string>
+    <string name="app_name">Book tracker for reading</string>
     <string name="field_title">Title</string>
-    <string name="field_body">Body</string>
-    <string name="add_button">Add note</string>
+    <string name="field_author">Author</string>
+    <string name="field_notes">Notes</string>
+    <string name="add_button">Add book</string>
     <string name="delete">Remove</string>
-    <string name="mark_done">Mark pinned</string>
-    <string name="empty_list">No notes yet. Add your first one.</string>
+    <string name="increment">Log one page</string>
+    <string name="mark_done">Mark finished</string>
+    <string name="empty_list">No books yet. Add your first one.</string>
+    <string name="progress_format">Pages read: %1$d</string>
 </resources>

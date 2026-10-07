@@ -1,4 +1,4 @@
-package com.builder.readingtracker
+package com.builder.booktracker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,20 +29,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
- * Capture and revisit notes, built from: "Reading tracker that records finished books with dates and short notes".
+ * Track books and how far each one has been read, built from: "Book tracker for reading".
  *
  * All visible text comes from res/values/strings.xml, so the UI is localisable and
  * nothing here hard-codes user-facing copy.
  */
 class MainActivity : ComponentActivity() {
-    private val store = NoteStore()
+    private val store = BookStore()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    NoteScreen(store)
+                    BookScreen(store)
                 }
             }
         }
@@ -50,9 +50,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun NoteScreen(store: NoteStore) {
+fun BookScreen(store: BookStore) {
     var draftTitle by remember { mutableStateOf("") }
-    var draftBody by remember { mutableStateOf("") }
+    var draftAuthor by remember { mutableStateOf("") }
+    var draftNotes by remember { mutableStateOf("") }
     var rows by remember { mutableStateOf(store.all()) }
 
     fun refresh() {
@@ -81,17 +82,25 @@ fun NoteScreen(store: NoteStore) {
                 modifier = Modifier.weight(1f)
             )
             OutlinedTextField(
-                value = draftBody,
-                onValueChange = { draftBody = it },
-                label = { Text(stringResource(R.string.field_body)) },
+                value = draftAuthor,
+                onValueChange = { draftAuthor = it },
+                label = { Text(stringResource(R.string.field_author)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = draftNotes,
+                onValueChange = { draftNotes = it },
+                label = { Text(stringResource(R.string.field_notes)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
             Button(
                 onClick = {
-                    if (runCatching { store.add(draftTitle, draftBody) }.isSuccess) {
+                    if (runCatching { store.add(draftTitle, draftAuthor, draftNotes) }.isSuccess) {
                         draftTitle = ""
-                        draftBody = ""
+                        draftAuthor = ""
+                        draftNotes = ""
                         refresh()
                     }
                 }
@@ -108,15 +117,15 @@ fun NoteScreen(store: NoteStore) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                NoteRows(rows, store, ::refresh)
+                BookRows(rows, store, ::refresh)
             }
         }
     }
 }
 
-private fun LazyListScope.NoteRows(
-    rows: List<Note>,
-    store: NoteStore,
+private fun LazyListScope.BookRows(
+    rows: List<Book>,
+    store: BookStore,
     onChanged: () -> Unit
 ) {
     items(rows, key = { it.id }) { item ->
@@ -126,16 +135,20 @@ private fun LazyListScope.NoteRows(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Checkbox(
-                checked = item.pinned,
+                checked = item.finished,
                 onCheckedChange = { store.toggle(item.id); onChanged() }
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.title, style = MaterialTheme.typography.titleMedium)
-                Text(text = item.body, style = MaterialTheme.typography.bodyMedium)
-
+                Text(text = item.author, style = MaterialTheme.typography.bodyMedium)
+                Text(text = item.notes, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = stringResource(R.string.progress_format, item.pagesRead),
+                    style = MaterialTheme.typography.labelMedium
+                )
             }
-            Button(onClick = { store.toggle(item.id); onChanged() }) {
-                Text(stringResource(R.string.mark_done))
+            Button(onClick = { store.increment(item.id); onChanged() }) {
+                Text(stringResource(R.string.increment))
             }
             Button(onClick = { store.remove(item.id); onChanged() }) {
                 Text(stringResource(R.string.delete))

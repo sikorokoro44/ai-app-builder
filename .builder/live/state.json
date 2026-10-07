@@ -1,9 +1,9 @@
 {
-  "version": 138,
-  "projectState": "COMPLETED",
-  "overallProgressPct": 100,
+  "version": 100,
+  "projectState": "BUILDING",
+  "overallProgressPct": 0,
   "elapsedMs": 0,
-  "latestActivity": "integration-supervisor: completed: integration-supervisor finished",
+  "latestActivity": "Pushing generated sources to GitHub",
   "completedFeatures": 0,
   "totalFeatures": 0,
   "completedTasks": 0,
@@ -17,27 +17,27 @@
       "index": 1,
       "name": "Idea Intake Analyst",
       "state": "COMPLETED",
-      "activity": "completed: notes from 11 words, 8 keywords",
-      "updatedAt": "2026-10-07T12:14:14.454Z",
-      "startedAt": "2026-10-07T12:14:14.434Z"
+      "activity": "completed: books from 4 words, 3 keywords",
+      "updatedAt": "2026-10-07T14:10:51.724Z",
+      "startedAt": "2026-10-07T14:10:51.500Z"
     },
     "requirements-analyst": {
       "id": "requirements-analyst",
       "index": 2,
       "name": "Requirements Analyst",
       "state": "COMPLETED",
-      "activity": "completed: 10 requirements with acceptance criteria",
-      "updatedAt": "2026-10-07T12:14:14.493Z",
-      "startedAt": "2026-10-07T12:14:14.459Z"
+      "activity": "completed: 12 requirements with acceptance criteria",
+      "updatedAt": "2026-10-07T14:10:52.220Z",
+      "startedAt": "2026-10-07T14:10:51.809Z"
     },
     "domain-modeler": {
       "id": "domain-modeler",
       "index": 3,
       "name": "Domain Modeler",
       "state": "COMPLETED",
-      "activity": "completed: Note: 3 fields, actions [toggle]",
-      "updatedAt": "2026-10-07T12:14:14.485Z",
-      "startedAt": "2026-10-07T12:14:14.461Z"
+      "activity": "completed: Book: 5 fields, actions [toggle, increment]",
+      "updatedAt": "2026-10-07T14:10:52.127Z",
+      "startedAt": "2026-10-07T14:10:51.837Z"
     },
     "architect": {
       "id": "architect",
@@ -45,17 +45,17 @@
       "name": "Software Architect",
       "state": "COMPLETED",
       "activity": "completed: Kotlin + Jetpack Compose (Material3), 9 files",
-      "updatedAt": "2026-10-07T12:14:14.529Z",
-      "startedAt": "2026-10-07T12:14:14.497Z"
+      "updatedAt": "2026-10-07T14:10:52.731Z",
+      "startedAt": "2026-10-07T14:10:52.275Z"
     },
     "ui-designer": {
       "id": "ui-designer",
       "index": 5,
       "name": "UI/UX Designer",
       "state": "COMPLETED",
-      "activity": "completed: designed 1 screen(s): Workspace (7 copy keys)",
-      "updatedAt": "2026-10-07T12:14:14.521Z",
-      "startedAt": "2026-10-07T12:14:14.500Z"
+      "activity": "completed: designed 1 screen(s): Workspace (10 copy keys)",
+      "updatedAt": "2026-10-07T14:10:52.596Z",
+      "startedAt": "2026-10-07T14:10:52.300Z"
     },
     "security-analyst": {
       "id": "security-analyst",
@@ -63,26 +63,26 @@
       "name": "Security Analyst",
       "state": "COMPLETED",
       "activity": "completed: declared 1 permission(s), data process memory only; nothing is written to disk by the app, 3 secret rule(s)",
-      "updatedAt": "2026-10-07T12:14:14.549Z",
-      "startedAt": "2026-10-07T12:14:14.535Z"
+      "updatedAt": "2026-10-07T14:10:52.941Z",
+      "startedAt": "2026-10-07T14:10:52.784Z"
     },
     "feature-planner": {
       "id": "feature-planner",
       "index": 7,
       "name": "Feature Planner",
       "state": "COMPLETED",
-      "activity": "completed: planned 20 features and 20 tasks for com.builder.readingtracker in 14 waves",
-      "updatedAt": "2026-10-07T12:14:14.579Z",
-      "startedAt": "2026-10-07T12:14:14.554Z"
+      "activity": "completed: planned 20 features and 20 tasks for com.builder.booktracker in 14 waves",
+      "updatedAt": "2026-10-07T14:10:53.259Z",
+      "startedAt": "2026-10-07T14:10:53.010Z"
     },
     "project-scaffolder": {
       "id": "project-scaffolder",
       "index": 8,
       "name": "Project Scaffolder",
       "state": "COMPLETED",
-      "activity": "completed: scaffolded the Gradle project for com.builder.readingtracker with 7 files",
-      "updatedAt": "2026-10-07T12:14:14.611Z",
-      "startedAt": "2026-10-07T12:14:14.585Z"
+      "activity": "completed: scaffolded the Gradle project for com.builder.booktracker with 7 files",
+      "updatedAt": "2026-10-07T14:10:53.579Z",
+      "startedAt": "2026-10-07T14:10:53.304Z"
     },
     "manifest-engineer": {
       "id": "manifest-engineer",
@@ -90,35 +90,35 @@
       "name": "Manifest Engineer",
       "state": "COMPLETED",
       "activity": "completed: app/src/main/AndroidManifest.xml",
-      "updatedAt": "2026-10-07T12:14:14.628Z",
-      "startedAt": "2026-10-07T12:14:14.615Z"
+      "updatedAt": "2026-10-07T14:10:53.797Z",
+      "startedAt": "2026-10-07T14:10:53.634Z"
     },
     "data-engineer": {
       "id": "data-engineer",
       "index": 10,
       "name": "Data Engineer",
       "state": "COMPLETED",
-      "activity": "completed: app/src/main/java/com/builder/readingtracker/NoteStore.kt",
-      "updatedAt": "2026-10-07T12:14:15.016Z",
-      "startedAt": "2026-10-07T12:14:14.633Z"
+      "activity": "completed: app/src/main/java/com/builder/booktracker/BookStore.kt",
+      "updatedAt": "2026-10-07T14:10:57.862Z",
+      "startedAt": "2026-10-07T14:10:53.886Z"
     },
     "ui-engineer": {
       "id": "ui-engineer",
       "index": 11,
       "name": "UI Engineer",
       "state": "COMPLETED",
-      "activity": "completed: app/src/main/java/com/builder/readingtracker/MainActivity.kt",
-      "updatedAt": "2026-10-07T12:14:14.999Z",
-      "startedAt": "2026-10-07T12:14:14.634Z"
+      "activity": "completed: app/src/main/java/com/builder/booktracker/MainActivity.kt",
+      "updatedAt": "2026-10-07T14:10:57.555Z",
+      "startedAt": "2026-10-07T14:10:53.888Z"
     },
     "resource-engineer": {
       "id": "resource-engineer",
       "index": 12,
       "name": "Resource Engineer",
       "state": "COMPLETED",
-      "activity": "completed: emitted 3 resource files defining 7 keys",
-      "updatedAt": "2026-10-07T12:14:15.001Z",
-      "startedAt": "2026-10-07T12:14:14.634Z"
+      "activity": "completed: emitted 3 resource files defining 10 keys",
+      "updatedAt": "2026-10-07T14:10:57.579Z",
+      "startedAt": "2026-10-07T14:10:53.890Z"
     },
     "brand-engineer": {
       "id": "brand-engineer",
@@ -126,71 +126,68 @@
       "name": "Brand and Icon Engineer",
       "state": "COMPLETED",
       "activity": "completed: media icon for a list worth coming back to, emitted at 18 densities",
-      "updatedAt": "2026-10-07T12:14:15.002Z",
-      "startedAt": "2026-10-07T12:14:14.636Z"
+      "updatedAt": "2026-10-07T14:10:57.603Z",
+      "startedAt": "2026-10-07T14:10:53.915Z"
     },
     "test-engineer": {
       "id": "test-engineer",
       "index": 14,
       "name": "Test Engineer",
       "state": "COMPLETED",
-      "activity": "completed: wrote 7 unit tests in NoteStoreTest covering every planned action",
-      "updatedAt": "2026-10-07T12:14:15.036Z",
-      "startedAt": "2026-10-07T12:14:15.020Z"
+      "activity": "completed: wrote 12 unit tests in BookStoreTest covering every planned action",
+      "updatedAt": "2026-10-07T14:10:58.274Z",
+      "startedAt": "2026-10-07T14:10:57.955Z"
     },
     "quality-auditor": {
       "id": "quality-auditor",
       "index": 15,
       "name": "Quality Auditor",
       "state": "COMPLETED",
-      "activity": "completed: validated com.builder.readingtracker: 7 tests, icon valid, 7 resource keys, no credential findings",
-      "updatedAt": "2026-10-07T12:14:15.113Z",
-      "startedAt": "2026-10-07T12:14:15.041Z"
+      "activity": "completed: validated com.builder.booktracker: 12 tests, icon valid, 10 resource keys, no credential findings",
+      "updatedAt": "2026-10-07T14:10:59.184Z",
+      "startedAt": "2026-10-07T14:10:58.368Z"
     },
     "repo-publisher": {
       "id": "repo-publisher",
       "index": 16,
       "name": "Repository Publisher",
-      "state": "COMPLETED",
-      "activity": "completed: ddf9d5a03d51d91fdc3884f6d1a824db3fbead3a",
-      "updatedAt": "2026-10-07T12:14:16.857Z",
-      "startedAt": "2026-10-07T12:14:15.117Z"
+      "state": "WORKING",
+      "activity": "started",
+      "updatedAt": "2026-10-07T14:10:59.289Z",
+      "startedAt": "2026-10-07T14:10:59.234Z"
     },
     "build-verifier": {
       "id": "build-verifier",
       "index": 17,
       "name": "Build Verifier",
-      "state": "COMPLETED",
-      "activity": "completed: ddf9d5a03d51d91fdc3884f6d1a824db3fbead3a",
-      "updatedAt": "2026-10-07T12:17:46.221Z",
-      "startedAt": "2026-10-07T12:14:16.866Z"
+      "state": "IDLE",
+      "activity": "waiting for dependencies",
+      "updatedAt": "2026-10-07T14:10:51.457Z"
     },
     "release-publisher": {
       "id": "release-publisher",
       "index": 18,
       "name": "Release Publisher",
-      "state": "COMPLETED",
-      "activity": "completed: build-37619571909",
-      "updatedAt": "2026-10-07T12:17:50.996Z",
-      "startedAt": "2026-10-07T12:17:46.225Z"
+      "state": "IDLE",
+      "activity": "waiting for dependencies",
+      "updatedAt": "2026-10-07T14:10:51.457Z"
     },
     "failure-diagnostician": {
       "id": "failure-diagnostician",
       "index": 19,
       "name": "Failure Diagnostician",
-      "state": "COMPLETED",
-      "activity": "completed: 4/4 health checks passed, 0 observed failure(s)",
-      "updatedAt": "2026-10-07T12:14:16.859Z",
-      "startedAt": "2026-10-07T12:14:15.118Z"
+      "state": "WORKING",
+      "activity": "waiting for dependencies",
+      "updatedAt": "2026-10-07T14:10:59.288Z",
+      "startedAt": "2026-10-07T14:10:59.288Z"
     },
     "integration-supervisor": {
       "id": "integration-supervisor",
       "index": 20,
       "name": "Integration Supervisor",
-      "state": "COMPLETED",
-      "activity": "completed: integration-supervisor finished",
-      "updatedAt": "2026-10-07T12:17:51.133Z",
-      "startedAt": "2026-10-07T12:17:51.004Z"
+      "state": "IDLE",
+      "activity": "waiting for dependencies",
+      "updatedAt": "2026-10-07T14:10:51.457Z"
     }
   },
   "tasks": {},
@@ -204,54 +201,17 @@
   "repairs": [],
   "githubStatus": "unknown",
   "cloudBuild": {
-    "state": "succeeded",
-    "stage": "COMPILING",
-    "status": "passed",
-    "output": [],
-    "headSha": "ddf9d5a03d51d91fdc3884f6d1a824db3fbead3a",
-    "attempt": 1,
-    "workflowFile": ".github/workflows/builder-android-build.yml",
-    "dispatchedAt": "2026-10-07T12:14:18.029Z",
-    "runId": "37619571909",
-    "logsFetched": false,
-    "conclusion": "success",
-    "finishedAt": "2026-10-07T12:17:43.969Z",
-    "buildLogs": []
+    "state": "idle",
+    "stage": "QUEUED",
+    "status": "idle",
+    "output": []
   },
-  "apkVerification": "passed",
+  "apkVerification": "idle",
   "icon": {
-    "status": "passed",
-    "category": "media",
-    "fingerprint": "45fbf492af130244aede1e4700c6ed67308cdf7755ba1d4b4da2c8bf7f5b1eef",
-    "manifestIcon": "@mipmap/ic_launcher",
-    "manifestRoundIcon": "@mipmap/ic_launcher_round",
-    "manifestIconResourceId": "0x7f080000",
-    "manifestIconType": "mipmap",
-    "matchedDensities": [
-      "mdpi",
-      "hdpi",
-      "xhdpi",
-      "xxhdpi",
-      "xxxhdpi"
-    ],
-    "matchedPath": "res/mipmap-mdpi-v4/ic_launcher.png",
-    "similarity": 0,
-    "byteIdentical": true,
-    "iconSignatureSha256": "a352e067e63d0a1f3ec340826e58538862dcfb0f4e760f7e6d81e492fecc7fd0",
-    "runId": "37619571909",
-    "apkSha256": "9366d7a3c12d397e44780e779cd0415d5936f60fab9ce516d4310d628fe2037b",
-    "verifiedAt": "2026-10-07T12:17:46.099Z"
+    "status": "idle"
   },
   "release": {
-    "status": "created",
-    "repo": "sikorokoro44/ai-app-builder",
-    "tag": "build-37619571909",
-    "assetName": "app-debug.apk",
-    "assetUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37619571909/app-debug.apk",
-    "assetSha256": "9366d7a3c12d397e44780e779cd0415d5936f60fab9ce516d4310d628fe2037b",
-    "runId": "37619571909",
-    "releaseUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/tag/build-37619571909",
-    "verifiedAt": "2026-10-07T12:17:50.155Z"
+    "status": "idle"
   },
   "failureRepair": {
     "state": "idle"
@@ -261,112 +221,40 @@
     "stages": [
       {
         "stage": "IDEA",
-        "evidence": "idea \"Reading tracker that records finished books with dates and s\" normalised for notes",
-        "at": "2026-10-07T12:14:14.446Z"
+        "evidence": "idea \"Book tracker for reading\" normalised for books",
+        "at": "2026-10-07T14:10:51.651Z"
       },
       {
         "stage": "ANALYZE",
-        "evidence": "derived 10 requirements with acceptance criteria",
-        "at": "2026-10-07T12:14:14.480Z"
+        "evidence": "derived 12 requirements with acceptance criteria",
+        "at": "2026-10-07T14:10:52.070Z"
       },
       {
         "stage": "DESIGN",
         "evidence": "Kotlin + Jetpack Compose (Material3), min 24/target 34, 9 files",
-        "at": "2026-10-07T12:14:14.516Z"
+        "at": "2026-10-07T14:10:52.522Z"
       },
       {
         "stage": "PLAN",
         "evidence": "planned 20 features, 20 tasks, 14 waves",
-        "at": "2026-10-07T12:14:14.571Z"
+        "at": "2026-10-07T14:10:53.184Z"
       },
       {
         "stage": "SCAFFOLD",
-        "evidence": "gradle project scaffolded for com.builder.readingtracker",
-        "at": "2026-10-07T12:14:14.604Z"
-      },
-      {
-        "stage": "IMPLEMENT",
-        "evidence": "pushed commit ddf9d5a",
-        "at": "2026-10-07T12:14:16.779Z"
+        "evidence": "gradle project scaffolded for com.builder.booktracker",
+        "at": "2026-10-07T14:10:53.501Z"
       },
       {
         "stage": "TESTGEN",
-        "evidence": "registered 7 generated tests in NoteStoreTest",
-        "at": "2026-10-07T12:14:15.030Z"
+        "evidence": "registered 12 generated tests in BookStoreTest",
+        "at": "2026-10-07T14:10:58.161Z"
       },
       {
         "stage": "VALIDATE",
-        "evidence": "project validated, packageId=com.builder.readingtracker",
-        "at": "2026-10-07T12:14:17.086Z"
-      },
-      {
-        "stage": "CLOUD_BUILD",
-        "evidence": "run 37619571909 completed successfully",
-        "at": "2026-10-07T12:17:43.969Z",
-        "runId": "37619571909"
-      },
-      {
-        "stage": "BUILD_SUCCESS",
-        "evidence": "run 37619571909 conclusion=success",
-        "at": "2026-10-07T12:17:43.969Z",
-        "runId": "37619571909"
-      },
-      {
-        "stage": "REAL_APK",
-        "evidence": "apk=/tmp/builder-apk-37619571909-rJj9Kv/app-debug.apk bytes=8688957",
-        "at": "2026-10-07T12:17:46.099Z",
-        "runId": "37619571909"
-      },
-      {
-        "stage": "APK_VERIFY",
-        "evidence": "sha256=9366d7a3c12d397e44780e779cd0415d5936f60fab9ce516d4310d628fe2037b package=com.builder.readingtracker",
-        "at": "2026-10-07T12:17:46.099Z",
-        "runId": "37619571909"
-      },
-      {
-        "stage": "REAL_ICON_VERIFY",
-        "evidence": "icon=@mipmap/ic_launcher category=media fingerprint=45fbf492af130244aede1e4700c6ed67308cdf7755ba1d4b4da2c8bf7f5b1eef compiled=res/mipmap-mdpi-v4/ic_launcher.png densities=mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi similarity=0 resource=0x7f080000",
-        "at": "2026-10-07T12:17:46.099Z",
-        "runId": "37619571909"
-      },
-      {
-        "stage": "RELEASE",
-        "evidence": "tag=build-37619571909",
-        "at": "2026-10-07T12:17:50.155Z",
-        "runId": "37619571909"
-      },
-      {
-        "stage": "RELEASE_ASSET",
-        "evidence": "app-debug.apk sha256=9366d7a3c12d397e44780e779cd0415d5936f60fab9ce516d4310d628fe2037b",
-        "at": "2026-10-07T12:17:50.155Z",
-        "runId": "37619571909"
-      },
-      {
-        "stage": "PUBLIC_HTTPS_URL",
-        "evidence": "https url https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37619571909/app-debug.apk",
-        "at": "2026-10-07T12:17:50.832Z",
-        "runId": "37619571909"
-      },
-      {
-        "stage": "PUBLIC_DOWNLOAD",
-        "evidence": "HTTP 200 via https://release-assets.githubusercontent.com/github-production-release-asset/1403710635/3447e8dc-ef8d-41dd-9275-392559d06f57?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-10-07T13%3A04%3A15Z&rscd=attachment%3B+filename%3Dapp-debug.apk&rsct=application%2Fvnd.android.package-archive&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-10-07T12%3A04%3A00Z&ske=2026-10-07T13%3A04%3A15Z&sks=b&skv=2018-11-09&sig=p8jyO4TlhF07V5ZrN5BEaGMyul1lruCXD4U0q9ME6yI%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc5MTM3NTc3MCwibmJmIjoxNzkxMzc1NDcwLCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.BfZoAEqpZUP-hAPqHbhz5OnM8m6zmxLhsxxuRFPzP5A&response-content-disposition=attachment%3B%20filename%3Dapp-debug.apk&response-content-type=application%2Fvnd.android.package-archive, 8688957 bytes, sha256 9366d7a3c12d397e44780e779cd0415d5936f60fab9ce516d4310d628fe2037b matches the verified APK",
-        "at": "2026-10-07T12:17:50.833Z",
-        "runId": "37619571909"
-      },
-      {
-        "stage": "FINAL_VERIFY",
-        "evidence": "download_ready url=https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37619571909/app-debug.apk",
-        "at": "2026-10-07T12:17:50.956Z",
-        "runId": "37619571909"
+        "evidence": "project validated, packageId=com.builder.booktracker, 12 tests, 0 credential findings",
+        "at": "2026-10-07T14:10:59.109Z"
       }
-    ],
-    "publicDownloadVerified": true,
-    "publicDownloadUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37619571909/app-debug.apk",
-    "finalVerifyAt": "2026-10-07T12:17:50.833Z"
+    ]
   },
-  "lastUpdated": "2026-10-07T12:17:51.134Z",
-  "apkPath": "/tmp/builder-apk-37619571909-rJj9Kv/app-debug.apk",
-  "apkSha256": "9366d7a3c12d397e44780e779cd0415d5936f60fab9ce516d4310d628fe2037b",
-  "apkPackageId": "com.builder.readingtracker",
-  "finalDownloadUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/download/build-37619571909/app-debug.apk"
+  "lastUpdated": "2026-10-07T14:11:01.525Z"
 }

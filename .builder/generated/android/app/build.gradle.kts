@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.builder.readingtracker"
+    namespace = "com.builder.booktracker"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.builder.readingtracker"
+        applicationId = "com.builder.booktracker"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
