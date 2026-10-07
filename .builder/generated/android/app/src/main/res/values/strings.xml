@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Fitness workout log with sets</string>
-    <string name="field_title">Habit</string>
-    <string name="add_button">Add entry</string>
+    <string name="app_name">Reading tracker that records finished bo</string>
+    <string name="field_title">Title</string>
+    <string name="field_body">Body</string>
+    <string name="add_button">Add note</string>
     <string name="delete">Remove</string>
-    <string name="increment">Log one</string>
-    <string name="empty_list">No entries yet. Add your first one.</string>
-    <string name="progress_format">Done today: %1$d of %2$d</string>
+    <string name="mark_done">Mark pinned</string>
+    <string name="empty_list">No notes yet. Add your first one.</string>
 </resources>

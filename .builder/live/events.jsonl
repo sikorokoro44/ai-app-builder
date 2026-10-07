@@ -3242,3 +3242,110 @@
 {"ts":"2026-10-07T09:29:24.798Z","type":"AGENT_STATUS_CHANGED","agentId":"integration-supervisor","agentState":"REVIEWING","at":"2026-10-07T09:29:24.796Z"}
 {"ts":"2026-10-07T09:29:24.801Z","type":"AGENT_STATUS_CHANGED","agentId":"integration-supervisor","agentState":"COMPLETED","at":"2026-10-07T09:29:24.801Z"}
 {"ts":"2026-10-07T09:29:24.803Z","type":"AGENT_ACTIVITY","agentId":"integration-supervisor","activity":"completed: integration-supervisor finished","at":"2026-10-07T09:29:24.802Z"}
+{"ts":"2026-10-07T12:14:14.421Z","type":"PROJECT_STATUS_CHANGED","projectState":"NOT_STARTED","activity":"abandoned the run that was at COMPLETED to start \"Reading tracker that records finished books with dates and short notes\" from nothing"}
+{"ts":"2026-10-07T12:14:14.421Z","type":"REPAIR_STARTED","stage":"IDEA","errors":["run abandoned at COMPLETED; checkpoint before-restart kept the evidence it had"]}
+{"ts":"2026-10-07T12:14:14.434Z","type":"AGENT_STATUS_CHANGED","agentId":"idea-intake","agentState":"WORKING","at":"2026-10-07T12:14:14.434Z"}
+{"ts":"2026-10-07T12:14:14.437Z","type":"AGENT_ACTIVITY","agentId":"idea-intake","activity":"started","at":"2026-10-07T12:14:14.437Z"}
+{"ts":"2026-10-07T12:14:14.443Z","type":"AGENT_STATUS_CHANGED","agentId":"idea-intake","agentState":"REVIEWING","at":"2026-10-07T12:14:14.443Z"}
+{"ts":"2026-10-07T12:14:14.446Z","type":"EVIDENCE_RECORDED","stage":"IDEA","evidence":"idea \"Reading tracker that records finished books with dates and s\" normalised for notes","at":"2026-10-07T12:14:14.446Z"}
+{"ts":"2026-10-07T12:14:14.449Z","type":"PROJECT_STATUS_CHANGED","projectState":"QUEUED","agentId":"idea-intake"}
+{"ts":"2026-10-07T12:14:14.450Z","type":"PROJECT_STATUS_CHANGED","projectState":"QUEUED","activity":"idea-intake: advancing to QUEUED"}
+{"ts":"2026-10-07T12:14:14.451Z","type":"AGENT_STATUS_CHANGED","agentId":"idea-intake","agentState":"COMPLETED","at":"2026-10-07T12:14:14.451Z"}
+{"ts":"2026-10-07T12:14:14.454Z","type":"AGENT_ACTIVITY","agentId":"idea-intake","activity":"completed: notes from 11 words, 8 keywords","at":"2026-10-07T12:14:14.454Z"}
+{"ts":"2026-10-07T12:14:14.459Z","type":"AGENT_STATUS_CHANGED","agentId":"requirements-analyst","agentState":"WORKING","at":"2026-10-07T12:14:14.459Z"}
+{"ts":"2026-10-07T12:14:14.461Z","type":"AGENT_STATUS_CHANGED","agentId":"domain-modeler","agentState":"WORKING","at":"2026-10-07T12:14:14.461Z"}
+{"ts":"2026-10-07T12:14:14.463Z","type":"AGENT_ACTIVITY","agentId":"requirements-analyst","activity":"started","at":"2026-10-07T12:14:14.461Z"}
+{"ts":"2026-10-07T12:14:14.465Z","type":"AGENT_ACTIVITY","agentId":"domain-modeler","activity":"started","at":"2026-10-07T12:14:14.463Z"}
+{"ts":"2026-10-07T12:14:14.472Z","type":"AGENT_STATUS_CHANGED","agentId":"requirements-analyst","agentState":"REVIEWING","at":"2026-10-07T12:14:14.472Z"}
+{"ts":"2026-10-07T12:14:14.477Z","type":"AGENT_STATUS_CHANGED","agentId":"domain-modeler","agentState":"REVIEWING","at":"2026-10-07T12:14:14.477Z"}
+{"ts":"2026-10-07T12:14:14.480Z","type":"EVIDENCE_RECORDED","stage":"ANALYZE","evidence":"derived 10 requirements with acceptance criteria","at":"2026-10-07T12:14:14.480Z"}
+{"ts":"2026-10-07T12:14:14.483Z","type":"AGENT_STATUS_CHANGED","agentId":"domain-modeler","agentState":"COMPLETED","at":"2026-10-07T12:14:14.483Z"}
+{"ts":"2026-10-07T12:14:14.485Z","type":"AGENT_ACTIVITY","agentId":"domain-modeler","activity":"completed: Note: 3 fields, actions [toggle]","at":"2026-10-07T12:14:14.485Z"}
+{"ts":"2026-10-07T12:14:14.487Z","type":"PROJECT_STATUS_CHANGED","projectState":"ANALYZING","agentId":"requirements-analyst"}
+{"ts":"2026-10-07T12:14:14.491Z","type":"PROJECT_STATUS_CHANGED","projectState":"ANALYZING","activity":"requirements-analyst: advancing to ANALYZING"}
+{"ts":"2026-10-07T12:14:14.491Z","type":"AGENT_STATUS_CHANGED","agentId":"requirements-analyst","agentState":"COMPLETED","at":"2026-10-07T12:14:14.491Z"}
+{"ts":"2026-10-07T12:14:14.493Z","type":"AGENT_ACTIVITY","agentId":"requirements-analyst","activity":"completed: 10 requirements with acceptance criteria","at":"2026-10-07T12:14:14.493Z"}
+{"ts":"2026-10-07T12:14:14.497Z","type":"AGENT_STATUS_CHANGED","agentId":"architect","agentState":"WORKING","at":"2026-10-07T12:14:14.497Z"}
+{"ts":"2026-10-07T12:14:14.500Z","type":"AGENT_STATUS_CHANGED","agentId":"ui-designer","agentState":"WORKING","at":"2026-10-07T12:14:14.500Z"}
+{"ts":"2026-10-07T12:14:14.502Z","type":"AGENT_ACTIVITY","agentId":"architect","activity":"started","at":"2026-10-07T12:14:14.500Z"}
+{"ts":"2026-10-07T12:14:14.504Z","type":"AGENT_ACTIVITY","agentId":"ui-designer","activity":"started","at":"2026-10-07T12:14:14.502Z"}
+{"ts":"2026-10-07T12:14:14.509Z","type":"AGENT_STATUS_CHANGED","agentId":"architect","agentState":"REVIEWING","at":"2026-10-07T12:14:14.508Z"}
+{"ts":"2026-10-07T12:14:14.513Z","type":"AGENT_STATUS_CHANGED","agentId":"ui-designer","agentState":"REVIEWING","at":"2026-10-07T12:14:14.513Z"}
+{"ts":"2026-10-07T12:14:14.516Z","type":"EVIDENCE_RECORDED","stage":"DESIGN","evidence":"Kotlin + Jetpack Compose (Material3), min 24/target 34, 9 files","at":"2026-10-07T12:14:14.516Z"}
+{"ts":"2026-10-07T12:14:14.519Z","type":"AGENT_STATUS_CHANGED","agentId":"ui-designer","agentState":"COMPLETED","at":"2026-10-07T12:14:14.519Z"}
+{"ts":"2026-10-07T12:14:14.521Z","type":"AGENT_ACTIVITY","agentId":"ui-designer","activity":"completed: designed 1 screen(s): Workspace (7 copy keys)","at":"2026-10-07T12:14:14.521Z"}
+{"ts":"2026-10-07T12:14:14.523Z","type":"PROJECT_STATUS_CHANGED","projectState":"DESIGNING","agentId":"architect"}
+{"ts":"2026-10-07T12:14:14.527Z","type":"PROJECT_STATUS_CHANGED","projectState":"DESIGNING","activity":"architect: advancing to DESIGNING"}
+{"ts":"2026-10-07T12:14:14.527Z","type":"AGENT_STATUS_CHANGED","agentId":"architect","agentState":"COMPLETED","at":"2026-10-07T12:14:14.527Z"}
+{"ts":"2026-10-07T12:14:14.530Z","type":"AGENT_ACTIVITY","agentId":"architect","activity":"completed: Kotlin + Jetpack Compose (Material3), 9 files","at":"2026-10-07T12:14:14.529Z"}
+{"ts":"2026-10-07T12:14:14.535Z","type":"AGENT_STATUS_CHANGED","agentId":"security-analyst","agentState":"WORKING","at":"2026-10-07T12:14:14.535Z"}
+{"ts":"2026-10-07T12:14:14.537Z","type":"AGENT_ACTIVITY","agentId":"security-analyst","activity":"started","at":"2026-10-07T12:14:14.537Z"}
+{"ts":"2026-10-07T12:14:14.543Z","type":"AGENT_STATUS_CHANGED","agentId":"security-analyst","agentState":"REVIEWING","at":"2026-10-07T12:14:14.542Z"}
+{"ts":"2026-10-07T12:14:14.546Z","type":"AGENT_STATUS_CHANGED","agentId":"security-analyst","agentState":"COMPLETED","at":"2026-10-07T12:14:14.546Z"}
+{"ts":"2026-10-07T12:14:14.549Z","type":"AGENT_ACTIVITY","agentId":"security-analyst","activity":"completed: declared 1 permission(s), data process memory only; nothing is written to disk by the app, 3 secret rule(s)","at":"2026-10-07T12:14:14.549Z"}
+{"ts":"2026-10-07T12:14:14.554Z","type":"AGENT_STATUS_CHANGED","agentId":"feature-planner","agentState":"WORKING","at":"2026-10-07T12:14:14.554Z"}
+{"ts":"2026-10-07T12:14:14.556Z","type":"AGENT_ACTIVITY","agentId":"feature-planner","activity":"started","at":"2026-10-07T12:14:14.556Z"}
+{"ts":"2026-10-07T12:14:14.565Z","type":"AGENT_STATUS_CHANGED","agentId":"feature-planner","agentState":"REVIEWING","at":"2026-10-07T12:14:14.565Z"}
+{"ts":"2026-10-07T12:14:14.571Z","type":"EVIDENCE_RECORDED","stage":"PLAN","evidence":"planned 20 features, 20 tasks, 14 waves","at":"2026-10-07T12:14:14.571Z"}
+{"ts":"2026-10-07T12:14:14.573Z","type":"PROJECT_STATUS_CHANGED","projectState":"PLANNING","agentId":"feature-planner"}
+{"ts":"2026-10-07T12:14:14.575Z","type":"PROJECT_STATUS_CHANGED","projectState":"PLANNING","activity":"feature-planner: advancing to PLANNING"}
+{"ts":"2026-10-07T12:14:14.575Z","type":"AGENT_STATUS_CHANGED","agentId":"feature-planner","agentState":"COMPLETED","at":"2026-10-07T12:14:14.575Z"}
+{"ts":"2026-10-07T12:14:14.579Z","type":"AGENT_ACTIVITY","agentId":"feature-planner","activity":"completed: planned 20 features and 20 tasks for com.builder.readingtracker in 14 waves","at":"2026-10-07T12:14:14.579Z"}
+{"ts":"2026-10-07T12:14:14.585Z","type":"AGENT_STATUS_CHANGED","agentId":"project-scaffolder","agentState":"WORKING","at":"2026-10-07T12:14:14.585Z"}
+{"ts":"2026-10-07T12:14:14.587Z","type":"AGENT_ACTIVITY","agentId":"project-scaffolder","activity":"started","at":"2026-10-07T12:14:14.587Z"}
+{"ts":"2026-10-07T12:14:14.598Z","type":"AGENT_ACTIVITY","agentId":"project-scaffolder","activity":"scaffolded 7 Gradle files for com.builder.readingtracker","at":"2026-10-07T12:14:14.598Z"}
+{"ts":"2026-10-07T12:14:14.600Z","type":"AGENT_STATUS_CHANGED","agentId":"project-scaffolder","agentState":"REVIEWING","at":"2026-10-07T12:14:14.598Z"}
+{"ts":"2026-10-07T12:14:14.604Z","type":"EVIDENCE_RECORDED","stage":"SCAFFOLD","evidence":"gradle project scaffolded for com.builder.readingtracker","at":"2026-10-07T12:14:14.604Z"}
+{"ts":"2026-10-07T12:14:14.606Z","type":"PROJECT_STATUS_CHANGED","projectState":"READY","agentId":"project-scaffolder"}
+{"ts":"2026-10-07T12:14:14.608Z","type":"PROJECT_STATUS_CHANGED","projectState":"READY","activity":"project-scaffolder: advancing to READY"}
+{"ts":"2026-10-07T12:14:14.608Z","type":"AGENT_STATUS_CHANGED","agentId":"project-scaffolder","agentState":"COMPLETED","at":"2026-10-07T12:14:14.608Z"}
+{"ts":"2026-10-07T12:14:14.611Z","type":"AGENT_ACTIVITY","agentId":"project-scaffolder","activity":"completed: scaffolded the Gradle project for com.builder.readingtracker with 7 files","at":"2026-10-07T12:14:14.611Z"}
+{"ts":"2026-10-07T12:14:14.615Z","type":"AGENT_STATUS_CHANGED","agentId":"manifest-engineer","agentState":"WORKING","at":"2026-10-07T12:14:14.615Z"}
+{"ts":"2026-10-07T12:14:14.617Z","type":"AGENT_ACTIVITY","agentId":"manifest-engineer","activity":"started","at":"2026-10-07T12:14:14.617Z"}
+{"ts":"2026-10-07T12:14:14.623Z","type":"AGENT_STATUS_CHANGED","agentId":"manifest-engineer","agentState":"REVIEWING","at":"2026-10-07T12:14:14.623Z"}
+{"ts":"2026-10-07T12:14:14.626Z","type":"AGENT_STATUS_CHANGED","agentId":"manifest-engineer","agentState":"COMPLETED","at":"2026-10-07T12:14:14.626Z"}
+{"ts":"2026-10-07T12:14:14.628Z","type":"AGENT_ACTIVITY","agentId":"manifest-engineer","activity":"completed: app/src/main/AndroidManifest.xml","at":"2026-10-07T12:14:14.628Z"}
+{"ts":"2026-10-07T12:14:14.634Z","type":"AGENT_STATUS_CHANGED","agentId":"data-engineer","agentState":"WORKING","at":"2026-10-07T12:14:14.633Z"}
+{"ts":"2026-10-07T12:14:14.636Z","type":"AGENT_STATUS_CHANGED","agentId":"ui-engineer","agentState":"WORKING","at":"2026-10-07T12:14:14.634Z"}
+{"ts":"2026-10-07T12:14:14.638Z","type":"AGENT_STATUS_CHANGED","agentId":"resource-engineer","agentState":"WORKING","at":"2026-10-07T12:14:14.634Z"}
+{"ts":"2026-10-07T12:14:14.640Z","type":"AGENT_STATUS_CHANGED","agentId":"brand-engineer","agentState":"WORKING","at":"2026-10-07T12:14:14.636Z"}
+{"ts":"2026-10-07T12:14:14.643Z","type":"AGENT_ACTIVITY","agentId":"data-engineer","activity":"started","at":"2026-10-07T12:14:14.636Z"}
+{"ts":"2026-10-07T12:14:14.645Z","type":"AGENT_ACTIVITY","agentId":"ui-engineer","activity":"started","at":"2026-10-07T12:14:14.638Z"}
+{"ts":"2026-10-07T12:14:14.651Z","type":"AGENT_ACTIVITY","agentId":"resource-engineer","activity":"started","at":"2026-10-07T12:14:14.640Z"}
+{"ts":"2026-10-07T12:14:14.656Z","type":"AGENT_ACTIVITY","agentId":"brand-engineer","activity":"started","at":"2026-10-07T12:14:14.643Z"}
+{"ts":"2026-10-07T12:14:14.662Z","type":"AGENT_STATUS_CHANGED","agentId":"data-engineer","agentState":"REVIEWING","at":"2026-10-07T12:14:14.651Z"}
+{"ts":"2026-10-07T12:14:14.957Z","type":"AGENT_STATUS_CHANGED","agentId":"ui-engineer","agentState":"REVIEWING","at":"2026-10-07T12:14:14.656Z"}
+{"ts":"2026-10-07T12:14:14.960Z","type":"AGENT_STATUS_CHANGED","agentId":"resource-engineer","agentState":"REVIEWING","at":"2026-10-07T12:14:14.662Z"}
+{"ts":"2026-10-07T12:14:14.962Z","type":"AGENT_ACTIVITY","agentId":"brand-engineer","activity":"emitted a media launcher icon (18 resources)","at":"2026-10-07T12:14:14.955Z"}
+{"ts":"2026-10-07T12:14:14.965Z","type":"AGENT_STATUS_CHANGED","agentId":"brand-engineer","agentState":"REVIEWING","at":"2026-10-07T12:14:14.957Z"}
+{"ts":"2026-10-07T12:14:14.997Z","type":"AGENT_STATUS_CHANGED","agentId":"ui-engineer","agentState":"COMPLETED","at":"2026-10-07T12:14:14.962Z"}
+{"ts":"2026-10-07T12:14:14.999Z","type":"AGENT_STATUS_CHANGED","agentId":"resource-engineer","agentState":"COMPLETED","at":"2026-10-07T12:14:14.965Z"}
+{"ts":"2026-10-07T12:14:15.001Z","type":"AGENT_STATUS_CHANGED","agentId":"brand-engineer","agentState":"COMPLETED","at":"2026-10-07T12:14:14.997Z"}
+{"ts":"2026-10-07T12:14:15.002Z","type":"PROJECT_STATUS_CHANGED","projectState":"BUILDING","agentId":"data-engineer"}
+{"ts":"2026-10-07T12:14:15.004Z","type":"PROJECT_STATUS_CHANGED","projectState":"BUILDING","activity":"data-engineer: advancing to BUILDING"}
+{"ts":"2026-10-07T12:14:15.004Z","type":"AGENT_ACTIVITY","agentId":"ui-engineer","activity":"completed: app/src/main/java/com/builder/readingtracker/MainActivity.kt","at":"2026-10-07T12:14:14.999Z"}
+{"ts":"2026-10-07T12:14:15.006Z","type":"AGENT_ACTIVITY","agentId":"resource-engineer","activity":"completed: emitted 3 resource files defining 7 keys","at":"2026-10-07T12:14:15.001Z"}
+{"ts":"2026-10-07T12:14:15.009Z","type":"AGENT_ACTIVITY","agentId":"brand-engineer","activity":"completed: media icon for a list worth coming back to, emitted at 18 densities","at":"2026-10-07T12:14:15.002Z"}
+{"ts":"2026-10-07T12:14:15.013Z","type":"AGENT_STATUS_CHANGED","agentId":"data-engineer","agentState":"COMPLETED","at":"2026-10-07T12:14:15.006Z"}
+{"ts":"2026-10-07T12:14:15.016Z","type":"AGENT_ACTIVITY","agentId":"data-engineer","activity":"completed: app/src/main/java/com/builder/readingtracker/NoteStore.kt","at":"2026-10-07T12:14:15.016Z"}
+{"ts":"2026-10-07T12:14:15.020Z","type":"AGENT_STATUS_CHANGED","agentId":"test-engineer","agentState":"WORKING","at":"2026-10-07T12:14:15.020Z"}
+{"ts":"2026-10-07T12:14:15.021Z","type":"AGENT_ACTIVITY","agentId":"test-engineer","activity":"started","at":"2026-10-07T12:14:15.021Z"}
+{"ts":"2026-10-07T12:14:15.026Z","type":"AGENT_ACTIVITY","agentId":"test-engineer","activity":"generated 7 unit tests for NoteStoreTest","at":"2026-10-07T12:14:15.026Z"}
+{"ts":"2026-10-07T12:14:15.028Z","type":"AGENT_STATUS_CHANGED","agentId":"test-engineer","agentState":"REVIEWING","at":"2026-10-07T12:14:15.026Z"}
+{"ts":"2026-10-07T12:14:15.031Z","type":"EVIDENCE_RECORDED","stage":"TESTGEN","evidence":"registered 7 generated tests in NoteStoreTest","at":"2026-10-07T12:14:15.030Z"}
+{"ts":"2026-10-07T12:14:15.032Z","type":"PROJECT_STATUS_CHANGED","projectState":"TESTING","agentId":"test-engineer"}
+{"ts":"2026-10-07T12:14:15.034Z","type":"PROJECT_STATUS_CHANGED","projectState":"TESTING","activity":"test-engineer: advancing to TESTING"}
+{"ts":"2026-10-07T12:14:15.034Z","type":"AGENT_STATUS_CHANGED","agentId":"test-engineer","agentState":"COMPLETED","at":"2026-10-07T12:14:15.034Z"}
+{"ts":"2026-10-07T12:14:15.036Z","type":"AGENT_ACTIVITY","agentId":"test-engineer","activity":"completed: wrote 7 unit tests in NoteStoreTest covering every planned action","at":"2026-10-07T12:14:15.036Z"}
+{"ts":"2026-10-07T12:14:15.041Z","type":"AGENT_STATUS_CHANGED","agentId":"quality-auditor","agentState":"WORKING","at":"2026-10-07T12:14:15.041Z"}
+{"ts":"2026-10-07T12:14:15.043Z","type":"AGENT_ACTIVITY","agentId":"quality-auditor","activity":"started","at":"2026-10-07T12:14:15.042Z"}
+{"ts":"2026-10-07T12:14:15.105Z","type":"AGENT_ACTIVITY","agentId":"quality-auditor","activity":"validated 7 resource keys, 7 tests, 0 credential findings","at":"2026-10-07T12:14:15.104Z"}
+{"ts":"2026-10-07T12:14:15.107Z","type":"AGENT_STATUS_CHANGED","agentId":"quality-auditor","agentState":"REVIEWING","at":"2026-10-07T12:14:15.105Z"}
+{"ts":"2026-10-07T12:14:15.109Z","type":"EVIDENCE_RECORDED","stage":"VALIDATE","evidence":"project validated, packageId=com.builder.readingtracker, 7 tests, 0 credential findings","at":"2026-10-07T12:14:15.109Z"}
+{"ts":"2026-10-07T12:14:15.111Z","type":"AGENT_STATUS_CHANGED","agentId":"quality-auditor","agentState":"COMPLETED","at":"2026-10-07T12:14:15.111Z"}
+{"ts":"2026-10-07T12:14:15.113Z","type":"AGENT_ACTIVITY","agentId":"quality-auditor","activity":"completed: validated com.builder.readingtracker: 7 tests, icon valid, 7 resource keys, no credential findings","at":"2026-10-07T12:14:15.113Z"}
+{"ts":"2026-10-07T12:14:15.117Z","type":"AGENT_STATUS_CHANGED","agentId":"repo-publisher","agentState":"WORKING","at":"2026-10-07T12:14:15.117Z"}
+{"ts":"2026-10-07T12:14:15.118Z","type":"AGENT_STATUS_CHANGED","agentId":"failure-diagnostician","agentState":"WORKING","at":"2026-10-07T12:14:15.118Z"}
+{"ts":"2026-10-07T12:14:15.120Z","type":"AGENT_ACTIVITY","agentId":"repo-publisher","activity":"started","at":"2026-10-07T12:14:15.119Z"}
+{"ts":"2026-10-07T12:14:15.122Z","type":"AGENT_ACTIVITY","agentId":"failure-diagnostician","activity":"started","at":"2026-10-07T12:14:15.120Z"}
+{"ts":"2026-10-07T12:14:15.291Z","type":"PROJECT_STATUS_CHANGED","projectState":"BUILDING","activity":"Pushing generated sources to GitHub"}

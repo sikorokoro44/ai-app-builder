@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.builder.fitnessworkout"
+    namespace = "com.builder.readingtracker"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.builder.fitnessworkout"
+        applicationId = "com.builder.readingtracker"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
