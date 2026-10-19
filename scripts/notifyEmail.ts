@@ -34,23 +34,66 @@ import type { LiveState } from '../shared/state.ts';
 interface Args {
   dryRun: boolean;
   force: boolean;
+  testSend: boolean;
   kinds: string[] | null;
 }
 
 function parseArgs(argv: string[]): Args {
-  const out: Args = { dryRun: false, force: false, kinds: null };
+  const out: Args = { dryRun: false, force: false, testSend: false, kinds: null };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') out.dryRun = true;
     else if (a === '--force') out.force = true;
+    else if (a === '--test-send') out.testSend = true;
     else if (a === '--kinds' && i + 1 < argv.length) {
       out.kinds = argv[++i].split(',').map((k) => k.trim().toUpperCase()).filter(Boolean);
     } else if (a === '--help' || a === '-h') {
-      console.log('usage: notifyEmail [--dry-run] [--force] [--kinds COMPLETE,FAILED,WAITING]');
+      console.log('usage: notifyEmail [--dry-run] [--force] [--test-send] [--kinds COMPLETE,FAILED,WAITING]');
       process.exit(0);
     }
   }
   return out;
+}
+
+/**
+ * A controlled connectivity test.
+ *
+ * It proves the SMTP configuration authenticates and that Gmail accepts a
+ * message, without ever reading or writing the live state and without ever
+ * sending an APK-ready claim. The subject is prefixed so the message cannot be
+ * mistaken for a delivery, and no send-once record is written, so a real
+ * notification for the same build is still sent later.
+ */
+async function testSend(): Promise<void> {
+  const cfg = emailConfigFromEnv();
+  if (!cfg.ok || !cfg.config) {
+    console.log(`status=not_configured missing=${cfg.missing.join(',')}`);
+    process.exit(0);
+  }
+  const now = new Date().toISOString();
+  const msg: EmailMessage = {
+    to: cfg.config.to,
+    from: cfg.config.from,
+    subject: '[TEST] AI App Builder email connectivity check',
+    text: [
+      'This is a connectivity test, not a delivery.',
+      '',
+      'If you can read this, the AI App Builder can reach Gmail over SMTP with',
+      'the configured credentials. No app has been claimed ready and no APK',
+      'download link is included in this message.',
+      '',
+      `Sent at: ${now}`,
+      `App name: AI App Builder`,
+      'Build status: CONNECTIVITY_TEST'
+    ].join('\n')
+  };
+  const res = await sendEmail(cfg.config, msg);
+  if (!res.ok) {
+    console.log(`status=failed mode=test_send error=${res.error}`);
+    process.exit(1);
+  }
+  console.log(`status=sent mode=test_send to_masked=${maskAddress(cfg.config.to)}`);
+  process.exit(0);
 }
 
 interface DecisionView {
@@ -101,6 +144,11 @@ function record(args: Args, decision: NotificationDecision, config: SmtpConfig):
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
+
+  if (args.testSend) {
+    await testSend();
+    return;
+  }
 
   const view = decide(args);
 

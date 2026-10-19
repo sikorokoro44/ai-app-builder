@@ -1,0 +1,43 @@
+name: Builder - Email Test
+
+# A controlled way to prove the notification email path works end to end
+# against the real SMTP provider, without waiting for a build and without ever
+# sending an APK-ready claim.
+#
+# It authenticates, sends one message whose subject is prefixed [TEST], and
+# writes nothing: no live state is read or changed and no send-once record is
+# created, so the real notification for a completed build is still delivered
+# later. Run it once after the SMTP secrets are set to confirm Gmail accepts
+# the credentials.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: builder-email-test
+  cancel-in-progress: false
+
+jobs:
+  email-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # It reads the repository contents only; it never writes state or secrets.
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Send a connectivity test
+        env:
+          BUILDER_SMTP_HOST: ${{ secrets.BUILDER_SMTP_HOST }}
+          BUILDER_SMTP_PORT: ${{ secrets.BUILDER_SMTP_PORT }}
+          BUILDER_SMTP_USER: ${{ secrets.BUILDER_SMTP_USER }}
+          BUILDER_SMTP_PASS: ${{ secrets.BUILDER_SMTP_PASS }}
+          BUILDER_SMTP_FROM: ${{ secrets.BUILDER_SMTP_FROM }}
+          BUILDER_SMTP_SECURITY: ${{ secrets.BUILDER_SMTP_SECURITY }}
+          BUILDER_EMAIL_TO: ${{ secrets.BUILDER_EMAIL_TO }}
+        run: node --experimental-strip-types scripts/notifyEmail.ts --test-send
