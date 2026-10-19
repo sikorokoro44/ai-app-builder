@@ -2,7 +2,7 @@ import './isolate.mjs';
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -314,7 +314,8 @@ describe('the watchdog CLI decides from disk fixtures, not from guesswork', () =
       failureRepair: { state: 'idle' },
       buildLogs: [],
       lastUpdated: new Date(NOW - 3_600_000).toISOString(),
-      idea: 'watering reminder',
+      // Deliberately no `idea`: an interrupted run can leave the state without
+      // a name, so the store's manifest is the only source the watchdog has.
       evidence: { stages: [{ stage: 'IDEA', evidence: 'accepted', at: new Date(NOW - 7_200_000).toISOString() }] }
     };
     writeFileSync(join(stateDir, 'state.json'), JSON.stringify(state, null, 2));
@@ -368,5 +369,8 @@ describe('the watchdog CLI decides from disk fixtures, not from guesswork', () =
     assert.deepStrictEqual(report.plan.redrive, [], 'the matching request is resumed, not re-driven');
     assert.ok(report.plan.emailKinds.includes('WAITING'), 'a quiet tick still owns the waiting notice');
     assert.ok(report.availableRunIds.includes('37687932000'));
+    assert.ok(!('idea' in JSON.parse(readFileSync(join(stateDir, 'state.json'), 'utf-8'))), 'the fixture state deliberately has no idea');
+    assert.strictEqual(report.state.idea, 'watering reminder', 'the idea is recovered from the run store when the state does not name it');
+    assert.strictEqual(report.plan.resume.idea, 'watering reminder', 'a resume dispatches with the store idea, not an empty string');
   });
 });

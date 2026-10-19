@@ -26,7 +26,7 @@ import { listRequests, closeRequest, recordDispatch, type RunRequest } from './l
 import { readState } from './live/stateStore.ts';
 import { decideNotification } from './live/emailNotify.ts';
 import {
-  planWatchdog, configFromEnv,
+  planWatchdog, configFromEnv, newestRunId,
   type CoordinatorRun, type WatchdogPlan, type StateSnapshot
 } from './live/watchdogPlan.ts';
 
@@ -115,12 +115,32 @@ function readRuns(): CoordinatorRun[] {
   }));
 }
 
-/** Run ids that have a store on disk and can actually be resumed. */
-function readAvailableRunIds(): string[] {
+interface RunStore {
+  runId: string;
+  idea: string;
+  createdAt: string;
+}
+
+/**
+ * Run stores on disk that can actually be resumed, each with the idea it
+ * belongs to. The manifest is authoritative for the idea: an interrupted run
+ * may have written its store before the live state recorded the idea, so the
+ * store is the one place that always names the work.
+ */
+function readRunStores(): RunStore[] {
   try {
     return readdirSync(AGENT_DIR, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && existsSync(join(AGENT_DIR, entry.name, 'manifest.json')))
-      .map((entry) => entry.name);
+      .map((entry) => {
+        let idea = '';
+        let createdAt = '';
+        try {
+          const manifest = JSON.parse(readFileSync(join(AGENT_DIR, entry.name, 'manifest.json'), 'utf-8'));
+          if (typeof manifest?.idea === 'string') idea = manifest.idea.trim();
+          if (typeof manifest?.createdAt === 'string') createdAt = manifest.createdAt;
+        } catch { /* an unreadable manifest still counts as a store to resume */ }
+        return { runId: entry.name, idea, createdAt };
+      });
   } catch {
     return [];
   }
@@ -274,14 +294,19 @@ async function main(): Promise<void> {
   const requests = listRequests();
   const state = readState();
   const decision = decideNotification(state);
+  const runStores = readRunStores();
+  const availableRunIds = runStores.map((s) => s.runId);
+  // Older runs, or a crash before the state recorded the idea, leave the live
+  // state without a name; the run store that a resume would continue always has
+  // one, so the watchdog can still resume and report honestly.
+  const storeIdea = runStores.find((s) => s.runId === newestRunId(availableRunIds))?.idea || '';
   const snapshot: StateSnapshot = {
     projectState: state.projectState,
-    idea: state.idea,
+    idea: state.idea || storeIdea,
     lastUpdated: state.lastUpdated,
     missingStages: decision.missing,
     decisionKind: decision.kind
   };
-  const availableRunIds = readAvailableRunIds();
 
   let runs: CoordinatorRun[];
   try {
