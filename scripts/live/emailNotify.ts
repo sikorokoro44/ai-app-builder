@@ -359,6 +359,16 @@ export async function sendEmail(cfg: SmtpConfig, msg: EmailMessage): Promise<Sen
   const queued: string[] = [];
   let lastError: Error | null = null;
 
+  // A server may send its 220 greeting in the same tick it accepts the
+  // connection, before this function can attach a listener to the returned
+  // socket. Bytes emitted with no `data` listener are dropped, which is how a
+  // fast server's greeting turned every send into "SMTP timeout waiting for
+  // greeting". The socket buffers from the moment it connects into `early`, and
+  // the dialogue replays that buffer before reading from the wire.
+  const early: Buffer[] = [];
+  const onEarlyData = (chunk: Buffer) => early.push(chunk);
+  socket.on('data', onEarlyData);
+
   const settle = (fn: (w: NonNullable<typeof pending>) => void) => {
     const p = pending;
     pending = null;
@@ -390,7 +400,11 @@ export async function sendEmail(cfg: SmtpConfig, msg: EmailMessage): Promise<Sen
     s.removeListener('data', onChunk);
     s.removeListener('error', onSocketError);
   };
+  // Stop buffering into `early` and hand whatever arrived to the dialogue before
+  // any further byte is read, so an early greeting is not lost.
+  socket.removeListener('data', onEarlyData);
   attach(socket);
+  for (const chunk of early) onChunk(chunk);
 
   const readLine = (what: string): Promise<string> => {
     if (lastError) return Promise.reject(lastError);
