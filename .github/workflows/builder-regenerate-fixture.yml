@@ -1,0 +1,37 @@
+name: Builder - Regenerate Fixture Icons
+
+# One-shot maintenance workflow. `c3d8d34` dropped the committed fixture's
+# launcher PNGs because their deflate bytes are platform-specific, but the test
+# suite still validates that the committed fixture ships a real, correctly sized
+# icon at every density. Regenerating them needs the pure-TS icon generator and a
+# Node runtime, so it runs here rather than on a developer machine; no Android
+# toolchain is involved. Dispatch it, review the diff, and delete the workflow.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Regenerate the fixture launcher icons
+        run: node --experimental-strip-types scripts/ci/regenerateFixtureIcons.ts
+      - name: Commit the regenerated icons
+        run: |
+          set -euo pipefail
+          git config user.name "builder-ci"
+          git config user.email "builder-ci@users.noreply.github.com"
+          git add -A .builder/generated/android/app/src/main/res
+          if git diff --cached --quiet; then
+            echo "no icon changes; the fixture already carries valid icons"
+            exit 0
+          fi
+          git commit -m "builder: regenerate the committed fixture's launcher icons"
+          git push origin HEAD:${GITHUB_REF_NAME}
