@@ -2,7 +2,7 @@ import './isolate.mjs';
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { createServer } from 'node:net';
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -122,18 +122,23 @@ function smtpEnv(port: number, security = 'none'): Record<string, string> {
   };
 }
 
-function runCli(env: Record<string, string>, args: string[] = []): { code: number; out: string; err: string } {
-  try {
-    const out = execFileSync(process.execPath, ['--experimental-strip-types', join('scripts', 'notifyEmail.ts'), ...args], {
+/**
+ * Runs the CLI as a child process, asynchronously. It must not block the test's
+ * event loop: the fake SMTP server runs in this same process, and a synchronous
+ * spawn would freeze it, so the child could connect but never receive its
+ * greeting — a deadlock that looked exactly like a slow server.
+ */
+function runCli(env: Record<string, string>, args: string[] = []): Promise<{ code: number; out: string; err: string }> {
+  return new Promise((resolve) => {
+    execFile(process.execPath, ['--experimental-strip-types', join('scripts', 'notifyEmail.ts'), ...args], {
       cwd: REPO,
       encoding: 'utf-8',
-      env: { ...process.env, ...env },
-      stdio: ['ignore', 'pipe', 'pipe']
+      env: { ...process.env, ...env }
+    }, (error, stdout, stderr) => {
+      const code = error && typeof (error as any).code === 'number' ? (error as any).code : (error ? 1 : 0);
+      resolve({ code, out: stdout || '', err: stderr || '' });
     });
-    return { code: 0, out, err: '' };
-  } catch (e: any) {
-    return { code: typeof e.status === 'number' ? e.status : 1, out: e.stdout || '', err: e.stderr || '' };
-  }
+  });
 }
 
 describe('what a notification may declare', () => {  test('a fresh state reports WAITING, never a delivery', () => {
@@ -309,12 +314,12 @@ describe('the SMTP dialogue', () => {
 });
 
 describe('the notifyEmail CLI', () => {
-  test('reports missing configuration by name and exits 0', () => {
+  test('reports missing configuration by name and exits 0', async () => {
     const clean = { ...process.env } as Record<string, string>;
     for (const key of Object.keys(clean)) {
       if (key.startsWith('BUILDER_SMTP') || key === 'BUILDER_EMAIL_TO') delete clean[key];
     }
-    const res = runCli(clean);
+    const res = await runCli(clean);
     assert.strictEqual(res.code, 0);
     assert.match(res.out, /status=not_configured/);
     assert.match(res.out, /BUILDER_SMTP_HOST/);
@@ -329,7 +334,7 @@ describe('the notifyEmail CLI', () => {
 
     const server = await startFakeSmtp();
     try {
-      const res = runCli(smtpEnv(server.port), ['--dry-run']);
+      const res = await runCli(smtpEnv(server.port), ['--dry-run']);
       assert.strictEqual(res.code, 0, res.err);
       assert.match(res.out, /status=dry_run/);
       assert.match(res.out, /kind=COMPLETE/);
@@ -348,14 +353,14 @@ describe('the notifyEmail CLI', () => {
 
     const server = await startFakeSmtp();
     try {
-      const first = runCli(smtpEnv(server.port));
+      const first = await runCli(smtpEnv(server.port));
       assert.strictEqual(first.code, 0, first.err + first.out);
       assert.match(first.out, /status=sent/);
       assert.match(first.out, /kind=COMPLETE/);
       assert.doesNotMatch(first.out + first.err, /sup3r-secret-pass/);
       assert.strictEqual(server.messages.length, 1);
 
-      const second = runCli(smtpEnv(server.port));
+      const second = await runCli(smtpEnv(server.port));
       assert.strictEqual(second.code, 0, second.err + second.out);
       assert.match(second.out, /status=duplicate/);
       assert.strictEqual(server.messages.length, 1, 'the second invocation must not re-send');
