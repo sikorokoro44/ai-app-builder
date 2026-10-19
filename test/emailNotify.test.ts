@@ -422,6 +422,43 @@ describe('the notifyEmail CLI', () => {
     }
   });
 
+  test('a connectivity test authenticates and sends a labelled message without touching state', async () => {
+    initStateStore();
+    const s = readState();
+    const claimed = completeState();
+    Object.assign(s, claimed, { email: { sent: [] } });
+    writeState(s, { allowUncheckedTransition: true, reason: 'test fixture' });
+    const before = readFileSync(join(process.env.BUILDER_STATE_DIR!, 'state.json'), 'utf-8');
+
+    const server = await startFakeSmtp();
+    try {
+      const res = await runCli(smtpEnv(server.port), ['--test-send']);
+      assert.strictEqual(res.code, 0, res.err + res.out);
+      assert.match(res.out, /status=sent mode=test_send/);
+      assert.doesNotMatch(res.out, /sup3r-secret-pass/);
+      assert.strictEqual(server.messages.length, 1);
+      assert.match(server.messages[0], /Subject: \[TEST\]/, 'a test must be clearly identified as a test');
+      assert.doesNotMatch(server.messages[0], /APK ready and verified/, 'a test must never claim an APK is ready');
+      assert.match(server.messages[0], /not a delivery/);
+      const after = readFileSync(join(process.env.BUILDER_STATE_DIR!, 'state.json'), 'utf-8');
+      assert.strictEqual(after, before, 'a connectivity test must not read or write the live state');
+    } finally {
+      await server.close();
+    }
+  });
+
+  test('a connectivity test with no configuration reports the names and sends nothing', async () => {
+    const clean = { ...process.env } as Record<string, string>;
+    for (const key of Object.keys(clean)) {
+      if (key.startsWith('BUILDER_SMTP') || key === 'BUILDER_EMAIL_TO') delete clean[key];
+    }
+    const res = await runCli(clean, ['--test-send']);
+    assert.strictEqual(res.code, 0);
+    assert.match(res.out, /status=not_configured/);
+    assert.match(res.out, /BUILDER_SMTP_HOST/);
+    assert.doesNotMatch(res.out, /status=sent/);
+  });
+
   test('sends once and then reports the duplicate, never leaking the password', async () => {
     initStateStore();
     const s = readState();
