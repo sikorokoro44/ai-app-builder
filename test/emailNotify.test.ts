@@ -66,6 +66,10 @@ function startFakeSmtp(opts: { authOk?: boolean } = {}): Promise<FakeSmtp> {
       let buf = '';
       let data = '';
       let inData = false;
+      // A client that finishes and closes can reset the connection while this
+      // handler is mid-write; without a listener that becomes an uncaught
+      // exception and takes the whole test file down.
+      sock.on('error', () => { /* the dialogue is over; nothing to recover */ });
       sock.write('220 fake ESMTP ready\r\n');
       sock.on('data', (chunk) => {
         buf += chunk.toString('utf-8');
