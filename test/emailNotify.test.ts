@@ -252,6 +252,27 @@ describe('send-once bookkeeping', () => {
     assert.notStrictEqual(notificationFingerprint(a, 'COMPLETE'), notificationFingerprint(b, 'COMPLETE'));
   });
 
+  test('the same verified build has one fingerprint, so a resume cannot re-send it', () => {
+    // A resumed run re-reads the same state: same idea, same APK bytes, same
+    // cloud run, same public URL. Only the incidental timestamps differ. The
+    // fingerprint must ignore those, or every resume would mail again.
+    const first = completeState();
+    const resumed = completeState();
+    resumed.cloudBuild.finishedAt = new Date(Date.now() + 60_000).toISOString();
+    resumed.release.verifiedAt = new Date(Date.now() + 60_000).toISOString();
+    resumed.latestActivity = 'resumed and re-verified';
+    assert.strictEqual(
+      notificationFingerprint(first, 'COMPLETE'),
+      notificationFingerprint(resumed, 'COMPLETE')
+    );
+  });
+
+  test('a delivery and a failure for the same build are distinct notifications', () => {
+    const s = completeState();
+    assert.notStrictEqual(notificationFingerprint(s, 'COMPLETE'), notificationFingerprint(s, 'FAILED'));
+    assert.notStrictEqual(notificationFingerprint(s, 'FAILED'), notificationFingerprint(s, 'WAITING'));
+  });
+
   test('the recipient is stored masked', () => {
     assert.strictEqual(maskAddress('alice@example.org'), 'a***@example.org');
     assert.strictEqual(maskAddress('not-an-address'), '***');
@@ -344,6 +365,58 @@ describe('the notifyEmail CLI', () => {
       assert.match(res.out, /kind=COMPLETE/);
       assert.doesNotMatch(res.out, /sup3r-secret-pass/);
       assert.strictEqual(server.messages.length, 0, 'a dry run must not send');
+    } finally {
+      await server.close();
+    }
+  });
+
+  test('a state that lost the public-download proof sends nothing, however complete it looks', async () => {
+    initStateStore();
+    const s = readState();
+    const claimed = completeState();
+    claimed.evidence = { ...claimed.evidence, publicDownloadVerified: false };
+    Object.assign(s, claimed, { email: { sent: [] } });
+    writeState(s, { allowUncheckedTransition: true, reason: 'test fixture' });
+
+    const server = await startFakeSmtp();
+    try {
+      const res = await runCli(smtpEnv(server.port));
+      assert.strictEqual(res.code, 0, res.err + res.out);
+      assert.match(res.out, /status=sent/, 'the notifier still reports what it did');
+      assert.match(res.out, /kind=WAITING/, 'no success mail may be sent without the download proof');
+      assert.strictEqual(server.messages.length, 1);
+      assert.doesNotMatch(server.messages[0], /APK ready and verified/);
+      assert.match(server.messages[0], /has NOT delivered an app/);
+      const recorded = readState();
+      assert.strictEqual(recorded.email?.sent?.[0]?.kind, 'WAITING');
+    } finally {
+      await server.close();
+    }
+  });
+
+  test('a failed run sends a failure notice that claims no APK', async () => {
+    initStateStore();
+    const s = readState();
+    const failed: any = createInitialState();
+    failed.idea = 'notes app';
+    failed.projectState = ProjectStates.FAILED;
+    failed.latestActivity = 'cloud build failed: unresolved reference CalculatorStore';
+    Object.assign(s, failed, { email: { sent: [] } });
+    writeState(s, { allowUncheckedTransition: true, reason: 'test fixture' });
+
+    const server = await startFakeSmtp();
+    try {
+      const res = await runCli(smtpEnv(server.port));
+      assert.strictEqual(res.code, 0, res.err + res.out);
+      assert.match(res.out, /status=sent/);
+      assert.match(res.out, /kind=FAILED/);
+      assert.strictEqual(server.messages.length, 1);
+      assert.match(server.messages[0], /Build FAILED/);
+      assert.match(server.messages[0], /unresolved reference CalculatorStore/);
+      assert.match(server.messages[0], /not a delivery/);
+      assert.doesNotMatch(server.messages[0], /APK ready and verified/);
+      const recorded = readState();
+      assert.strictEqual(recorded.email?.sent?.[0]?.kind, 'FAILED');
     } finally {
       await server.close();
     }
