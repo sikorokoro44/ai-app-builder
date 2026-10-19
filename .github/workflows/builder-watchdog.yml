@@ -15,6 +15,12 @@ on:
   schedule:
     - cron: '*/20 * * * *'
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Report the plan (and what the notifier would declare) without changing or sending anything'
+        required: false
+        default: 'false'
+        type: boolean
 
 concurrency:
   group: builder-watchdog
@@ -77,6 +83,15 @@ jobs:
           BUILDER_SMTP_FROM: ${{ secrets.BUILDER_SMTP_FROM }}
           BUILDER_SMTP_SECURITY: ${{ secrets.BUILDER_SMTP_SECURITY }}
           BUILDER_EMAIL_TO: ${{ secrets.BUILDER_EMAIL_TO }}
+          BUILDER_WATCHDOG_DRY_RUN: ${{ inputs.dry_run }}
         # Inputs and secrets are bound above and referenced here, never
-        # interpolated into the shell text.
-        run: node --experimental-strip-types scripts/watchdog.ts
+        # interpolated into the shell text. A dry run prints the plan and the
+        # notification decision and touches nothing, so it is safe to dispatch
+        # any time to see what the system would do.
+        run: |
+          set -euo pipefail
+          if [ "$BUILDER_WATCHDOG_DRY_RUN" = "true" ]; then
+            node --experimental-strip-types scripts/watchdog.ts --dry-run
+          else
+            node --experimental-strip-types scripts/watchdog.ts
+          fi
