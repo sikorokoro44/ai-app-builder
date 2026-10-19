@@ -9,6 +9,8 @@ name: Builder - Regenerate Fixture Icons
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['feat/email-notify-watchdog', 'feat/regenerate-fixture-icons']
 
 permissions:
   contents: write
