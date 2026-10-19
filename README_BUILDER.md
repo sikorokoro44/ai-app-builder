@@ -16,6 +16,12 @@ GitHub Actions, and a build is only ever reported through the evidence chain in
   would report one app's proof as another's.
 - A run that the platform never started is an infrastructure fault, not a code
   fault: no repair pass is opened against code that never ran.
+- An accepted idea must reach a delivered APK with nothing running on the
+  phone: the watchdog (`builder-watchdog.yml`) resumes interrupted runs and
+  re-dispatches lost ones on a schedule.
+- The notification email may only claim COMPLETE when the completion gate it
+  shares with `markComplete.ts` passes; a failed run is FAILED and an
+  unfinished one is WAITING, each sent once per distinct declaration.
 - Progress is derived from recorded evidence, never simulated. The live view
   (`shared/liveProgress.ts`, `GET /live/progress`) is a read-only projection of the
   authoritative state.
@@ -27,6 +33,8 @@ GitHub Actions, and a build is only ever reported through the evidence chain in
 - Scripts: `scripts/*`, `scripts/live/*`
 - Run requests: `scripts/requestRun.ts`, `scripts/live/runRequests.ts`,
   `.builder/requests/`
+- Watchdog: `scripts/watchdog.ts`, `scripts/live/watchdogPlan.ts`
+- Notification email: `scripts/notifyEmail.ts`, `scripts/live/emailNotify.ts`
 - Shared: `shared/types.ts`, `shared/state.ts`, `shared/agentTypes.ts`,
   `shared/liveProgress.ts`, `shared/progress.ts`, `shared/stateWithProgressImpl.ts`
 - Workflows: `.github/workflows/builder-*.yml`

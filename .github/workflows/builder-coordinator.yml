@@ -129,6 +129,26 @@ jobs:
         if: always()
         run: node --experimental-strip-types scripts/coordinator.ts --status || true
 
+      # The notification goes out before the state is published, so the
+      # send-once record it writes is committed by the same push. The step can
+      # never fail the run: an unconfigured or unreachable mail server is named
+      # in the log, and the delivery of the app stays what the job reports.
+      # The same gate that decides COMPLETED decides COMPLETE here, so a WAITING
+      # or FAILED mail is an honest report, not a weaker one.
+      - name: Send the notification email
+        if: always()
+        continue-on-error: true
+        env:
+          BUILDER_STATE_DIR: .builder/live
+          BUILDER_SMTP_HOST: ${{ secrets.BUILDER_SMTP_HOST }}
+          BUILDER_SMTP_PORT: ${{ secrets.BUILDER_SMTP_PORT }}
+          BUILDER_SMTP_USER: ${{ secrets.BUILDER_SMTP_USER }}
+          BUILDER_SMTP_PASS: ${{ secrets.BUILDER_SMTP_PASS }}
+          BUILDER_SMTP_FROM: ${{ secrets.BUILDER_SMTP_FROM }}
+          BUILDER_SMTP_SECURITY: ${{ secrets.BUILDER_SMTP_SECURITY }}
+          BUILDER_EMAIL_TO: ${{ secrets.BUILDER_EMAIL_TO }}
+        run: node --experimental-strip-types scripts/notifyEmail.ts
+
       # GitHub is the permanent source of truth, so the evidence this run produced
       # belongs in the repository and not only in an artifact that expires. Only
       # the live state is committed: the generated sources are owned by
