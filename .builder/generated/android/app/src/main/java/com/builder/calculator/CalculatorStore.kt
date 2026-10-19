@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Calculator calculation model, in-memory history store and arithmetic engine for:
- * "A genuine modern calculator".
+ * "Build a native Android calculator with addition, subtraction, multiplication, division, decimals, percentages, negative numbers, operator precedence, calculation history, clear/delete controls, division-by-zero protection, responsive UI, and offline operation.".
  *
  * Purpose: calculate expressions and review calculation history. Pure Kotlin with no Android dependencies, so the
  * entire data layer is covered by JVM unit tests.

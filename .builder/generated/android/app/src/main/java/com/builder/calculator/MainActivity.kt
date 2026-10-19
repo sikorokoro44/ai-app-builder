@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * A genuine modern calculator, built on a real
+ * Build a native Android calculator with addition, subtraction, multiplication, division, decimals, percentages, negative numbers, operator precedence, calculation history, clear/delete controls, division-by-zero protection, responsive UI, and offline operation., built on a real
  * arithmetic engine rather than a record-keeping screen.
  *
  * When the equals key produces a value the expression is added to the history
