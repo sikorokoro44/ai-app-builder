@@ -1,0 +1,82 @@
+name: Builder - Watchdog
+
+# The last link that does not need a phone, a laptop or a chat session.
+#
+# An idea can be accepted and then stall without anyone noticing: the dispatch
+# was dropped by the platform, the coordinator run was killed mid-build, or a
+# run sat queued forever holding the coordinator concurrency slot. Every twenty
+# minutes this workflow reads the open requests, the live state and the runs
+# GitHub reports, and answers what is stuck: it resumes an interrupted run with
+# its own store, re-dispatches a request nothing is answering, cancels a run
+# that will never start, and closes a request the delivery already covers. If
+# the SMTP secrets are configured it also sends the COMPLETE/FAILED/WAITING
+# notification the coordinator could not send from a job that died.
+on:
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: builder-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # It pushes the state and request changes it made and nothing else.
+      contents: write
+      # It reads the coordinator's runs, cancels abandoned ones and dispatches
+      # a resume or a re-drive with its own token.
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Give the job an identity to commit with
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config --get user.email
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      # The same cache the coordinator writes, so an interrupted run's store is
+      # visible here and can be resumed rather than started over. The exact key
+      # only matches a run of the same commit; the prefix reaches back to the
+      # last attempt otherwise.
+      - name: Restore the run store
+        uses: actions/cache@v5
+        with:
+          path: |
+            .builder/agents
+            .builder/live
+          key: builder-run-store-${{ github.sha }}
+          restore-keys: |
+            builder-run-store-
+
+      - name: Watch the run and keep it moving
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILDER_BRANCH: main
+          BUILDER_COORDINATOR_WORKFLOW: .github/workflows/builder-coordinator.yml
+          BUILDER_AGENT_DIR: .builder/agents
+          BUILDER_STATE_DIR: .builder/live
+          BUILDER_REQUESTS_DIR: .builder/requests
+          BUILDER_SMTP_HOST: ${{ secrets.BUILDER_SMTP_HOST }}
+          BUILDER_SMTP_PORT: ${{ secrets.BUILDER_SMTP_PORT }}
+          BUILDER_SMTP_USER: ${{ secrets.BUILDER_SMTP_USER }}
+          BUILDER_SMTP_PASS: ${{ secrets.BUILDER_SMTP_PASS }}
+          BUILDER_SMTP_FROM: ${{ secrets.BUILDER_SMTP_FROM }}
+          BUILDER_SMTP_SECURITY: ${{ secrets.BUILDER_SMTP_SECURITY }}
+          BUILDER_EMAIL_TO: ${{ secrets.BUILDER_EMAIL_TO }}
+        # Inputs and secrets are bound above and referenced here, never
+        # interpolated into the shell text.
+        run: node --experimental-strip-types scripts/watchdog.ts

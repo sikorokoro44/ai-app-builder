@@ -121,6 +121,25 @@ export interface EvidenceChain {
 }
 
 /**
+ * A notification email that was actually delivered, recorded so the same
+ * notification cannot be sent twice.
+ *
+ * The key is a fingerprint of what the email declared (kind, state, evidence
+ * chain, checksum, URL), not of when it was sent: a resumed run recomputing
+ * the same declaration finds the record and stays quiet. Only masked recipient
+ * data is kept, so the committed state file never becomes a place where an
+ * address can leak.
+ */
+export interface EmailSentRecord {
+  /** COMPLETE, FAILED or WAITING. */
+  kind: string;
+  fingerprint: string;
+  at: string;
+  toMasked: string;
+  subject: string;
+}
+
+/**
  * Evidence that the app's launcher icon was generated from the idea and really
  * shipped inside the built APK.
  *
@@ -210,6 +229,8 @@ export interface LiveState {
   evidence?: EvidenceChain;
   idea?: string;
   attempt?: number;
+  /** Notifications that were delivered, newest first. Absent means none. */
+  email?: { sent?: EmailSentRecord[] };
 }
 
 export function createInitialState(): LiveState {

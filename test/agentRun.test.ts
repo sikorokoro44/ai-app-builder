@@ -158,6 +158,12 @@ describe('running the fleet for an idea', () => {
     assert.deepStrictEqual(manifest.waves, executionWaves());
   });
 
+  test('records the idea it is building in the live state', () => {
+    // The state has to name its own work: a resume or a completion notice that
+    // cannot say which idea it belongs to is not honest about what it reports.
+    assert.strictEqual(readState().idea, IDEA, 'the live state must record the idea the run is building');
+  });
+
   test('leaves no agent in a working state once the run is over', () => {
     const state = readState();
     for (const id of AGENT_IDS.map((a) => a.id)) {

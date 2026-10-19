@@ -112,6 +112,43 @@ recorded as what it is rather than as a build failure:
 Requests live in `.builder/requests/` and are pushed before the dispatch, so a lost
 dispatch costs a retry and not the idea.
 
+### Watchdog (no phone in the loop)
+`builder-watchdog.yml` runs every twenty minutes and on demand. It reads the open
+requests, the live state and the coordinator runs GitHub reports, then acts on
+what nothing else is answering:
+
+- an interrupted run with a store on disk is resumed (`--resume`), never
+  restarted, and the request for it is not re-driven alongside it;
+- a request that was never dispatched, or whose run the platform queued and
+  forgot, is re-dispatched through `requestRun.ts --redrive`, bounded by a
+  lifetime cap, a backoff floor, an age window and one dispatch per tick;
+- a run that sat queued past `BUILDER_WATCHDOG_STALE_QUEUED_MS` (it holds the
+  coordinator concurrency slot) or ran past `BUILDER_WATCHDOG_STALE_INPROGRESS_MS`
+  is cancelled;
+- a request whose idea already has a completed, fully-gated delivery is closed;
+- a run that FAILED is left alone: rebuilding the same failure automatically is
+  a loop, not a repair.
+
+The rules live in `scripts/live/watchdogPlan.ts` as a pure function over
+fixtures (`npm test` exercises them); `scripts/watchdog.ts` only gathers the
+inputs, executes the plan and pushes what it changed.
+
+### Notification email
+`scripts/notifyEmail.ts` sends the mail the run owes: **COMPLETE** only when the
+same gates that produce `COMPLETED` pass (full evidence chain, verified APK and
+icon, created release, public HTTPS download fetched and matched), **FAILED** for
+a failed run, **WAITING** otherwise. Each declaration is sent once — the
+fingerprint is recorded in the live state, which is committed, so a resumed run
+stays quiet. The coordinator runs it before publishing the state, and the
+watchdog runs it for runs that died before they could.
+
+Configuration is by repository secrets: `BUILDER_EMAIL_TO`, `BUILDER_SMTP_HOST`,
+`BUILDER_SMTP_PORT` (587), `BUILDER_SMTP_FROM`, optional `BUILDER_SMTP_USER`,
+`BUILDER_SMTP_PASS`, `BUILDER_SMTP_SECURITY` (`starttls` default, `implicit` or
+`none`). Without them the step reports `status=not_configured` with the missing
+names and the build stays green. Credentials are never printed or committed; the
+recipient is stored masked.
+
 ## Layout
 - Agents: `scripts/agents/` (specs in `agents/`, registry, planner, coordinator,
   recovery, ownership)

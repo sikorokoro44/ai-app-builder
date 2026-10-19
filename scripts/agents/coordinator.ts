@@ -171,6 +171,10 @@ export async function runCoordinator(opts: CoordinatorOptions = {}): Promise<Coo
   const seedFleet = async (): Promise<void> => {
     const ctx = new AgentContext({ runId, repoRoot, projectRoot, idea, mode, agentId: 'coordinator', echo: false });
     await ctx.mutate((s) => {
+      // The live state records the idea it is building: without this the state
+      // cannot say what it belongs to, so a later watchdog tick or notification
+      // has no honest name for the run it is resuming or reporting on.
+      s.idea = idea;
       s.agents = { ...(s.agents || {}) };
       for (const agent of AGENTS) {
         const existing = s.agents[agent.id];
