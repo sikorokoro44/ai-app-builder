@@ -41,7 +41,61 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Build a native Android calculator with addition, subtraction, multiplication, division, decimals, percentages, negative numbers, operator precedence, calculation history, clear/delete controls, division-by-zero protection, responsive UI, and offline operation., built on a real
+ * Build a complete native Android application called Smart
+Expense Tracker.
+
+Package name: com.sikorokoro44.expensetracker
+
+Create a polished, production-quality personal finance
+tracker that works completely offline.
+
+Features:
+1. Record income and expenses.
+2. Create, edit and delete transactions.
+3. Categorize transactions.
+4. Save data persistently in a local database.
+5. Show daily, weekly and monthly summaries.
+6. Display income, expenses and remaining balance.
+7. Support search, filtering and sorting.
+8. Allow users to set monthly budgets by category.
+9. Show spending charts and budget warnings.
+10. Export transactions to CSV.
+11. Support decimal amounts and multiple currencies,
+    including SZL, ZAR and USD.
+12. Include PIN-based app locking.
+13. Provide a responsive interface with light and dark
+    themes.
+14. Validate all inputs and handle errors safely.
+15. Never lose saved transactions when the app restarts.
+16. Require no account, subscription or internet access
+    for core functionality.
+
+Testing requirements:
+- Test transaction creation, editing and deletion.
+- Test income and expense calculations.
+- Test decimal arithmetic and balance accuracy.
+- Test budget calculations and spending warnings.
+- Test database persistence after restarting the app.
+- Test CSV export and invalid input handling.
+- Test offline operation and application navigation.
+- Test the generated launcher icon and Android package.
+
+Use the AI App Builder's 20-agent system with dynamic
+task allocation and dependency management.
+
+Run all relevant automated tests. Repair failures before
+release.
+
+Build the APK using GitHub Actions in the cloud.
+Verify the APK, package name, integrity and public
+download URL.
+
+Publish a release only after all required verification
+checks pass.
+
+Return the verified public APK download link and a
+summary of the actual test results. Never fabricate
+successful tests or release evidence., built on a real
  * arithmetic engine rather than a record-keeping screen.
  *
  * When the equals key produces a value the expression is added to the history
