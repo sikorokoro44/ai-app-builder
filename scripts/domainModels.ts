@@ -103,8 +103,8 @@ export function isCalculatorSpec(spec: EntitySpec): boolean {
 
 const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: EntitySpec }[] = [
   {
-    core: ['calculator\w*'],
-    weak: ['calc(?!ulator)\w*', 'arithmetic', 'math\w*'],
+    core: ['calculator\\w*'],
+    weak: ['calc(?!ulator)\\w*', 'arithmetic', 'math\\w*'],
     spec: {
       className: 'Calculator', noun: 'calculator', plural: 'calculators',
       purpose: 'calculate expressions and review calculation history',
@@ -130,7 +130,7 @@ const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: Ent
     }
   },
   {
-    core: ['timer', 'stopwatch', 'countdown', 'focus\w*', 'pomodoro', 'practice\w*'],
+    core: ['timer', 'stopwatch', 'countdown', 'focus\\w*', 'pomodoro', 'practice\\w*'],
     weak: [],
     spec: {
       className: 'Session', noun: 'session', plural: 'sessions',
@@ -144,7 +144,7 @@ const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: Ent
     }
   },
   {
-    core: ['recipe\w*', 'cook\w*', 'meal\w*', 'menu', 'cookbook', 'ingredient\w*'],
+    core: ['recipe\\w*', 'cook\\w*', 'meal\\w*', 'menu', 'cookbook', 'ingredient\\w*'],
     weak: [],
     spec: {
       className: 'Recipe', noun: 'recipe', plural: 'recipes',
@@ -158,8 +158,8 @@ const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: Ent
     }
   },
   {
-    core: ['expense\w*', 'money', 'saving\w*', 'financ\w*', 'spend\w*', 'cost\w*', 'invoice\w*', 'price\w*'],
-    weak: ['budget\w*'],
+    core: ['expense\\w*', 'money', 'saving\\w*', 'financ\\w*', 'spend\\w*', 'cost\\w*', 'invoice\\w*', 'price\\w*'],
+    weak: ['budget\\w*'],
     spec: {
       className: 'Expense', noun: 'expense', plural: 'expenses',
       purpose: 'record spending against a budget',
@@ -172,7 +172,7 @@ const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: Ent
     }
   },
   {
-    core: ['flashcard\w*', 'quiz\w*', 'vocab\w*', 'word\w*', 'stud\w*', 'learn\w*', 'exam\w*', 'question\w*', 'deck\w*', 'revision'],
+    core: ['flashcard\\w*', 'quiz\\w*', 'vocab\\w*', 'word\\w*', 'stud\\w*', 'learn\\w*', 'exam\\w*', 'question\\w*', 'deck\\w*', 'revision'],
     weak: [],
     spec: {
       className: 'Card', noun: 'card', plural: 'cards',
@@ -186,7 +186,7 @@ const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: Ent
     }
   },
   {
-    core: ['habit\w*', 'streak', 'routine', 'water\w*', 'fitness', 'workout', 'exercise', 'sleep', 'meditat\w*', 'plant\w*', 'schedule'],
+    core: ['habit\\w*', 'streak', 'routine', 'water\\w*', 'fitness', 'workout', 'exercise', 'sleep', 'meditat\\w*', 'plant\\w*', 'schedule'],
     weak: [],
     spec: {
       className: 'Entry', noun: 'entry', plural: 'entries',
@@ -201,7 +201,7 @@ const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: Ent
     }
   },
   {
-    core: ['contact\w*', 'phonebook', 'address\w*', 'customer\w*', 'client\w*', 'student\w*', 'employee\w*', 'people', 'person\w*'],
+    core: ['contact\\w*', 'phonebook', 'address\\w*', 'customer\\w*', 'client\\w*', 'student\\w*', 'employee\\w*', 'people', 'person\\w*'],
     weak: [],
     spec: {
       className: 'Contact', noun: 'contact', plural: 'contacts',
@@ -214,8 +214,8 @@ const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: Ent
     }
   },
   {
-    core: ['todo', 'to-?do', 'checklist', 'backlog', 'grocer\w*', 'shopping', 'bug\s*report', 'chore', 'errand'],
-    weak: ['task', 'remind\w*'],
+    core: ['todo', 'to-?do', 'checklist', 'backlog', 'grocer\\w*', 'shopping', 'bug\\s*report', 'chore', 'errand'],
+    weak: ['task', 'remind\\w*'],
     spec: {
       className: 'Task', noun: 'task', plural: 'tasks',
       purpose: 'track things to get done',
@@ -244,7 +244,7 @@ const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: Ent
     }
   },
   {
-    core: ['book\w*', 'read\w*', 'article\w*', 'link\w*', 'url', 'feed', 'news', 'playlist\w*', 'album\w*', 'movie\w*', 'wish\w*'],
+    core: ['book\\w*', 'read\\w*', 'article\\w*', 'link\\w*', 'url', 'feed', 'news', 'playlist\\w*', 'album\\w*', 'movie\\w*', 'wish\\w*'],
     weak: ['list'],
     spec: {
       className: 'Item', noun: 'item', plural: 'items',
