@@ -334,6 +334,7 @@ describe('idea-to-domain selection', () => {
     ['A gift wishlist', 'Item'],
     ['A genuine modern calculator', 'Calculator'],
     ['A calculator for my budget', 'Calculator'],
+    ['Build a complete native Android application called Smart Expense Tracker. Record income and expenses. Test income and expense calculations. Test budget calculations and spending warnings. Test decimal arithmetic and balance accuracy.', 'Expense'],
     ['something completely unrecognised zzz', 'Record']
   ];
   for (const [idea, cls] of cases) {

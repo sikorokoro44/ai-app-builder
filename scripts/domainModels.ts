@@ -58,11 +58,16 @@ export function numericRoles(spec: EntitySpec): NumericRoles {
  * never fall through to another archetype and must never reach the generic
  * record model.
  */
-export const CALCULATOR_MATCH: RegExp = /\b(calc\w*|arithmetic|math\w*)\b/i;
+export const CALCULATOR_MATCH = /\bcalculator(s)?\b|arithmetic|math(s|matics)?\b/i;
+const CALC_ACTIVITY = /\bcalc(ulat\w*)\b/i;
+const CALC_PRODUCT = /\bcalculator(s)?\b|arithmetic|math(s|matics)?\b/i;
 
 /** True when the idea asks for a calculator rather than a record-keeping app. */
 export function isCalculatorIdea(idea: string): boolean {
-  return CALCULATOR_MATCH.test(idea || '');
+  const text = idea || '';
+  if (CALC_PRODUCT.test(text)) return true;
+  if (CALC_ACTIVITY.test(text)) return false;
+  return false;
 }
 
 /** True when the resolved model is the calculator archetype. */
@@ -245,12 +250,68 @@ export function normalizeSpec(spec: EntitySpec): EntitySpec {
   };
 }
 
+function scoreArchetype(text: string, idx: number): number {
+  const t = text.toLowerCase();
+  let score = 0;
+  if (idx === 0) {
+    // Calculator: require explicit product words; incidental activity words count very little
+    if (/\bcalculator(s)?\b/.test(t)) score += 100;
+    if (/\barithmetic\b/.test(t)) score += 80;
+    if (/\bmath(s|matics)?\b/.test(t)) score += 60;
+    if (/\bcalc(ulat\w*)\b/.test(t)) score += 1;
+    return score;
+  }
+  if (idx === 4) {
+    // Expense: strong signal
+    if (/\b(expense|expenses)\b/.test(t)) score += 100;
+    if (/\bbudget(s|ing)?\b/.test(t)) score += 90;
+    if (/\btransaction(s)?\b/.test(t)) score += 80;
+    if (/\b(spend|spent|spending|income|balance)\b/.test(t)) score += 40;
+    if (/\b(money|saving|financ\w*|cost|invoice|price)\b/.test(t)) score += 20;
+    if (/\bcalc(ulat\w*)\b/.test(t)) score += 5;
+    return score;
+  }
+  // Generic scoring
+  const archetypes = [
+    null,
+    /\b(note|notebook|journal|diary|scratchpad|memo|notes)\b/,
+    /\b(timer|stopwatch|countdown|focus\w*|pomodoro|practice\w*)\b/,
+    /\b(recipe\w*|cook\w*|meal\w*|menu|cookbook|ingredient\w*)\b/,
+    null,
+    /\b(flashcard\w*|quiz\w*|vocab\w*|word\w*|stud\w*|learn\w*|exam\w*|question\w*|deck\w*|revision)\b/,
+    /\b(habit\w*|streak|routine|water\w*|fitness|workout|exercise|sleep|meditat\w*|plant\w*|schedule)\b/,
+    /\b(contact\w*|phonebook|address\w*|customer\w*|client\w*|student\w*|employee\w*|people|person\w*)\b/,
+    /\b(todo|to-?do|task|checklist|backlog|remind\w*|grocer\w*|shopping|bug\s*report|chore|errand)\b/,
+    /\b(book|books|reading|reads|read|reader|readers|author|authors|novel|novels|library|libraries|literature|fiction|nonfiction|chapter|chapters|kindle|audiobook|audiobooks|bookshelf|bookshelves)\b/,
+    /\b(list|wishlist|wish|album|movie|playlist\w*|article\w*|link|url|feed|news)\b/
+  ];
+  const re = archetypes[idx];
+  if (re) {
+    const m = t.match(new RegExp(re.source, 'gi'));
+    if (m) score += m.length * 10;
+  }
+  return score;
+}
+
 /**
  * Chooses the entity model that best matches the user's idea. Falls back to a
  * generic but fully functional record model, never to a stub.
  */
 export function specForIdea(idea: string): EntitySpec {
   const text = idea || '';
+  let bestIdx = -1;
+  let bestScore = 0;
+  for (let i = 0; i < ARCHETYPES.length; i++) {
+    const s = scoreArchetype(text, i);
+    if (s > bestScore) {
+      bestScore = s;
+      bestIdx = i;
+    }
+  }
+  if (bestIdx >= 0 && bestScore > 0) {
+    return normalizeSpec(ARCHETYPES[bestIdx].spec);
+  }
+  // Fallback to original first-match for backward compat in edge cases
   for (const { match, spec } of ARCHETYPES) {
     if (match.test(text)) return normalizeSpec(spec);
   }
