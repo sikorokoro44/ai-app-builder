@@ -1,4 +1,4 @@
-rootProject.name = "calculator"
+rootProject.name = "smartexpensetracker"
 pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }

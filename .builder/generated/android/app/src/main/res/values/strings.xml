@@ -1,18 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Calculator</string>
-    <string name="empty_list">Nothing here yet. Enter a calculation and press =.</string>
+    <string name="app_name">Smart Expense Tracker</string>
+    <string name="field_title">Expense</string>
+    <string name="field_category">Category</string>
+    <string name="add_button">Add expense</string>
     <string name="delete">Remove</string>
-    <string name="history_heading">History</string>
-    <string name="display_hint">Result appears here</string>
-    <string name="key_open_paren">(</string>
-    <string name="key_close_paren">)</string>
-    <string name="key_percent">%</string>
-    <string name="key_clear">C</string>
-    <string name="key_divide">÷</string>
-    <string name="key_multiply">×</string>
-    <string name="key_minus">−</string>
-    <string name="key_plus">+</string>
-    <string name="key_equals">=</string>
-    <string name="key_decimal">.</string>
+    <string name="empty_list">No expenses yet. Add your first one.</string>
+    <string name="progress_format">Amount (cents): %1$d</string>
 </resources>

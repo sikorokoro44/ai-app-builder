@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.builder.calculator"
+    namespace = "com.sikorokoro44.expensetracker"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.builder.calculator"
+        applicationId = "com.sikorokoro44.expensetracker"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
