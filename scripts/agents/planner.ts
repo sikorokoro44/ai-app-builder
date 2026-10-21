@@ -8,7 +8,7 @@
  * and no work that the downstream agents cannot actually perform.
  */
 
-import { specForIdea, numericRoles, ARCHETYPES, isCalculatorSpec, type EntitySpec } from '../domainModels.ts';
+import { specForIdea, numericRoles, DEFAULT_SPEC, isCalculatorSpec, type EntitySpec } from '../domainModels.ts';
 import { decideIcon } from '../iconCatalog.ts';
 import { AGENT_ID_NAMES, isAgentId, agentIndex } from './agentIds.ts';
 import { ownedPathsOf } from './ownership.ts';
@@ -123,10 +123,9 @@ export interface BuildPlan {
 const REQUIRED_SCREEN_STATES = ['populated', 'empty', 'input-rejected'];
 
 function archetypeFor(idea: string): string {
-  const hit = ARCHETYPES.find((a) => a.match.test(idea));
-  if (!hit) return 'generic record';
-  const noun = hit.spec.plural;
-  return noun;
+  const spec = specForIdea(idea);
+  if (spec.className === DEFAULT_SPEC.className) return 'generic record';
+  return spec.plural;
 }
 
 function pkgPath(packageId: string): string {

@@ -5,7 +5,7 @@
  * None of them touches the generated project: they decide what will be built.
  */
 
-import { ARCHETYPES, numericRoles, specForIdea, type EntitySpec } from '../../domainModels.ts';
+import { numericRoles, specForIdea, DEFAULT_SPEC, type EntitySpec } from '../../domainModels.ts';
 import { scanForSecrets } from '../../live/repoGuard.ts';
 import type { AgentSpec } from '../../../shared/agentTypes.ts';
 import type { PlannedRequirement } from '../planner.ts';
@@ -55,8 +55,8 @@ export const ideaIntakeAgent: AgentSpec<void, IdeaArtifact> = {
     const normalized = raw.replace(/[.\s]+$/, '').trim();
     const words = normalized.toLowerCase().split(/[^a-z0-9+#.]+/).filter(Boolean);
     const keywords = [...new Set(words.filter((w) => w.length > 2 && !FILLER.test(w)))].slice(0, 12);
-    const archetype = ARCHETYPES.find((a) => a.match.test(normalized));
     const spec = specForIdea(normalized);
+    const archetype = spec.className === DEFAULT_SPEC.className ? 'generic record' : spec.plural;
     const rejected = keywords.filter((w) => scanForSecrets(w).length > 0);
     const purpose = `capture and organise ${spec.plural}`;
     const out: IdeaArtifact = {
@@ -64,12 +64,12 @@ export const ideaIntakeAgent: AgentSpec<void, IdeaArtifact> = {
       normalized,
       purpose,
       keywords: keywords.length ? keywords : [spec.noun, spec.plural],
-      archetype: archetype ? spec.plural : 'generic record',
+      archetype,
       lengthWords: words.length,
       rejected
     };
     ctx.publish('idea', out);
-    ctx.log(`normalized "${truncate(normalized)}" into ${archetype ? archetype.spec.plural : 'a generic record'} with ${out.keywords.length} keywords`);
+    ctx.log(`normalized "${truncate(normalized)}" into ${archetype === 'generic record' ? 'a generic record' : archetype} with ${out.keywords.length} keywords`);
     return out;
   },
   validate(out) {
@@ -175,7 +175,7 @@ export const domainModelerAgent: AgentSpec<IdeaArtifact, DomainArtifact> = {
     const roles = numericRoles(spec);
     const out: DomainArtifact = {
       spec,
-      archetype: ARCHETYPES.find((a) => a.match.test(input.normalized)) ? spec.plural : 'generic record',
+      archetype: spec.className === DEFAULT_SPEC.className ? 'generic record' : spec.plural,
       numericRoles: Object.fromEntries(Object.entries(roles).map(([k, v]) => [k, v?.name ?? 'none'])),
       actions: spec.actions,
       openItems: spec.fields.length < 2 ? ['the idea implies only one field; the model adds a completion flag'] : []

@@ -61,7 +61,7 @@ export interface IconDefinition {
 
 /** Ordered so the first matching group wins; more specific groups come first. */
 const KEYWORDS: Array<{ category: IconCategory; match: RegExp }> = [
-  { category: 'calculator', match: /\b(calc\w*|arithmetic|math\w*)\b/i },
+  { category: 'calculator', match: /\bcalculators?\b/i },
   { category: 'timer', match: /\b(timer|timers|stopwatch|countdown|pomodoro|session|sessions|focus|interval|practice)\b/i },
   { category: 'recipes', match: /\b(recipe|recipes|cook|cooking|cookbook|meal|meals|menu|ingredient|ingredients|kitchen|bake|baking)\b/i },
   { category: 'finance', match: /\b(expense|expenses|budget|budgets|money|saving|savings|finance|financial|spend|spending|cost|costs|invoice|invoices|price|prices|billing|wallet|expensetracker)\b/i },

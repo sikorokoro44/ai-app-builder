@@ -50,24 +50,50 @@ export function numericRoles(spec: EntitySpec): NumericRoles {
 }
 
 /**
- * Calculator intent, matched case-insensitively over the raw idea.
+ * Archetype keyword model.
  *
- * "calculator", "calculate", "calculation" and every other calc* word share the
- * calc prefix, so one alternative covers all of them, alongside arithmetic and
- * math*. This matcher is deliberately first in ARCHETYPES: a calculator idea must
- * never fall through to another archetype and must never reach the generic
- * record model.
+ * Every archetype owns two sets of keyword families:
+ *
+ * - `core` families name the archetype outright ("journal", "calculator",
+ *   "expense"): the words a person uses to say *what the app is*.
+ * - `weak` families are incidental: the "calculations" inside a finance brief,
+ *   a "budget" mentioned next to a calculator, a generic "list". They may only
+ *   pick the archetype when no core word appears at all.
+ *
+ * A keyword family is a small regex source matched with word boundaries on
+ * both sides, and it counts once however often it occurs.
  */
-export const CALCULATOR_MATCH = /\bcalculator(s)?\b|arithmetic|math(s|matics)?\b/i;
-const CALC_ACTIVITY = /\bcalc(ulat\w*)\b/i;
-const CALC_PRODUCT = /\bcalculator(s)?\b|arithmetic|math(s|matics)?\b/i;
+export type KeywordFamily = string;
 
-/** True when the idea asks for a calculator rather than a record-keeping app. */
+export interface ArchetypeDefinition {
+  /** Coarse matcher built from the archetype's core keywords. */
+  match: RegExp;
+  spec: EntitySpec;
+  core: KeywordFamily[];
+  weak: KeywordFamily[];
+  coreMatchers: RegExp[];
+  weakMatchers: RegExp[];
+}
+
+/** Builds a word-boundary matcher for one keyword family. */
+function keywordMatcher(keyword: KeywordFamily): RegExp {
+  return new RegExp(`\\b(?:${keyword})\\b`, 'i');
+}
+
+/**
+ * A calculator is a *product*, so the idea has to name it. "calculate",
+ * "calculation" and "arithmetic" are activities: a finance brief that asks to
+ * "test income and expense calculations" is still a finance app.
+ */
+export const CALCULATOR_MATCH = /\bcalculator\w*\b/i;
+
+/**
+ * True when the idea asks for a calculator rather than a record-keeping app.
+ * This follows the resolved archetype, so incidental activity words never
+ * turn a finance app into a calculator.
+ */
 export function isCalculatorIdea(idea: string): boolean {
-  const text = idea || '';
-  if (CALC_PRODUCT.test(text)) return true;
-  if (CALC_ACTIVITY.test(text)) return false;
-  return false;
+  return isCalculatorSpec(specForIdea(idea));
 }
 
 /** True when the resolved model is the calculator archetype. */
@@ -75,9 +101,10 @@ export function isCalculatorSpec(spec: EntitySpec): boolean {
   return spec.className === 'Calculator';
 }
 
-export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
+const ARCHETYPE_SEEDS: { core: KeywordFamily[]; weak: KeywordFamily[]; spec: EntitySpec }[] = [
   {
-    match: CALCULATOR_MATCH,
+    core: ['calculator\w*'],
+    weak: ['calc(?!ulator)\w*', 'arithmetic', 'math\w*'],
     spec: {
       className: 'Calculator', noun: 'calculator', plural: 'calculators',
       purpose: 'calculate expressions and review calculation history',
@@ -89,7 +116,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(note|notebook|journal|diary|scratchpad|memo|notes)\b/i,
+    core: ['note', 'notes', 'notebook', 'journal', 'diary', 'scratchpad', 'memo'],
+    weak: [],
     spec: {
       className: 'Note', noun: 'note', plural: 'notes',
       purpose: 'capture and revisit notes',
@@ -102,7 +130,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(timer|stopwatch|countdown|focus\w*|pomodoro|practice\w*)\b/i,
+    core: ['timer', 'stopwatch', 'countdown', 'focus\w*', 'pomodoro', 'practice\w*'],
+    weak: [],
     spec: {
       className: 'Session', noun: 'session', plural: 'sessions',
       purpose: 'time focused sessions',
@@ -115,7 +144,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(recipe\w*|cook\w*|meal\w*|menu|cookbook|ingredient\w*)\b/i,
+    core: ['recipe\w*', 'cook\w*', 'meal\w*', 'menu', 'cookbook', 'ingredient\w*'],
+    weak: [],
     spec: {
       className: 'Recipe', noun: 'recipe', plural: 'recipes',
       purpose: 'keep a personal recipe collection',
@@ -128,7 +158,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(expense\w*|budget\w*|money|saving\w*|financ\w*|spend\w*|cost\w*|invoice\w*|price\w*)\b/i,
+    core: ['expense\w*', 'money', 'saving\w*', 'financ\w*', 'spend\w*', 'cost\w*', 'invoice\w*', 'price\w*'],
+    weak: ['budget\w*'],
     spec: {
       className: 'Expense', noun: 'expense', plural: 'expenses',
       purpose: 'record spending against a budget',
@@ -141,7 +172,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(flashcard\w*|quiz\w*|vocab\w*|word\w*|stud\w*|learn\w*|exam\w*|question\w*|deck\w*|revision)\b/i,
+    core: ['flashcard\w*', 'quiz\w*', 'vocab\w*', 'word\w*', 'stud\w*', 'learn\w*', 'exam\w*', 'question\w*', 'deck\w*', 'revision'],
+    weak: [],
     spec: {
       className: 'Card', noun: 'card', plural: 'cards',
       purpose: 'learn with flashcards',
@@ -154,7 +186,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(habit\w*|streak|routine|water\w*|fitness|workout|exercise|sleep|meditat\w*|plant\w*|schedule)\b/i,
+    core: ['habit\w*', 'streak', 'routine', 'water\w*', 'fitness', 'workout', 'exercise', 'sleep', 'meditat\w*', 'plant\w*', 'schedule'],
+    weak: [],
     spec: {
       className: 'Entry', noun: 'entry', plural: 'entries',
       purpose: 'log daily habits and build streaks',
@@ -168,7 +201,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(contact\w*|phonebook|address\w*|customer\w*|client\w*|student\w*|employee\w*|people|person\w*)\b/i,
+    core: ['contact\w*', 'phonebook', 'address\w*', 'customer\w*', 'client\w*', 'student\w*', 'employee\w*', 'people', 'person\w*'],
+    weak: [],
     spec: {
       className: 'Contact', noun: 'contact', plural: 'contacts',
       purpose: 'keep contact details',
@@ -180,7 +214,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(todo|to-?do|task|checklist|backlog|remind\w*|grocer\w*|shopping|bug\s*report|chore|errand)\b/i,
+    core: ['todo', 'to-?do', 'checklist', 'backlog', 'grocer\w*', 'shopping', 'bug\s*report', 'chore', 'errand'],
+    weak: ['task', 'remind\w*'],
     spec: {
       className: 'Task', noun: 'task', plural: 'tasks',
       purpose: 'track things to get done',
@@ -192,7 +227,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(book|books|reading|reads|read|reader|readers|author|authors|novel|novels|library|libraries|literature|fiction|nonfiction|chapter|chapters|kindle|audiobook|audiobooks|bookshelf|bookshelves)\b/i,
+    core: ['book', 'books', 'reading', 'reads', 'read', 'reader', 'readers', 'author', 'authors', 'novel', 'novels', 'library', 'libraries', 'literature', 'fiction', 'nonfiction', 'chapter', 'chapters', 'kindle', 'audiobook', 'audiobooks', 'bookshelf', 'bookshelves'],
+    weak: [],
     spec: {
       className: 'Book', noun: 'book', plural: 'books',
       purpose: 'track books and how far each one has been read',
@@ -208,7 +244,8 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   },
   {
-    match: /\b(book\w*|read\w*|article\w*|link\w*|url|feed|news|playlist\w*|album\w*|movie\w*|wish\w*|list)\b/i,
+    core: ['book\w*', 'read\w*', 'article\w*', 'link\w*', 'url', 'feed', 'news', 'playlist\w*', 'album\w*', 'movie\w*', 'wish\w*'],
+    weak: ['list'],
     spec: {
       className: 'Item', noun: 'item', plural: 'items',
       purpose: 'keep a list worth coming back to',
@@ -221,6 +258,19 @@ export const ARCHETYPES: { match: RegExp; spec: EntitySpec }[] = [
     }
   }
 ];
+
+/**
+ * The archetype catalogue. `match` stays available as a coarse matcher for
+ * the core keywords; the scoring below uses the keyword families directly.
+ */
+export const ARCHETYPES: ArchetypeDefinition[] = ARCHETYPE_SEEDS.map((seed) => ({
+  match: new RegExp(`\\b(?:${seed.core.join('|')})\\b`, 'i'),
+  spec: seed.spec,
+  core: seed.core,
+  weak: seed.weak,
+  coreMatchers: seed.core.map(keywordMatcher),
+  weakMatchers: seed.weak.map(keywordMatcher)
+}));
 
 export const DEFAULT_SPEC: EntitySpec = {
   className: 'Record', noun: 'record', plural: 'records',
@@ -250,71 +300,115 @@ export function normalizeSpec(spec: EntitySpec): EntitySpec {
   };
 }
 
-function scoreArchetype(text: string, idx: number): number {
-  const t = text.toLowerCase();
-  let score = 0;
-  if (idx === 0) {
-    // Calculator: require explicit product words; incidental activity words count very little
-    if (/\bcalculator(s)?\b/.test(t)) score += 100;
-    if (/\barithmetic\b/.test(t)) score += 80;
-    if (/\bmath(s|matics)?\b/.test(t)) score += 60;
-    if (/\bcalc(ulat\w*)\b/.test(t)) score += 1;
-    return score;
+/** Weight of a core keyword family. Core families always outrank weak ones. */
+const CORE_WEIGHT = 10;
+/**
+ * An idea shorter than this is read as a noun phrase, so the word that names
+ * the archetype decides it ("plant watering journal" is a journal).
+ */
+const HEAD_NOUN_LIMIT = 12;
+
+/** Counts how many keyword families of an archetype the text uses. */
+function countFamilies(text: string, matchers: RegExp[]): number {
+  let families = 0;
+  for (const matcher of matchers) {
+    if (matcher.test(text)) families++;
   }
-  if (idx === 4) {
-    // Expense: strong signal
-    if (/\b(expense|expenses)\b/.test(t)) score += 100;
-    if (/\bbudget(s|ing)?\b/.test(t)) score += 90;
-    if (/\btransaction(s)?\b/.test(t)) score += 80;
-    if (/\b(spend|spent|spending|income|balance)\b/.test(t)) score += 40;
-    if (/\b(money|saving|financ\w*|cost|invoice|price)\b/.test(t)) score += 20;
-    if (/\bcalc(ulat\w*)\b/.test(t)) score += 5;
-    return score;
+  return families;
+}
+
+/** Where each word of the idea starts, so a match can be placed in the sentence. */
+function wordStarts(text: string): number[] {
+  const starts: number[] = [];
+  for (const m of text.matchAll(/[A-Za-z0-9'-]+/g)) starts.push(m.index ?? 0);
+  return starts;
+}
+
+/** The index of the last word a match ends in. */
+function lastWordIndex(starts: number[], end: number): number {
+  let count = 0;
+  for (const start of starts) {
+    if (start >= end) break;
+    count++;
   }
-  // Generic scoring
-  const archetypes = [
-    null,
-    /\b(note|notebook|journal|diary|scratchpad|memo|notes)\b/,
-    /\b(timer|stopwatch|countdown|focus\w*|pomodoro|practice\w*)\b/,
-    /\b(recipe\w*|cook\w*|meal\w*|menu|cookbook|ingredient\w*)\b/,
-    null,
-    /\b(flashcard\w*|quiz\w*|vocab\w*|word\w*|stud\w*|learn\w*|exam\w*|question\w*|deck\w*|revision)\b/,
-    /\b(habit\w*|streak|routine|water\w*|fitness|workout|exercise|sleep|meditat\w*|plant\w*|schedule)\b/,
-    /\b(contact\w*|phonebook|address\w*|customer\w*|client\w*|student\w*|employee\w*|people|person\w*)\b/,
-    /\b(todo|to-?do|task|checklist|backlog|remind\w*|grocer\w*|shopping|bug\s*report|chore|errand)\b/,
-    /\b(book|books|reading|reads|read|reader|readers|author|authors|novel|novels|library|libraries|literature|fiction|nonfiction|chapter|chapters|kindle|audiobook|audiobooks|bookshelf|bookshelves)\b/,
-    /\b(list|wishlist|wish|album|movie|playlist\w*|article\w*|link|url|feed|news)\b/
-  ];
-  const re = archetypes[idx];
-  if (re) {
-    const m = t.match(new RegExp(re.source, 'gi'));
-    if (m) score += m.length * 10;
+  return count - 1;
+}
+
+/**
+ * The archetype named by the last keyword-covered word of a short idea.
+ *
+ * "Plant watering journal for my flat" is a journal, not a watering log, so
+ * the word that decides the app is the last one a keyword covers, not the last
+ * word of the sentence. Returns -1 when no single archetype owns that word.
+ */
+function decisiveArchetype(text: string): number {
+  const starts = wordStarts(text);
+  const covered: number[] = [];
+  for (let i = 0; i < ARCHETYPES.length; i++) {
+    let last = -1;
+    for (const matcher of ARCHETYPES[i].coreMatchers) {
+      for (const m of text.matchAll(new RegExp(matcher.source, 'gi'))) {
+        const index = lastWordIndex(starts, m.index + m[0].length);
+        if (index > last) last = index;
+      }
+    }
+    covered.push(last);
   }
-  return score;
+  const furthest = Math.max(...covered);
+  if (furthest < 0) return -1;
+  const owners = covered.map((c, i) => (c === furthest ? i : -1)).filter((i) => i >= 0);
+  return owners.length === 1 ? owners[0] : -1;
+}
+
+/** How many words the idea has, ignoring punctuation. */
+function wordCount(idea: string): number {
+  return idea.replace(/[^A-Za-z0-9' -]+/g, ' ').split(/\s+/).filter(Boolean).length;
+}
+
+/**
+ * Scores every archetype by the keyword families the idea uses. Core families
+ * count for ten, weak families for one, and the first archetype in catalogue
+ * order wins a tie, so the catalogue order stays the tie-breaker.
+ */
+function scoreArchetypes(text: string, weight: number, useWeak: boolean): number {
+  let bestIdx = -1;
+  let bestScore = 0;
+  for (let i = 0; i < ARCHETYPES.length; i++) {
+    const archetype = ARCHETYPES[i];
+    const matchers = useWeak ? archetype.weakMatchers : archetype.coreMatchers;
+    const score = countFamilies(text, matchers) * weight;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+  return bestIdx >= 0 ? bestIdx : -1;
 }
 
 /**
  * Chooses the entity model that best matches the user's idea. Falls back to a
  * generic but fully functional record model, never to a stub.
+ *
+ * Resolution order:
+ *  1. The last keyword-covered word of a short idea names the archetype.
+ *  2. Otherwise the archetype with the most core keyword families wins.
+ *  3. Weak (incidental) keywords only decide when no core word appears.
  */
 export function specForIdea(idea: string): EntitySpec {
-  const text = idea || '';
-  let bestIdx = -1;
-  let bestScore = 0;
-  for (let i = 0; i < ARCHETYPES.length; i++) {
-    const s = scoreArchetype(text, i);
-    if (s > bestScore) {
-      bestScore = s;
-      bestIdx = i;
-    }
+  const text = (idea || '').replace(/\s+/g, ' ').trim();
+  if (!text) return normalizeSpec(DEFAULT_SPEC);
+
+  if (wordCount(text) <= HEAD_NOUN_LIMIT) {
+    const decisive = decisiveArchetype(text);
+    if (decisive >= 0) return normalizeSpec(ARCHETYPES[decisive].spec);
   }
-  if (bestIdx >= 0 && bestScore > 0) {
-    return normalizeSpec(ARCHETYPES[bestIdx].spec);
-  }
-  // Fallback to original first-match for backward compat in edge cases
-  for (const { match, spec } of ARCHETYPES) {
-    if (match.test(text)) return normalizeSpec(spec);
-  }
+
+  const coreIdx = scoreArchetypes(text, CORE_WEIGHT, false);
+  if (coreIdx >= 0) return normalizeSpec(ARCHETYPES[coreIdx].spec);
+
+  const weakIdx = scoreArchetypes(text, 1, true);
+  if (weakIdx >= 0) return normalizeSpec(ARCHETYPES[weakIdx].spec);
+
   return normalizeSpec(DEFAULT_SPEC);
 }
 

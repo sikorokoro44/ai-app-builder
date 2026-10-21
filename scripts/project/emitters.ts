@@ -42,7 +42,66 @@ export const GENERATED_BUILD = {
 
 const STOP_WORDS = /^(the|and|for|with|that|this|from|your|our|build|make|create|simple|basic|small|app|application|please|can|you|me|want|need|help|using|use)$/;
 
+/**
+ * A package id the idea states outright, e.g. "Package name: com.example.app".
+ * The builder honours it instead of inventing a slug from the first words.
+ */
+const EXPLICIT_PACKAGE = /\bpackage\s+name\s*:\s*([a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+)/i;
+
+/**
+ * An app name the idea states outright, e.g. "App name: Smart Expense Tracker".
+ * A "package name" line is not an app name, so the line must not start with
+ * "package".
+ */
+const EXPLICIT_APP_NAME = /^[^\S\n]*(?!package\b)(?:app(?:lication)?[^\S\n]+)?name[^\S\n]*:[^\S\n]*(.+)$/im;
+
+/**
+ * A name the idea gives in prose, e.g. "an application called Smart Expense
+ * Tracker". Only a name that reads like a name is accepted: it has to start
+ * with a capital or be a single word.
+ */
+const CALLED_APP_NAME = /\bcalled\s+([A-Za-z0-9][A-Za-z0-9 '&+-]*(?:[^\S\n]+[A-Za-z0-9][A-Za-z0-9 '&+-]*){0,4})/;
+
+const MAX_APP_NAME = 40;
+
+/** Strips characters that would break XML or a Java/Kotlin identifier. */
+function sanitizeAppName(name: string): string {
+  return (name || '')
+    .replace(/[<>&"'`{}|\\^~\[\]]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** The package id the idea asks for, when it states one. */
+function explicitPackageId(idea: string): string {
+  const m = EXPLICIT_PACKAGE.exec(idea || '');
+  return m ? m[1].toLowerCase() : '';
+}
+
+/** The app name the idea asks for, when it states one. */
+function explicitAppName(idea: string): string {
+  const text = idea || '';
+  const explicit = EXPLICIT_APP_NAME.exec(text);
+  if (explicit) {
+    const named = sanitizeAppName(explicit[1]);
+    if (named) return named.slice(0, MAX_APP_NAME).trim();
+  }
+  const called = CALLED_APP_NAME.exec(text);
+  if (called) {
+    const candidate = called[1].trim();
+    const looksLikeAName = /^[A-Z0-9]/.test(candidate) || !/\s/.test(candidate);
+    if (looksLikeAName) {
+      const named = sanitizeAppName(candidate);
+      if (named) return named.slice(0, MAX_APP_NAME).trim();
+    }
+  }
+  return '';
+}
+
 export function derivePackageId(idea: string): string {
+  // An idea that names its package gets exactly that package.
+  const explicit = explicitPackageId(idea);
+  if (explicit) return explicit;
   // A calculator is a named product, not a phrase: whatever words the idea
   // happens to contain, the package it ships under must be the one the rest of
   // the pipeline (intent-fit, manifest label, intent filters) already expects.
@@ -58,10 +117,12 @@ export function derivePackageId(idea: string): string {
 }
 
 export function deriveAppName(idea: string): string {
+  const explicit = explicitAppName(idea);
+  if (explicit) return explicit;
   if (isCalculatorIdea(idea)) return 'Calculator';
   const cleaned = (idea || '').replace(/\s+/g, ' ').trim();
-  const short = cleaned.length > 40 ? cleaned.slice(0, 40).trim() : cleaned;
-  const safe = short.replace(/[<>&"'`{}|\\^~\[\]]/g, '').replace(/\s+/g, ' ').trim();
+  const short = cleaned.length > MAX_APP_NAME ? cleaned.slice(0, MAX_APP_NAME).trim() : cleaned;
+  const safe = sanitizeAppName(short);
   return safe || 'Builder App';
 }
 
