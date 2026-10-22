@@ -70,6 +70,9 @@ function fixture(t: any) {
   try { run(['config', 'receive.unpackLimit', '0'], remote); } catch {}
   try { run(['config', 'receive.fsckObjects', 'false'], remote); } catch {}
   try { run(['symbolic-ref', 'HEAD', 'refs/heads/main'], remote); } catch {}
+  // Ensure HEAD points to main
+  try { run(['update-server-info'], remote); } catch {}
+  try { run(['config', 'core.bare', 'true'], remote); } catch {}
   try {
     run(['init', '-q', work], root);
   } catch {
