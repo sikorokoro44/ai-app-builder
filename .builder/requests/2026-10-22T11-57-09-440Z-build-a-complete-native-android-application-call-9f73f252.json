@@ -4,6 +4,13 @@
   "mode": "full",
   "concurrency": 4,
   "requestedAt": "2026-10-22T11:57:09.481Z",
-  "state": "requested",
-  "dispatches": []
+  "state": "dispatched",
+  "dispatches": [
+    {
+      "at": "2026-10-22T12:09:09.642Z",
+      "dispatchId": "a6d34da111e1",
+      "outcome": "dispatched",
+      "runId": "39776006062"
+    }
+  ]
 }
