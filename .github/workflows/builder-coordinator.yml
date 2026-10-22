@@ -3,6 +3,8 @@ name: Builder - Coordinator
 # Runs the twenty agents for one idea. The run store (.builder/agents) is cached
 # and uploaded, so a stopped run is continued with `--resume <runId>` instead of
 # being started again.
+run-name: "Builder - ${{ inputs.requestId || inputs.runId || inputs.idea }}"
+
 on:
   workflow_dispatch:
     inputs:
@@ -12,6 +14,10 @@ on:
         type: string
       runId:
         description: 'Continue this run instead of starting a new one'
+        required: false
+        type: string
+      requestId:
+        description: 'Request ID that produced this dispatch'
         required: false
         type: string
       concurrency:
@@ -97,6 +103,7 @@ jobs:
         env:
           BUILDER_IDEA: ${{ inputs.idea }}
           BUILDER_RUN_ID: ${{ inputs.runId }}
+          BUILDER_REQUEST_ID: ${{ inputs.requestId }}
           BUILDER_MODE: ${{ inputs.mode }}
           BUILDER_CONCURRENCY: ${{ inputs.concurrency || '4' }}
           BUILDER_CONFIG_PATH: config/builder.json
@@ -118,6 +125,9 @@ jobs:
           args=(--concurrency "$BUILDER_CONCURRENCY")
           if [ "$BUILDER_MODE" = "pre-cloud" ]; then
             args+=(--pre-cloud)
+          fi
+          if [ -n "$BUILDER_REQUEST_ID" ]; then
+            args+=(--request-id "$BUILDER_REQUEST_ID")
           fi
           if [ -n "$BUILDER_RUN_ID" ]; then
             node --experimental-strip-types scripts/coordinator.ts --resume "$BUILDER_RUN_ID" "${args[@]}"

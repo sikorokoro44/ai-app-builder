@@ -226,13 +226,22 @@ function redrive(request: WatchdogPlan['redrive'][number]): void {
 function resume(plan: WatchdogPlan['resume']): void {
   if (!plan) return;
   const floor = Date.now() - 60_000;
-  const res = sh('gh', [
+  // Try to find requestId for this idea
+  const requests = listRequests();
+  const matchingReq = requests
+    .filter((r: RunRequest) => r.state !== 'delivered' && r.idea.trim().toLowerCase() === plan.idea.trim().toLowerCase())
+    .pop();
+  const resumeArgs = [
     'workflow', 'run', WORKFLOW,
     '-f', `idea=${plan.idea}`,
     '-f', `runId=${plan.runId}`,
     '-f', `mode=${plan.mode}`,
     '-f', `concurrency=${plan.concurrency}`
-  ], 60_000);
+  ];
+  if (matchingReq) {
+    resumeArgs.push('-f', `requestId=${matchingReq.requestId}`);
+  }
+  const res = sh('gh', resumeArgs, 60_000);
   if (!res.ok) {
     actions.push({ action: 'resume', target: plan.runId, ok: false, detail: res.err || res.out });
     errors.push(`resume dispatch for ${plan.runId} failed: ${res.err || res.out}`);

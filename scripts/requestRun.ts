@@ -165,13 +165,13 @@ if (!flag('no-push')) {
 
 let runId = '';
 try {
-  gh(['workflow', 'run', WORKFLOW, '-f', `idea=${request.idea}`, '-f', `mode=${request.mode}`, '-f', `concurrency=${request.concurrency}`]);
+  gh(['workflow', 'run', WORKFLOW, '-f', `idea=${request.idea}`, '-f', `mode=${request.mode}`, '-f', `concurrency=${request.concurrency}`, '-f', `requestId=${request.requestId}`]);
   const floor = Date.now() - 60_000;
-  for (let waited = 0; waited < 10; waited++) {
+  for (let waited = 0; waited < 15; waited++) {
     execFileSync('sleep', ['6']);
     const runs = JSON.parse(
-      gh(['run', 'list', '--workflow', WORKFLOW, '--branch', BRANCH, '--limit', '10', '--json', 'databaseId,status,createdAt,event,headSha'])
-    ) as { databaseId: number; status: string; createdAt: string; event: string; headSha: string }[];
+      gh(['run', 'list', '--workflow', WORKFLOW, '--branch', BRANCH, '--limit', '15', '--json', 'databaseId,status,createdAt,event,headSha,displayTitle,name'])
+    ) as { databaseId: number; status: string; createdAt: string; event: string; headSha: string; displayTitle?: string; name?: string }[];
     const fresh = runs.filter((r) => Date.parse(r.createdAt) >= floor).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     if (fresh) {
       runId = String(fresh.databaseId);
