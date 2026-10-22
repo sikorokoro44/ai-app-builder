@@ -13,7 +13,12 @@ function readAll(relative: string): string {
 }
 
 function run(args: string[], cwd: string): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  try {
+    return execFileSync('git', args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  } catch (e: any) {
+    if (e.stderr) console.error(e.stderr.toString());
+    throw e;
+  }
 }
 
 /**
@@ -57,10 +62,24 @@ function fixture(t: any) {
   const work = join(root, 'work');
   const other = join(root, 'other');
 
-run(['init', '-q', '--bare', '-b', 'main', remote], root);
-run(['init', '-q', '-b', 'main', work], root);
+  try {
+    run(['init', '-q', '--bare', remote], root);
+  } catch {
+    execFileSync('git', ['init', '--bare', remote], { cwd: root });
+  }
+  try { run(['config', 'receive.unpackLimit', '0'], remote); } catch {}
+  try { run(['config', 'receive.fsckObjects', 'false'], remote); } catch {}
+  try { run(['symbolic-ref', 'HEAD', 'refs/heads/main'], remote); } catch {}
+  try {
+    run(['init', '-q', work], root);
+  } catch {
+    execFileSync('git', ['init', work], { cwd: root });
+  }
+  try { run(['-C', work, 'checkout', '-b', 'main'], root); } catch { try { run(['-C', work, 'checkout', '-B', 'main'], root); } catch {} }
 mkdirSync(join(work, '.builder/requests'), { recursive: true });
 writeFileSync(join(work, '.builder/requests/base.json'), '{"base":1}\n');
+run(['-C', work, 'config', 'user.email', 'builder@example.com'], root);
+run(['-C', work, 'config', 'user.name', 'Builder'], root);
 run(['add', '-A'], work);
 run(['commit', '-qm', 'base'], work);
 run(['remote', 'add', 'origin', remote], work);
