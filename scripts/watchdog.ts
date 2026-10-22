@@ -251,8 +251,8 @@ function resume(plan: WatchdogPlan['resume']): void {
   const runId = discoverRunId(floor);
   // Record the resume against the open request for this idea when one exists,
   // so the request ledger shows the attempt that is answering it.
-  const requests = listRequests();
-  const matching = requests
+  const resumeRequests = listRequests();
+  const matching = resumeRequests
     .filter((r: RunRequest) => r.state !== 'delivered' && r.idea.trim().toLowerCase() === plan.idea.trim().toLowerCase())
     .pop();
   if (matching) {
