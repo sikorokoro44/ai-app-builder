@@ -73,6 +73,12 @@ export interface ChainGateInput {
   finalDownloadUrl?: string;
   evidence?: EvidenceChain;
   publicDownloadVerified?: boolean;
+  idea?: string;
+  projectRoot?: string;
+  /** The verdict of the feature gate for this request. */
+  featureGate?: import('../../shared/state.ts').FeatureGateState;
+  /** The request this run answers. */
+  requestId?: string;
 }
 
 export function assertLifecycleEvidence(g: ChainGateInput): void {
@@ -120,6 +126,24 @@ export function assertLifecycleEvidence(g: ChainGateInput): void {
   for (const stage of LifecycleStages) {
     if (!hasStage(g as any, stage)) problems.push(`missing evidence stage: ${stage}`);
   }
+
+  // The features the request asked for must be proved against the APK being released.
+  const gateProblem = (() => {
+    const gate = g.featureGate as any;
+    if (!gate) return 'the feature gate never ran for this request (no requested feature was proved against a build)';
+    if (gate.passed !== true) {
+      const first = gate.reasons?.[0] ?? gate.failures?.join(', ') ?? 'the gate refused the app';
+      return `the feature gate refused this app: ${first}`;
+    }
+    if (g.apkSha256 && gate.apkSha256 && gate.apkSha256 !== g.apkSha256) {
+      return 'the feature gate was run against a different APK than the one being released';
+    }
+    if (g.requestId && gate.requestId && gate.requestId !== g.requestId) {
+      return 'the feature gate was run for a different request than the one being completed';
+    }
+    return null;
+  })();
+  if (gateProblem) problems.push(gateProblem);
 
   if (problems.length > 0) {
     throw new Error(`Lifecycle evidence incomplete:\n - ${problems.join('\n - ')}`);

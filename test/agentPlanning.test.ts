@@ -121,7 +121,12 @@ describe('planning an arbitrary idea', () => {
   test('asks for no permission the app does not need', () => {
     for (const idea of IDEAS) {
       const security = planForIdea(idea).security;
-      assert.deepStrictEqual(security.permissions, ['android.permission.INTERNET']);
+      // The finance archetype is an offline tracker: it asks for nothing at
+      // all, and its manifest ships without the internet permission.
+      const expected = specForIdea(idea).className === 'Expense'
+        ? []
+        : ['android.permission.INTERNET'];
+      assert.deepStrictEqual(security.permissions, expected);
       assert.ok(security.secretPolicy.length >= 2, `${idea} has no credential policy`);
       assert.ok(security.mitigations.length > 0, `${idea} has no mitigations`);
     }

@@ -43,15 +43,17 @@ try {
     release: staged.release,
     finalDownloadUrl: staged.finalDownloadUrl,
     evidence: staged.evidence,
-    publicDownloadVerified: staged.evidence?.publicDownloadVerified
-  });
+    publicDownloadVerified: staged.evidence?.publicDownloadVerified,
+    featureGate: staged.featureGate,
+    requestId: staged.request?.requestId
+  } as any);
 } catch (e: any) {
   console.error(`COMPLETED gate rejected:\n${e.message}`);
   process.exit(1);
 }
 
 try {
-  assertStateTruthfulAndComplete(staged);
+  assertStateTruthfulAndComplete(staged as any);
 } catch (e: any) {
   console.error(`COMPLETED truthfulness failed:\n${e.message}`);
   process.exit(1);

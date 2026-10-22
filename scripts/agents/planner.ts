@@ -17,6 +17,7 @@ import {
   deriveAppName,
   derivePackageId,
   derivePackageId as packageIdFor,
+  isFinanceSpec,
   pluralOf,
   unitTestCount
 } from '../project/emitters.ts';
@@ -194,6 +195,7 @@ export function deriveSections(idea: string): DerivedSections {
   const roles = numericRoles(spec);
   const cls = spec.className;
   const calculator = isCalculatorSpec(spec);
+  const finance = isFinanceSpec(spec);
   const textFields = spec.fields.filter((f) => f.type === 'text');
   const requiredText = textFields.filter((f) => !f.optional);
   const optionalText = textFields.filter((f) => f.optional);
@@ -233,7 +235,18 @@ export function deriveSections(idea: string): DerivedSections {
             'The percent key must behave like a physical calculator, not like a bare decimal shift.',
             ['200 * 10% is 20.', '50 + 10% is 55.'])
         ]
-      : actionWords.map((a, i) => requirement(`req-00${4 + i}`,
+      : finance
+        ? [
+            requirement('req-004',
+              'Income and expenses are distinct kinds of movement.',
+              'A tracker that cannot tell money coming in from money going out cannot report a balance.',
+              ['The capture form offers both kinds of movement.', 'Income and expenses are totalled separately.']),
+            requirement('req-005',
+              'Every category can carry a monthly budget, and exceeding it is warned about.',
+              'A budget the user cannot compare against the spending is only a number.',
+              ['A monthly limit can be set for a category.', 'The screen warns when the spending of a category passes its limit.'])
+          ]
+        : actionWords.map((a, i) => requirement(`req-00${4 + i}`,
         `Each ${spec.noun} can ${actionLabel(a)}.`,
         `The derived entity supports the "${a}" action.`,
         [`The ${a} control changes exactly one stored item.`, `The ${a} control reports failure for an unknown id.`]))),
@@ -267,7 +280,125 @@ export function deriveSections(idea: string): DerivedSections {
       [`The ${roles.primary.label.toLowerCase()} total is computed from the store.`])] : [])
   ];
 
-  const screens: PlannedScreen[] = calculator
+  const screens: PlannedScreen[] = finance
+    ? [
+        {
+          id: 'screen-expense',
+          name: 'Expenses',
+          purpose: 'The main screen: record income and expenses, then work through the list.',
+          elements: [
+            'App title',
+            'Remaining balance',
+            'Search field',
+            'Type filter chips',
+            'Sort control',
+            'Amount, category and date per row',
+            'Edit and delete controls per row',
+            'Add transaction button'
+          ],
+          states: REQUIRED_SCREEN_STATES,
+          copyKeys: [
+            'app_name',
+            'balance_label',
+            'search_hint',
+            'filter_all',
+            'filter_income',
+            'filter_expense',
+            'sort_date',
+            'sort_amount',
+            'sort_category',
+            'field_title',
+            'field_amountCents',
+            'field_category',
+            'field_note',
+            'add_button',
+            'edit_button',
+            'delete',
+            'save',
+            'cancel',
+            'empty_list',
+            'invalid_transaction'
+          ]
+        },
+        {
+          id: 'screen-reports',
+          name: 'Reports',
+          purpose: 'What the money did: totals for a day, a week and a month, and spending per category.',
+          elements: [
+            'Period selector',
+            'Income total',
+            'Expense total',
+            'Balance total',
+            'Spending by category chart',
+            'Category totals with the amount per category'
+          ],
+          states: REQUIRED_SCREEN_STATES,
+          copyKeys: [
+            'summary_day',
+            'summary_week',
+            'summary_month',
+            'income_label',
+            'expense_label',
+            'balance_label',
+            'chart_title',
+            'amount_with_currency'
+          ]
+        },
+        {
+          id: 'screen-budgets',
+          name: 'Budgets',
+          purpose: 'A monthly limit per category, and whether it has been exceeded.',
+          elements: [
+            'Category input',
+            'Monthly limit input',
+            'Add budget button',
+            'Budget progress per category',
+            'Warning when the budget is exceeded'
+          ],
+          states: REQUIRED_SCREEN_STATES,
+          copyKeys: [
+            'budget_title',
+            'budget_limit',
+            'budget_progress_format',
+            'budget_exceeded',
+            'budget_within',
+            'field_category',
+            'add_button',
+            'invalid_amount',
+            'invalid_category'
+          ]
+        },
+        {
+          id: 'screen-settings',
+          name: 'Settings',
+          purpose: 'The base currency, the theme, the PIN lock and the CSV export.',
+          elements: [
+            'Base currency selector',
+            'Theme controls',
+            'Set PIN control',
+            'PIN entry',
+            'Export CSV button',
+            'CSV output'
+          ],
+          states: REQUIRED_SCREEN_STATES,
+          copyKeys: [
+            'currency_title',
+            'theme_title',
+            'theme_light',
+            'theme_dark',
+            'theme_system',
+            'set_pin',
+            'pin_hint',
+            'unlock',
+            'pin_wrong',
+            'pin_set',
+            'export_csv',
+            'csv_title',
+            'amount_with_currency'
+          ]
+        }
+      ]
+    : calculator
     ? [
         {
           id: 'screen-workspace',
@@ -335,7 +466,9 @@ export function deriveSections(idea: string): DerivedSections {
     language: 'Kotlin',
     uiToolkit: 'Jetpack Compose (Material3)',
     architecturePattern: 'single-activity, unidirectional state read from an in-memory store',
-    persistence: 'in-memory store behind a pure Kotlin class (JVM testable)',
+    persistence: finance
+      ? 'a local file database behind a pure Kotlin store (JVM testable)'
+      : 'in-memory store behind a pure Kotlin class (JVM testable)',
     minSdk: GENERATED_BUILD.minSdk,
     targetSdk: GENERATED_BUILD.targetSdk,
     compileSdk: GENERATED_BUILD.compileSdk,
@@ -362,24 +495,45 @@ export function deriveSections(idea: string): DerivedSections {
     ]
   };
 
-  const security: PlannedSecurity = {
-    permissions: ['android.permission.INTERNET'],
-    network: 'none',
-    dataAtRest: 'process memory only; nothing is written to disk by the app',
-    secretPolicy: [
-      'No token, key or credential is embedded in generated sources.',
-      'The generated project is scanned for credential patterns before it is published.',
-      'The manifest requests no permission beyond the one the platform build needs.'
-    ],
-    risks: [
-      'Backup is enabled, so process memory can be captured by the platform backup agent.',
-      'A debug-signed APK is not suitable for distribution.'
-    ],
-    mitigations: [
-      'The APK is verified and checksummed independently before release.',
-      'The release is attached to an immutable, checksummed asset URL.'
-    ]
-  };
+  const security: PlannedSecurity = finance
+    ? {
+        permissions: [],
+        network: 'none',
+        dataAtRest: 'a local file in the private storage of the app, written atomically',
+        secretPolicy: [
+          'No token, key or credential is embedded in generated sources.',
+          'The generated project is scanned for credential patterns before it is published.',
+          'The manifest requests no permission at all: the app never talks to the network.',
+          'A PIN is stored as a salted hash, never in the clear.'
+        ],
+        risks: [
+          'Backup is enabled, so the local database can be captured by the platform backup agent.',
+          'A debug-signed APK is not suitable for distribution.'
+        ],
+        mitigations: [
+          'The app stores no account, no credential and no payment data.',
+          'The APK is verified and checksummed independently before release.',
+          'The release is attached to an immutable, checksummed asset URL.'
+        ]
+      }
+    : {
+        permissions: ['android.permission.INTERNET'],
+        network: 'none',
+        dataAtRest: 'process memory only; nothing is written to disk by the app',
+        secretPolicy: [
+          'No token, key or credential is embedded in generated sources.',
+          'The generated project is scanned for credential patterns before it is published.',
+          'The manifest requests no permission beyond the one the platform build needs.'
+        ],
+        risks: [
+          'Backup is enabled, so process memory can be captured by the platform backup agent.',
+          'A debug-signed APK is not suitable for distribution.'
+        ],
+        mitigations: [
+          'The APK is verified and checksummed independently before release.',
+          'The release is attached to an immutable, checksummed asset URL.'
+        ]
+      };
 
 
   const verification = {

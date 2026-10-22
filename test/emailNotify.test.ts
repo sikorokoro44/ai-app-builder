@@ -48,6 +48,21 @@ function completeState(): any {
   s.latestActivity = 'public download verified';
   for (const stage of LifecycleStages) recordStage(s, stage, `${stage} proved`);
   s.evidence = { ...s.evidence, publicDownloadVerified: true };
+  // The features the request asked for have to be proved against the APK that
+  // is being announced, so the completion email requires that verdict.
+  s.featureGate = {
+    passed: true,
+    failures: [],
+    reasons: [],
+    capabilities: [
+      { id: 'create-records', title: 'Capture a plant', requested: true, passed: true, implemented: true, tests: [] }
+    ],
+    checkedAt: new Date().toISOString(),
+    runId: '37687931599',
+    apkSha256: s.apkSha256,
+    requestId: 'req-water-plants'
+  };
+  s.request = { requestId: 'req-water-plants', dispatchId: 'disp-1' };
   return s;
 }
 

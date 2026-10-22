@@ -112,8 +112,16 @@ describe('the progress line renders the progress counter, not the target field',
   test('projects with a plain numeric field keep a single-placeholder progress line', () => {
     const recipe = specForIdea('A recipe organiser for my kitchen');
     assert.match(plannedStrings(recipe, 'recipes').join(' '), /<string name="progress_format">Servings: %1\$d<\/string>/);
+  });
+
+  test('the finance archetype carries a budget line instead of the generic progress line', () => {
     const expense = specForIdea('An expense tracker with budget');
-    assert.match(plannedStrings(expense, 'expenses').join(' '), /<string name="progress_format">Amount \(cents\): %1\$d<\/string>/);
+    assert.strictEqual(expense.className, 'Expense');
+    const all = plannedStrings(expense, 'expenses').join(' ');
+    assert.match(all, /<string name="budget_progress_format">%1\$s of %2\$s<\/string>/,
+      'the money tracker reports a budget against its limit, not a generic progress counter');
+    assert.doesNotMatch(all, /<string name="progress_format">/,
+      'the generic progress line must not survive into the specialised archetype');
   });
 
   test('Session has a target but no progress counter, so no progress_format exists', () => {

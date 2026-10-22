@@ -283,6 +283,18 @@ function recoverFromEventLog(): LiveState | null {
         sawProgress = true;
       }
     }
+    // The test results and the feature gate verdict are rebuilt from the log
+    // as well: a run that restarts after the build must still be able to say
+    // which features were proved, and a gate verdict that only lived in the
+    // state file would be lost with it.
+    if (e.type === Events.TEST_RESULTS_RECORDED && e.results && typeof e.results === 'object') {
+      s.testResults = Array.isArray(e.results) ? (e.results as any[]) : [e.results as any];
+      sawProgress = true;
+    }
+    if (e.type === Events.FEATURE_GATE_RECORDED && e.gate && typeof e.gate === 'object') {
+      s.featureGate = e.gate as any;
+      sawProgress = true;
+    }
   }
 
   if (!sawProgress) return null;

@@ -65,6 +65,8 @@ export interface AgentExecutionContext {
   activity(text: string): Promise<unknown>;
   /** Log a line to the run transcript. */
   log(text: string): void;
+  /** Record a fact in the append-only event log, for facts that outlive the state file. */
+  record(event: Record<string, unknown>): void;
   /** Record a lifecycle evidence link through the proven evidence chain. */
   evidence(stage: string, text: string): Promise<void>;
   /** Run a proven repository script as a child process. */

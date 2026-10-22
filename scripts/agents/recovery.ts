@@ -34,6 +34,10 @@ import { runCoordinator, type CoordinatorOptions, type CoordinatorReport } from 
 export interface RunInspection {
   runId: string;
   idea: string;
+  /** The request this run answers, when the run was dispatched for one. */
+  requestId?: string;
+  /** The dispatch attempt this run is, when the run was dispatched for one. */
+  dispatchId?: string;
   createdAt: string;
   /** The run this directory belongs to, for display. */
   dir: string;
@@ -63,6 +67,8 @@ export function inspectRun(runId?: string): RunInspection {
   return {
     runId: id,
     idea: manifest.idea,
+    requestId: manifest.requestId,
+    dispatchId: manifest.dispatchId,
     createdAt: manifest.createdAt,
     dir: runDir(id),
     completedAgents: completed,
@@ -81,7 +87,15 @@ export function inspectRun(runId?: string): RunInspection {
 export async function resumeRun(runId?: string, opts: Omit<CoordinatorOptions, 'runId' | 'idea'> = {}): Promise<CoordinatorReport> {
   const id = resolveRunId(runId);
   const inspection = inspectRun(id);
-  const report = await runCoordinator({ ...opts, runId: id, idea: inspection.idea });
+  // A resumed run keeps the request it was answering: the new attempt is
+  // another dispatch of the same request, not a new piece of work.
+  const report = await runCoordinator({
+    ...opts,
+    runId: id,
+    idea: inspection.idea,
+    requestId: opts.requestId ?? inspection.requestId,
+    dispatchId: opts.dispatchId ?? inspection.dispatchId
+  });
   return report;
 }
 

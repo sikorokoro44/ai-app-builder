@@ -46,6 +46,8 @@ export interface WatchdogRequest {
 export interface StateSnapshot {
   projectState: string;
   idea?: string;
+  /** The request the live state is answering, when the run was dispatched for one. */
+  requestId?: string;
   lastUpdated: string;
   /** Evidence stages the chain is still missing. */
   missingStages: string[];
@@ -119,6 +121,8 @@ export interface PlannedRedrive {
 export interface PlannedResume {
   runId: string;
   idea: string;
+  /** The request the resumed run answers; the resume must name it. */
+  requestId?: string;
   mode: string;
   concurrency: number;
   reason: string;
@@ -148,6 +152,19 @@ function ideaMatch(a: string, b: string | undefined): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
+/**
+ * Is this request the one the live state is about?
+ *
+ * When the state knows its request id, that id is the answer: two requests for
+ * the same idea are two different pieces of work, and only one of them can be
+ * the one the state belongs to. Matching by idea alone would let a delivery
+ * close, or a resume answer, a request nobody was waiting for.
+ */
+function sameRequest(r: WatchdogRequest, state: StateSnapshot): boolean {
+  if (state.requestId) return r.requestId === state.requestId;
+  return ideaMatch(r.idea, state.idea);
+}
+
 /** Newest run id, numerically when both parse as numbers. */
 export function newestRunId(ids: string[]): string {
   return [...ids].sort((a, b) => {
@@ -171,7 +188,8 @@ export function planWatchdog(
   runs: CoordinatorRun[],
   state: StateSnapshot,
   availableRunIds: string[],
-  cfg: WatchdogConfig
+  cfg: WatchdogConfig,
+  runRequestIds: Record<string, string> = {}
 ): WatchdogPlan {
   const plan: WatchdogPlan = {
     closeDelivered: [],
@@ -214,14 +232,22 @@ export function planWatchdog(
 
   const open = requests.filter((r) => r.state !== 'delivered' && r.state !== 'failed');
 
-  if (state.decisionKind === 'COMPLETE' && state.missingStages.length === 0 && state.idea) {
+  if (state.decisionKind === 'COMPLETE' && state.missingStages.length === 0 && (state.idea || state.requestId)) {
     for (const r of requests) {
       if (r.state === 'delivered') continue;
-      if (ideaMatch(r.idea, state.idea)) {
+      if (sameRequest(r, state)) {
         plan.closeDelivered.push({ requestId: r.requestId, idea: r.idea });
       }
     }
   }
+
+  // The run to resume is the one that belongs to the request the state is
+  // answering. When the state knows its request, the newest run of another
+  // request is not a candidate: resuming it would continue somebody else's
+  // work and leave this request exactly where it was.
+  const resumableRunIds = state.requestId
+    ? availableRunIds.filter((id) => runRequestIds[id] === state.requestId)
+    : availableRunIds;
 
   const resumeEligible =
     state.decisionKind === 'WAITING' &&
@@ -229,15 +255,18 @@ export function planWatchdog(
     state.idea !== undefined &&
     state.idea !== '' &&
     inFlight.length === 0 &&
-    availableRunIds.length > 0 &&
+    resumableRunIds.length > 0 &&
     Number.isFinite(Date.parse(state.lastUpdated)) &&
     cfg.now - Date.parse(state.lastUpdated) >= cfg.staleStateMs;
 
   if (resumeEligible) {
-    const matching = open.filter((r) => ideaMatch(r.idea, state.idea)).pop();
+    const targetRunId = newestRunId(resumableRunIds);
+    const targetRequestId = runRequestIds[targetRunId] ?? state.requestId;
+    const matching = open.filter((r) => (targetRequestId ? r.requestId === targetRequestId : ideaMatch(r.idea, state.idea))).pop();
     plan.resume = {
-      runId: newestRunId(availableRunIds),
+      runId: targetRunId,
       idea: state.idea!,
+      requestId: targetRequestId,
       mode: matching?.mode || 'full',
       concurrency: matching?.concurrency || 4,
       reason: `evidence is incomplete, nothing is running, and the state has been quiet for ${Math.round((cfg.now - Date.parse(state.lastUpdated)) / 60000)} minutes`
@@ -245,8 +274,10 @@ export function planWatchdog(
   } else if (state.decisionKind === 'WAITING' && state.missingStages.length > 0 && inFlight.length === 0) {
     plan.skipped.push({
       subject: 'resume',
-      reason: availableRunIds.length === 0
-        ? 'work is interrupted but the run store has nothing to resume'
+      reason: resumableRunIds.length === 0
+        ? (availableRunIds.length > 0
+          ? 'the interrupted run on disk belongs to another request, so it is not resumed for this one'
+          : 'work is interrupted but the run store has nothing to resume')
         : state.idea
           ? 'the state is still moving or was updated too recently to resume'
           : 'the state records no idea to resume for'
@@ -259,21 +290,21 @@ export function planWatchdog(
     const last = dispatched[dispatched.length - 1];
     const skip = (reason: string) => plan.skipped.push({ subject: r.requestId, reason });
 
-    if (state.decisionKind === 'COMPLETE' && ideaMatch(r.idea, state.idea)) {
-      skip('its idea has a completed, fully-gated delivery');
+    if (state.decisionKind === 'COMPLETE' && sameRequest(r, state)) {
+      skip('its request has a completed, fully-gated delivery');
       continue;
     }
     if (
       state.decisionKind === 'WAITING' &&
-      ideaMatch(r.idea, state.idea) &&
+      sameRequest(r, state) &&
       state.missingStages.length > 0 &&
-      availableRunIds.length > 0
+      resumableRunIds.length > 0
     ) {
-      skip('the run for this idea is interrupted and will be resumed, not restarted');
+      skip('the run for this request is interrupted and will be resumed, not restarted');
       continue;
     }
-    if (state.decisionKind === 'FAILED' && ideaMatch(r.idea, state.idea)) {
-      skip('the run for this idea failed and needs an explicit repair, not an automatic rebuild');
+    if (state.decisionKind === 'FAILED' && sameRequest(r, state)) {
+      skip('the run for this request failed and needs an explicit repair, not an automatic rebuild');
       continue;
     }
     const requestedAge = cfg.now - Date.parse(r.requestedAt);

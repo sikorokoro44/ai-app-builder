@@ -32,6 +32,19 @@ function fullyEvidenced(overrides: any = {}) {
   s.finalDownloadUrl = URL;
   s.evidence.publicDownloadVerified = true;
   s.evidence.publicDownloadUrl = URL;
+  // The features the request asked for have to be proved against this APK, so
+  // an evidenced state carries that verdict.
+  s.featureGate = {
+    passed: true,
+    failures: [],
+    reasons: [],
+    capabilities: [],
+    checkedAt: '2026-10-07T00:00:00.000Z',
+    requestId: 'req-t',
+    runId: '9001',
+    apkSha256: SHA
+  };
+  s.request = { requestId: 'req-t', dispatchId: 'disp-t' };
   return Object.assign(s, overrides);
 }
 
@@ -244,7 +257,19 @@ describe('DOWNLOAD_READY gate', () => {
     finalDownloadUrl: URL,
     cloudBuildStatus: 'passed',
     cloudBuildState: 'succeeded',
-    cloudBuildFinishedAt: '2026-10-07T00:00:00.000Z'
+    cloudBuildFinishedAt: '2026-10-07T00:00:00.000Z',
+    apkSha256: 'a'.repeat(64),
+    requestId: 'req-t',
+    featureGate: {
+      passed: true,
+      failures: [],
+      reasons: [],
+      capabilities: [],
+      checkedAt: new Date().toISOString(),
+      requestId: 'req-t',
+      runId: 'r1',
+      apkSha256: 'a'.repeat(64)
+    }
   };
   test('a fully evidenced gate passes', () => {
     assert.doesNotThrow(() => assertDownloadReadyGate(base));
@@ -290,6 +315,8 @@ describe('full lifecycle evidence chain', () => {
       finalDownloadUrl: s.finalDownloadUrl,
       evidence: s.evidence,
       publicDownloadVerified: s.evidence.publicDownloadVerified,
+      featureGate: s.featureGate,
+      requestId: s.request?.requestId,
       ...overrides
     };
   }

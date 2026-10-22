@@ -15,6 +15,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { randomSuffix } from './runIdentity.ts';
 
 export const REQUESTS_DIR = process.env.BUILDER_REQUESTS_DIR || '.builder/requests';
 
@@ -24,6 +25,8 @@ export interface DispatchAttempt {
   at: string;
   /** The Actions run that answered this dispatch, when GitHub created one. */
   runId?: string;
+  /** The id of this dispatch attempt, as written into the run's title. */
+  dispatchId?: string;
   outcome: 'dispatched' | 'refused';
   note?: string;
 }
@@ -44,10 +47,17 @@ function slug(idea: string): string {
   return s || 'idea';
 }
 
-/** A filesystem-safe, sortable request id. */
-export function makeRequestId(idea: string, at = new Date()): string {
+/**
+ * A filesystem-safe, sortable request id.
+ *
+ * The id carries random entropy as well as the timestamp, so two requests made
+ * for the same idea inside the same second are still two different pieces of
+ * work. Without it, "the request for this idea" is ambiguous exactly when it
+ * matters — when two requests for one idea are in flight at once.
+ */
+export function makeRequestId(idea: string, at = new Date(), entropy = randomSuffix(4)): string {
   const stamp = at.toISOString().replace(/[:.]/g, '-');
-  return `${stamp}-${slug(idea)}`;
+  return `${stamp}-${slug(idea)}-${entropy}`;
 }
 
 export function requestsDir(): string {
@@ -101,17 +111,30 @@ export function openRequests(): RunRequest[] {
 }
 
 /**
- * The open request for this idea and mode, if there is one.
+ * Every open request for this idea and mode.
  *
- * Used by `--redrive`: re-sending a dispatch for an idea that already has an
+ * `--redrive` uses this: re-sending a dispatch for an idea that already has an
  * unfinished request is a retry, and recording it as a second request would make
- * the repository claim two pieces of work where there is one.
+ * the repository claim two pieces of work where there is one. When more than one
+ * open request matches, the idea alone is not enough to say which one is being
+ * retried, so the caller has to name the request.
  */
-export function findOpenRequest(requests: RunRequest[], idea: string, mode: string): RunRequest | null {
+export function findOpenRequests(requests: RunRequest[], idea: string, mode: string): RunRequest[] {
   const wanted = idea.trim().toLowerCase();
-  const matches = requests.filter(
+  return requests.filter(
     (r) => r.state !== 'delivered' && r.mode === mode && r.idea.trim().toLowerCase() === wanted
   );
+}
+
+/**
+ * The open request for this idea and mode, if there is exactly one.
+ *
+ * Kept for callers that only need to find a request; anything that acts on it
+ * has to know which request it is acting on, so it should use
+ * `findOpenRequests` and refuse to guess.
+ */
+export function findOpenRequest(requests: RunRequest[], idea: string, mode: string): RunRequest | null {
+  const matches = findOpenRequests(requests, idea, mode);
   return matches.length ? matches[matches.length - 1] : null;
 }
 

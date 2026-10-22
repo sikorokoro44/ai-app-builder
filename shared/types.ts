@@ -107,6 +107,10 @@ export const Events = {
   DOWNLOAD_READY: 'DOWNLOAD_READY',
   /** Records one link of the ordered lifecycle evidence chain. */
   EVIDENCE_RECORDED: 'EVIDENCE_RECORDED',
+  /** Records the real JUnit results of the build, with the identity of that build. */
+  TEST_RESULTS_RECORDED: 'TEST_RESULTS_RECORDED',
+  /** Records the verdict of the feature gate for this run. */
+  FEATURE_GATE_RECORDED: 'FEATURE_GATE_RECORDED',
   PUBLIC_DOWNLOAD_VERIFIED: 'PUBLIC_DOWNLOAD_VERIFIED'
 } as const;
 

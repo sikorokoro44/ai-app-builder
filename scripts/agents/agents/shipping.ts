@@ -13,7 +13,10 @@ import { existsSync, mkdtempSync, readdirSync, statSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import type { AgentSpec } from '../../../shared/agentTypes.ts';
+import { Events } from '../../../shared/types.ts';
 import { fail, ok, invalid, planFrom } from './common.ts';
+import { evaluateFeatureGate, type FeatureGateResult } from '../../live/featureGate.ts';
+import { readTestEvidence } from '../../live/testEvidence.ts';
 
 /**
  * The last complete JSON object a script printed.
@@ -123,6 +126,8 @@ export interface BuildArtifact {
     densities?: string[];
     similarity?: number;
   };
+  /** The verdict of the feature gate for this build. */
+  featureGate?: FeatureGateResult;
 }
 
 export const buildVerifierAgent: AgentSpec<void, BuildArtifact> = {
@@ -151,9 +156,13 @@ export const buildVerifierAgent: AgentSpec<void, BuildArtifact> = {
     'The compiled launcher icon matches the icon that was generated.'
   ],
   failurePolicy: { retryable: true, maxAttempts: 3, repairable: false, maxRepairs: 0, onExhausted: 'rollback' },
-  execute(ctx) {
+  async execute(ctx) {
     const plan = planFrom(ctx);
-    const ideaEnv = { BUILDER_IDEA: plan.idea };
+    const requestId = await ctx.mutate((s) => s.request?.requestId || '');
+    const ideaEnv: Record<string, string> = { BUILDER_IDEA: plan.idea };
+    // The build records the request it answers next to its test results, so the
+    // feature gate can tell this request's results from another request's.
+    if (requestId) ideaEnv.BUILDER_REQUEST_ID = requestId;
     ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--prepare'], ideaEnv);
     ctx.runScriptOrThrow(['scripts/cloudBuildExecute.ts', '--dispatch'], ideaEnv);
     ctx.activity('waiting for the GitHub Actions build to finish');
@@ -196,6 +205,105 @@ export const buildVerifierAgent: AgentSpec<void, BuildArtifact> = {
     ctx.publish('build', out);
     ctx.activity(`verified ${out.sizeBytes} byte APK from run ${runId}`);
     ctx.log(`run ${runId} ${out.conclusion}: sha256=${out.sha256.slice(0, 12)}… icon=${out.icon?.compiledPath ?? 'unmatched'}`);
+
+    // The feature gate: the features the request asked for have to be in the
+    // generated project, and proved by tests that really ran in this build.
+    // The test results are downloaded from the run that produced this APK, so
+    // results from an earlier attempt cannot stand in for them.
+    const evidenceDir = mkdtempSync(join(tmpdir(), `builder-tests-${runId}-`));
+    try {
+      execFileSync('gh', ['run', 'download', runId, '--name', 'android-test-results', '--dir', evidenceDir], {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+    } catch {
+      ctx.log(`run ${runId} published no test results; the feature gate will refuse the app`);
+    }
+    const bundles = readTestEvidence(evidenceDir);
+    const gate = evaluateFeatureGate({
+      idea: plan.idea,
+      spec: plan.entity,
+      projectRoot: ctx.projectRoot,
+      bundles,
+      build: {
+        runId,
+        headSha: out.headSha || undefined,
+        apkSha256: out.sha256,
+        packageId: out.packageId,
+        requestId: requestId || undefined
+      },
+      requestId: requestId || undefined
+    });
+    out.featureGate = gate;
+    await ctx.mutate((s) => {
+      s.testResults = bundles.map((b) => ({
+        runId: b.identity?.runId,
+        headSha: b.identity?.headSha,
+        apkSha256: b.identity?.apkSha256,
+        packageId: b.identity?.packageId,
+        requestId: b.identity?.requestId,
+        totals: b.report.totals,
+        cases: b.report.cases.map((c) => ({ name: c.name, classname: c.classname, status: c.status }))
+      }));
+      s.featureGate = {
+        passed: gate.passed,
+        failures: gate.failures,
+        reasons: gate.reasons,
+        capabilities: gate.capabilities.map((c) => ({
+          id: c.id,
+          title: c.title,
+          requested: c.requested,
+          passed: c.passed,
+          implemented: c.implemented,
+          tests: c.tests.map((t) => ({ pattern: t.pattern, testName: t.testName, status: t.status }))
+        })),
+        checkedAt: gate.checkedAt,
+        requestId: gate.requestId,
+        runId: gate.runId,
+        apkSha256: gate.apkSha256
+      };
+    });
+    // The log mirror keeps both facts across a restart of the run.
+    ctx.record({
+      type: Events.TEST_RESULTS_RECORDED,
+      results: bundles.map((b) => ({
+        runId: b.identity?.runId,
+        headSha: b.identity?.headSha,
+        apkSha256: b.identity?.apkSha256,
+        packageId: b.identity?.packageId,
+        requestId: b.identity?.requestId,
+        totals: b.report.totals,
+        cases: b.report.cases.map((c) => ({ name: c.name, classname: c.classname, status: c.status }))
+      }))
+    });
+    ctx.record({
+      type: Events.FEATURE_GATE_RECORDED,
+      gate: {
+        passed: gate.passed,
+        failures: gate.failures,
+        reasons: gate.reasons,
+        capabilities: gate.capabilities.map((c) => ({
+          id: c.id,
+          title: c.title,
+          requested: c.requested,
+          passed: c.passed,
+          implemented: c.implemented,
+          tests: c.tests.map((t) => ({ pattern: t.pattern, testName: t.testName, status: t.status }))
+        })),
+        checkedAt: gate.checkedAt,
+        requestId: gate.requestId,
+        runId: gate.runId,
+        apkSha256: gate.apkSha256
+      }
+    });
+    if (!gate.passed) {
+      fail(
+        'build-verifier',
+        `the feature gate refused this app: ${gate.failures.join(', ')}`,
+        gate.reasons.slice(0, 20)
+      );
+    }
+    ctx.log(`feature gate: ${gate.capabilities.filter((c) => c.requested).map((c) => c.id).join(', ')}`);
     return out;
   },
   validate(out) {

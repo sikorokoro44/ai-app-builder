@@ -62,7 +62,12 @@ export function completionGateErrors(s: LiveState): string[] {
   const errors: string[] = [];
   const view = enrichWithProgress(s as any) as any;
   try {
-    assertStateTruthfulAndComplete(view);
+    assertStateTruthfulAndComplete({
+      ...view,
+      featureGate: view.featureGate,
+      apkSha256: view.apkSha256,
+      requestId: view.request?.requestId
+    });
   } catch (e: any) {
     errors.push(String(e.message || e));
   }
@@ -82,7 +87,9 @@ export function completionGateErrors(s: LiveState): string[] {
       release: view.release || { status: 'not recorded' },
       finalDownloadUrl: view.finalDownloadUrl,
       evidence: view.evidence,
-      publicDownloadVerified: view.evidence?.publicDownloadVerified
+      publicDownloadVerified: view.evidence?.publicDownloadVerified,
+      featureGate: view.featureGate,
+      requestId: view.request?.requestId
     });
   } catch (e: any) {
     errors.push(String(e.message || e));

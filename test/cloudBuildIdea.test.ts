@@ -15,7 +15,7 @@ import { AgentExecutionError, type AgentContext } from '../scripts/agents/contex
 const IDEA = 'a moon base supply ledger with resupply countdowns';
 
 describe('the build verifier propagates the plan idea into the cloud build', () => {
-  test('every cloudBuildExecute step runs with BUILDER_IDEA set to plan.idea', () => {
+  test('every cloudBuildExecute step runs with BUILDER_IDEA set to plan.idea', async () => {
     const calls: { args: string[]; env: Record<string, string> }[] = [];
     const ctx = {
       artifact: () => ({ idea: IDEA, packageId: 'com.builder.moonbase' }),
@@ -23,13 +23,17 @@ describe('the build verifier propagates the plan idea into the cloud build', () 
         calls.push({ args, env });
         return '';
       },
+      mutate: async (fn: (s: any) => unknown) => fn({}),
+      record: () => {},
       activity: () => {}
     } as unknown as AgentContext;
 
     // `--watch` reports no run id, so execute fails there: after all three
     // cloudBuildExecute calls, before any download can start.
-    assert.throws(() => buildVerifierAgent.execute(ctx, undefined), AgentExecutionError);
-
+    await assert.rejects(
+      async () => { await buildVerifierAgent.execute(ctx, undefined); },
+      AgentExecutionError
+    );
     assert.deepStrictEqual(
       calls.map((c) => c.args),
       [

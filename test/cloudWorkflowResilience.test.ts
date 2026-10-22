@@ -164,7 +164,7 @@ describe('the pipeline keeps GitHub as the source of truth', () => {
     const script = readFileSync(join(REPO, 'scripts/requestRun.ts'), 'utf-8');
     const writeAt = script.indexOf('writeRequest(request)');
     const pushAt = script.indexOf('pushWithRebase(`builder: record run request');
-    const dispatchAt = script.indexOf("gh(['workflow', 'run', WORKFLOW");
+    const dispatchAt = script.indexOf("'workflow', 'run', WORKFLOW");
     assert.ok(writeAt > -1 && pushAt > -1 && dispatchAt > -1, 'the script must write, push and dispatch');
     assert.ok(writeAt < pushAt, 'the request is written before it is pushed');
     assert.ok(pushAt < dispatchAt, 'the request reaches the remote before the dispatch is sent');
@@ -175,7 +175,10 @@ describe('the pipeline keeps GitHub as the source of truth', () => {
 
   test('a redrive reuses the open request instead of recording the idea twice', () => {
     const script = readFileSync(join(REPO, 'scripts/requestRun.ts'), 'utf-8');
-    assert.match(script, /findOpenRequest\(listRequests\(\), idea, mode\)/);
+    // Two open requests for one idea are two pieces of work, so the re-drive
+    // refuses to guess which one is being retried.
+    assert.match(script, /findOpenRequests\(listRequests\(\), idea, mode\)/);
+    assert.match(script, /open requests for/, 'an ambiguous re-drive must be reported, not guessed');
   });
 
   test('a refused dispatch leaves the request open with the reason recorded', () => {

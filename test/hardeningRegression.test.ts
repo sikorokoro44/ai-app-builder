@@ -100,7 +100,10 @@ describe('erasable TypeScript (npm test must run without a build step)', () => {
   test('no constructor parameter properties or enum/namespace declarations', () => {
     const offenders: string[] = [];
     const paramProp = /constructor\s*\([^)]*\b(public|private|protected|readonly)\s+\w/;
-    const decl = /^\s*(export\s+)?(const\s+)?(enum|namespace)\s+\w/;
+    // `enum class` is Kotlin, not TypeScript: the emitters put generated Kotlin
+    // inside template literals, and a Kotlin enum cannot be non-erasable
+    // TypeScript. A TypeScript enum is `enum Name {`.
+    const decl = /^\s*(export\s+)?(const\s+)?(enum(?!\s+class)|namespace)\s+\w/;
 
     const stack = [join(REPO, 'scripts'), join(REPO, 'shared')];
     while (stack.length) {
@@ -498,6 +501,21 @@ describe('the completion gate can actually be satisfied, not just always refuse'
       stages: LifecycleStages.map((stage) => ({ stage, evidence: `verified ${stage}`, at: new Date().toISOString() })),
       publicDownloadVerified: true
     };
+    // The features the request asked for have to be proved against the APK
+    // that is being released, so the seeded state carries that verdict.
+    s.featureGate = {
+      passed: true,
+      failures: [],
+      reasons: [],
+      capabilities: [
+        { id: 'create-records', title: 'Capture a todo', requested: true, passed: true, implemented: true, tests: [] }
+      ],
+      checkedAt: '2026-10-07T00:00:00.000Z',
+      runId: '9001',
+      apkSha256: SHA,
+      requestId: 'req-seed'
+    };
+    s.request = { requestId: 'req-seed', dispatchId: 'disp-seed' };
     writeState(s);
   }
 
@@ -588,6 +606,141 @@ describe('the completion gate can actually be satisfied, not just always refuse'
     const onDisk = stateOnDisk();
     assert.ok(!('currentStagePct' in onDisk),
       'currentStagePct is derived per-read; persisting a literal 100 would be dead data that looks like evidence');
+  });
+});
+
+describe('the completion gate refuses an app whose features were never proved', () => {
+  const SHA = 'a'.repeat(64);
+
+  async function seedWithoutGate(mutate?: (s: any) => void): Promise<void> {
+    const { initStateStore, readState, writeState } = await import('../scripts/live/stateStore.ts');
+    const { LifecycleStages } = await import('../scripts/live/evidenceChain.ts');
+    rmSync(STATE_DIR, { recursive: true, force: true });
+    rmSync(CP_DIR, { recursive: true, force: true });
+    initStateStore();
+    const s: any = readState();
+
+    const { VALID_TRANSITIONS } = await import('../scripts/live/stateValidator.ts');
+    const parents: Record<string, string> = { [s.projectState]: '' };
+    const seen = new Set<string>([s.projectState]);
+    const queue: string[] = [s.projectState];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      for (const next of VALID_TRANSITIONS[cur] || []) {
+        if (seen.has(next)) continue;
+        seen.add(next);
+        parents[next] = cur;
+        queue.push(next);
+      }
+    }
+    const chain: string[] = [];
+    for (let at = ProjectStates.DOWNLOAD_READY; at; at = parents[at]) chain.unshift(at);
+    for (const step of chain) {
+      if (step === s.projectState) continue;
+      s.projectState = step;
+      writeState(s);
+    }
+
+    const ASSET_URL = 'https://github.com/sikorokoro44/ai-app-builder/releases/download/build-9001/app-debug.apk';
+    s.overallProgressPct = 100;
+    s.totalFeatures = 1;
+    s.completedFeatures = 1;
+    s.totalTasks = 2;
+    s.completedTasks = 2;
+    s.testStats = { discovered: 2, running: 0, passed: 2, failed: 0 };
+    s.cloudBuild = {
+      state: 'succeeded', stage: 'RELEASE', status: 'passed', output: [],
+      runId: '9001', headSha: 'b'.repeat(40), artifactSha256: SHA, finishedAt: '2026-10-07T00:00:00.000Z'
+    };
+    s.apkVerification = 'passed';
+    s.icon = { status: 'passed', category: 'notes', purpose: 'notes', fingerprint: 'f'.repeat(64) };
+    s.apkPath = '/tmp/app-debug.apk';
+    s.apkSha256 = SHA;
+    s.apkPackageId = 'com.builder.todo';
+    s.release = {
+      status: 'created', assetUrl: ASSET_URL, assetName: 'app-debug.apk',
+      assetSha256: SHA, repo: 'sikorokoro44/ai-app-builder', tag: 'build-9001'
+    };
+    s.finalDownloadUrl = ASSET_URL;
+    s.evidence = {
+      stages: LifecycleStages.map((stage) => ({ stage, evidence: `verified ${stage}`, at: new Date().toISOString() })),
+      publicDownloadVerified: true
+    };
+    s.request = { requestId: 'req-seed', dispatchId: 'disp-seed' };
+    if (mutate) mutate(s);
+    writeState(s);
+  }
+
+  test('a project with no feature gate verdict cannot complete', async () => {
+    await seedWithoutGate();
+    const res = run('markComplete.ts');
+    assert.notStrictEqual(res.code, 0,
+      'an app whose requested features were never proved against a build must not complete');
+    assert.match(res.err, /feature gate/i);
+  });
+
+  test('a project whose feature gate refused the app cannot complete', async () => {
+    await seedWithoutGate((s) => {
+      s.featureGate = {
+        passed: false,
+        failures: ['TEST_NOT_FOUND'],
+        reasons: ['budgets: no test named ^tracksMonthlyBudgetsByCategory$ ran in the build'],
+        capabilities: [],
+        checkedAt: '2026-10-07T00:00:00.000Z',
+        requestId: 'req-seed',
+        runId: '9001',
+        apkSha256: SHA
+      };
+    });
+    const res = run('markComplete.ts');
+    assert.notStrictEqual(res.code, 0, 'a refused feature gate must not complete the run');
+    assert.match(res.err, /feature gate/i);
+  });
+
+  test('a feature gate proved against another APK cannot complete this one', async () => {
+    await seedWithoutGate((s) => {
+      s.featureGate = {
+        passed: true,
+        failures: [],
+        reasons: [],
+        capabilities: [],
+        checkedAt: '2026-10-07T00:00:00.000Z',
+        requestId: 'req-seed',
+        runId: '9001',
+        apkSha256: 'c'.repeat(64)
+      };
+    });
+    const res = run('markComplete.ts');
+    assert.notStrictEqual(res.code, 0, 'a verdict about another APK says nothing about this one');
+    assert.match(res.err, /different APK/i);
+  });
+
+  test('a feature gate proved for another request cannot complete this one', async () => {
+    await seedWithoutGate((s) => {
+      s.featureGate = {
+        passed: true,
+        failures: [],
+        reasons: [],
+        capabilities: [],
+        checkedAt: '2026-10-07T00:00:00.000Z',
+        requestId: 'req-other',
+        runId: '9001',
+        apkSha256: SHA
+      };
+    });
+    const res = run('markComplete.ts');
+    assert.notStrictEqual(res.code, 0, 'a verdict about another request says nothing about this one');
+    assert.match(res.err, /different request/i);
+  });
+
+  test('DOWNLOAD_READY refuses a project with no feature gate verdict', async () => {
+    await seedWithoutGate((s) => {
+      s.projectState = ProjectStates.RELEASING;
+      s.evidence.stages = s.evidence.stages.filter((st: any) => st.stage !== 'FINAL_VERIFY');
+    });
+    const res = run('markDownloadReady.ts');
+    assert.notStrictEqual(res.code, 0, 'an unproved app must not be offered for download');
+    assert.match(res.err, /feature gate/i);
   });
 });
 

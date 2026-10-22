@@ -256,6 +256,82 @@ describe('re-dispatch is bounded on every side', () => {
   });
 });
 
+describe('two requests for one idea are two pieces of work', () => {
+  const MINE = '2026-10-19T11-00-00-000Z-watering-reminder-aaaa';
+  const THEIRS = '2026-10-19T11-30-00-000Z-watering-reminder-bbbb';
+
+  test('a delivery closes the request the state names, not the one with the same idea', () => {
+    const plan = planWatchdog(
+      [
+        request({ requestId: MINE, idea: 'watering reminder' }),
+        request({ requestId: THEIRS, idea: 'watering reminder' })
+      ],
+      [],
+      snapshot({ projectState: 'COMPLETED', decisionKind: 'COMPLETE', missingStages: [], requestId: MINE }),
+      [],
+      cfg()
+    );
+    assert.deepStrictEqual(plan.closeDelivered.map((c) => c.requestId), [MINE]);
+  });
+
+  test('the other request is not closed, and is not blocked either', () => {
+    const plan = planWatchdog(
+      [
+        request({ requestId: MINE, idea: 'watering reminder', requestedAt: new Date(NOW - 5 * 3_600_000).toISOString() }),
+        request({ requestId: THEIRS, idea: 'watering reminder', requestedAt: new Date(NOW - 4 * 3_600_000).toISOString() })
+      ],
+      [],
+      snapshot({ projectState: 'COMPLETED', decisionKind: 'COMPLETE', missingStages: [], requestId: MINE }),
+      [],
+      cfg()
+    );
+    assert.deepStrictEqual(plan.closeDelivered.map((c) => c.requestId), [MINE]);
+    assert.ok(
+      plan.redrive.some((r) => r.requestId === THEIRS) || plan.skipped.some((s) => s.subject === THEIRS),
+      'the other request is neither closed nor silently skipped by the delivered one'
+    );
+  });
+
+  test('a resume continues the run of the request the state names', () => {
+    const plan = planWatchdog(
+      [request({ requestId: MINE })],
+      [],
+      snapshot({ requestId: MINE }),
+      ['37687932000', '39713520545'],
+      cfg(),
+      { '37687932000': MINE, '39713520545': THEIRS }
+    );
+    assert.ok(plan.resume, 'the interrupted run is resumed');
+    assert.strictEqual(plan.resume!.runId, '37687932000', 'the newer store belongs to another request and is not continued');
+    assert.strictEqual(plan.resume!.requestId, MINE, 'the resume names the request it answers');
+  });
+
+  test('a store that belongs to another request is not resumed at all', () => {
+    const plan = planWatchdog(
+      [request({ requestId: MINE })],
+      [],
+      snapshot({ requestId: MINE }),
+      ['39713520545'],
+      cfg(),
+      { '39713520545': THEIRS }
+    );
+    assert.strictEqual(plan.resume, null, 'continuing another request\'s run would answer the wrong request');
+    assert.ok(plan.skipped.some((s) => s.subject === 'resume' && /another request/.test(s.reason)));
+  });
+
+  test('a state without a request id still falls back to the idea', () => {
+    const plan = planWatchdog(
+      [request({ requestId: MINE })],
+      [],
+      snapshot(),
+      ['37687932000'],
+      cfg()
+    );
+    assert.ok(plan.resume);
+    assert.strictEqual(plan.resume!.runId, '37687932000');
+  });
+});
+
 describe('configuration and helpers', () => {
   test('the environment overrides are read by name', () => {
     const conf = configFromEnv({

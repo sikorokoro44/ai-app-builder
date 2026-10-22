@@ -37,6 +37,10 @@ export interface AgentLedgerEntry extends AgentStatusRecord {
 export interface AgentRunManifest {
   runId: string;
   idea: string;
+  /** The request this run answers, when it was dispatched for one. */
+  requestId?: string;
+  /** The dispatch attempt this run is, when it was dispatched for one. */
+  dispatchId?: string;
   createdAt: string;
   planner: string;
   agents: string[];
@@ -72,7 +76,20 @@ export function currentRunId(): string | null {
 
 export function startRun(manifest: AgentRunManifest): string {
   atomicWrite(join(runDir(manifest.runId), 'manifest.json'), JSON.stringify(manifest, null, 2));
-  atomicWrite(join(AGENT_ROOT, 'current-run.json'), JSON.stringify({ runId: manifest.runId, idea: manifest.idea, createdAt: manifest.createdAt }, null, 2));
+  atomicWrite(
+    join(AGENT_ROOT, 'current-run.json'),
+    JSON.stringify(
+      {
+        runId: manifest.runId,
+        idea: manifest.idea,
+        requestId: manifest.requestId,
+        dispatchId: manifest.dispatchId,
+        createdAt: manifest.createdAt
+      },
+      null,
+      2
+    )
+  );
   return manifest.runId;
 }
 

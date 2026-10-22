@@ -20,6 +20,7 @@
 import { inspectRun, resumeRun, startNewRun } from './agents/recovery.ts';
 import { listRuns } from './agents/recovery.ts';
 import { listRequests, openRequests } from './live/runRequests.ts';
+import { ideaFromArgv } from './live/cliArgs.ts';
 
 const argv = process.argv.slice(2);
 const flag = (name: string) => argv.includes(`--${name}`);
@@ -33,6 +34,7 @@ if (flag('help')) {
   scripts/coordinator.ts "<idea>"              run the fleet for an idea
   scripts/coordinator.ts --pre-cloud           same, stopping before GitHub
   scripts/coordinator.ts --resume [runId]      continue a stopped run
+  scripts/coordinator.ts --request-id [id]     say which request this run answers
   scripts/coordinator.ts --status [runId]      print what a run has proven
   scripts/coordinator.ts --runs                list the runs on disk
   scripts/coordinator.ts --requests            list the run requests on record`);
@@ -62,6 +64,7 @@ if (flag('requests')) {
 if (flag('status')) {
   const inspection = inspectRun(value('status') || undefined);
   console.log(`run ${inspection.runId} — ${inspection.idea}`);
+  console.log(`  request     ${inspection.requestId || 'not recorded'}`);
   console.log(`  project state  ${inspection.projectState}`);
   console.log(`  agents         ${inspection.completedAgents.length}/${inspection.completedAgents.length + inspection.pendingAgents.length + inspection.failedAgents.length} complete`);
   console.log(`  evidence       ${inspection.evidence.join(' > ') || 'none'}`);
@@ -72,19 +75,23 @@ if (flag('status')) {
 
 const options = {
   mode: flag('pre-cloud') ? ('pre-cloud' as const) : ('full' as const),
-  maxConcurrency: Number(value('concurrency') || process.env.BUILDER_AGENT_CONCURRENCY || 4)
+  maxConcurrency: Number(value('concurrency') || process.env.BUILDER_AGENT_CONCURRENCY || 4),
+  // The request and dispatch ids are the run's identity: they are written into
+  // the run manifest and the live state so that everything downstream — the
+  // evidence chain, the release, the notification — can be traced back to the
+  // exact request that asked for it.
+  requestId: value('request-id') || process.env.BUILDER_REQUEST_ID || undefined,
+  dispatchId: value('dispatch-id') || process.env.BUILDER_DISPATCH_ID || undefined
 };
 
 const report = flag('resume')
   ? await resumeRun(value('resume') || undefined, options)
-  : await startNewRun(
-      argv.filter((a) => !a.startsWith('--') && a !== value('resume') && a !== value('concurrency')).join(' '),
-      options
-    );
+  : await startNewRun(ideaFromArgv(argv), options);
 
 console.log('');
 console.log(`run ${report.runId} ${report.status}`);
 console.log(`  idea        ${report.idea}`);
+if (report.requestId) console.log(`  request     ${report.requestId}`);
 console.log(`  agents      ${report.agents.filter((a) => a.status === 'completed').length} completed, ${report.agents.filter((a) => a.status === 'failed').length} failed, ${report.agents.filter((a) => a.status === 'skipped').length} skipped`);
 console.log(`  state       ${report.projectState}`);
 console.log(`  evidence    ${report.evidenceStages.join(' > ') || 'none'}`);

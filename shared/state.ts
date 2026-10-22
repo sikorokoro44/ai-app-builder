@@ -193,6 +193,72 @@ export interface FailureRepairView {
   passed?: boolean;
 }
 
+/**
+ * Which request, and which attempt at it, this run is answering.
+ *
+ * The evidence chain says an app was delivered; this says which request asked
+ * for it. Without it, a completed delivery cannot be traced back to the idea
+ * that caused it, and two requests for the same idea cannot be told apart.
+ */
+export interface RequestIdentity {
+  /** The request this run answers. */
+  requestId?: string;
+  /** The dispatch attempt this run is; a retry is a new attempt of the same request. */
+  dispatchId?: string;
+  /** The GitHub Actions run executing this work. */
+  githubRunId?: string;
+}
+
+/**
+ * The test results of the build that produced the APK.
+ *
+ * These are the real JUnit results the build published, with the identity of
+ * the build they came from. They are what a feature claim is checked against,
+ * so they are kept with the identity rather than as a bare list of names.
+ */
+export interface TestResultsState {
+  /** The cloud run the results came from. */
+  runId?: string;
+  /** The commit the run built. */
+  headSha?: string;
+  /** The APK the run produced. */
+  apkSha256?: string;
+  /** The package the run built. */
+  packageId?: string;
+  /** The request the run answers. */
+  requestId?: string;
+  totals: { tests: number; passed: number; failures: number; errors: number; skipped: number };
+  cases: { name: string; classname: string; status: string }[];
+}
+
+/**
+ * The verdict of the feature gate for this run.
+ *
+ * The gate says which capabilities the request asked for, whether the
+ * generated project really contains them and whether the build really ran the
+ * tests that prove them. A verdict that is not bound to a request and an APK
+ * says nothing about the app being released.
+ */
+export interface FeatureGateState {
+  passed: boolean;
+  /** Machine-readable reasons the gate refused, e.g. TEST_NOT_FOUND. */
+  failures: string[];
+  /** One line per missing thing, for a human reading the report. */
+  reasons: string[];
+  capabilities: {
+    id: string;
+    title: string;
+    requested: boolean;
+    passed: boolean;
+    implemented: boolean;
+    tests: { pattern: string; testName?: string; status: string }[];
+  }[];
+  checkedAt: string;
+  requestId?: string;
+  runId?: string;
+  apkSha256?: string;
+}
+
 export interface LiveState {
   version: number;
   projectState: typeof ProjectStates[keyof typeof ProjectStates];
@@ -228,7 +294,13 @@ export interface LiveState {
   finalDownloadUrl?: string;
   evidence?: EvidenceChain;
   idea?: string;
+  /** The request, and the attempt at it, this run is answering. */
+  request?: RequestIdentity;
   attempt?: number;
+  /** The real test results of the build that produced the APK. */
+  testResults?: TestResultsState[];
+  /** The verdict of the feature gate for this run. */
+  featureGate?: FeatureGateState;
   /** Notifications that were delivered, newest first. Absent means none. */
   email?: { sent?: EmailSentRecord[] };
 }

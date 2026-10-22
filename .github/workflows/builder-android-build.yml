@@ -11,6 +11,10 @@ on:
         description: 'Commit that must be built (optional pin)'
         required: false
         type: string
+      request_id:
+        description: 'Request this build answers (optional)'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -230,3 +234,41 @@ jobs:
             .builder/generated/android/app/build/reports/
           if-no-files-found: ignore
           retention-days: 7
+
+      # The feature gate refuses to call an app complete unless the features the
+      # request asked for are proved by tests that really ran in this build. So
+      # the build publishes its JUnit XML together with the identity of the run
+      # and of the APK it produced: results without that identity cannot be
+      # bound to a release, and a release cannot be bound to a request.
+      - name: Record the identity of the test results
+        env:
+          REQUEST_ID: ${{ inputs.request_id }}
+          COMMIT_SHA: ${{ steps.commit.outputs.head_sha }}
+          APK_SHA: ${{ steps.identity.outputs.apk_sha256 }}
+          APK_PKG: ${{ steps.identity.outputs.package_id }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          root=.builder/generated/android
+          mkdir -p "$root/build-evidence"
+          {
+            echo '{'
+            echo "  \"runId\": \"$RUN_ID\","
+            echo "  \"headSha\": \"$COMMIT_SHA\","
+            echo "  \"apkSha256\": \"$APK_SHA\","
+            echo "  \"packageId\": \"$APK_PKG\","
+            echo "  \"requestId\": \"$REQUEST_ID\""
+            echo '}'
+          } > "$root/build-evidence/test-evidence.json"
+          cat "$root/build-evidence/test-evidence.json"
+
+      - name: Upload the unit test results with the identity of the build
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-test-results
+          path: |
+            .builder/generated/android/app/build/test-results/testDebugUnitTest/
+            .builder/generated/android/build-evidence/test-evidence.json
+          if-no-files-found: ignore
+          retention-days: 30

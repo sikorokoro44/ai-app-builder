@@ -31,7 +31,10 @@ try {
     finalDownloadUrl: s.finalDownloadUrl,
     cloudBuildStatus: s.cloudBuild.status,
     cloudBuildState: s.cloudBuild.state,
-    cloudBuildFinishedAt: s.cloudBuild.finishedAt
+    cloudBuildFinishedAt: s.cloudBuild.finishedAt,
+    featureGate: s.featureGate,
+    apkSha256: s.apkSha256,
+    requestId: s.request?.requestId
   });
 } catch (e: any) {
   console.error(`DOWNLOAD_READY gate rejected:\n${e.message}`);
@@ -59,6 +62,25 @@ if (!isValidHttpsUrl(url) || rejectFakeReleaseUrl(url)) problems.push(`public UR
 
 if (problems.length > 0) {
   console.error(`DOWNLOAD_READY blocked:\n - ${problems.join('\n - ')}`);
+  process.exit(1);
+}
+
+// Feature gate must still hold against what we are about to call downloadable.
+const gate = s.featureGate;
+if (!gate) {
+  console.error('DOWNLOAD_READY blocked:\n - the feature gate never ran for this request (no requested feature was proved against a build)');
+  process.exit(1);
+}
+if (gate.passed !== true) {
+  console.error(`DOWNLOAD_READY blocked:\n - the feature gate refused this app: ${gate.reasons?.[0] ?? gate.failures?.join(', ')}`);
+  process.exit(1);
+}
+if (s.apkSha256 && gate.apkSha256 && gate.apkSha256 !== s.apkSha256) {
+  console.error('DOWNLOAD_READY blocked:\n - the feature gate was run against a different APK than the one being released');
+  process.exit(1);
+}
+if (s.request?.requestId && gate.requestId && gate.requestId !== s.request.requestId) {
+  console.error('DOWNLOAD_READY blocked:\n - the feature gate was run for a different request than the one being released');
   process.exit(1);
 }
 

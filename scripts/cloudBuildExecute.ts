@@ -248,6 +248,10 @@ if (process.argv.includes('--dispatch')) {
   const ghArgs = ['workflow', 'run', WORKFLOW];
   if (IDEA) ghArgs.push('-f', `idea=${IDEA}`);
   if (process.env.BUILDER_HEAD_SHA) ghArgs.push('-f', `head_sha=${process.env.BUILDER_HEAD_SHA}`);
+  // The build records the request it answers next to its test results, so the
+  // feature gate can tell results for this request from results for another.
+  const requestId = process.env.BUILDER_REQUEST_ID || '';
+  if (requestId) ghArgs.push('-f', `request_id=${requestId}`);
   // Stamp the moment the dispatch is requested. Without it the poll below can
   // adopt an older run for the same commit — the previous attempt's run — and
   // attribute its conclusion to this attempt.

@@ -27,7 +27,13 @@ const FRAMEWORK_STRINGS = new Set([
   'app_name', 'ok', 'cancel', 'yes', 'no', 'back', 'search', 'settings', 'done', 'close', 'save', 'delete'
 ]);
 
-function stripStringsAndComments(src: string): string {
+/**
+ * Removes comments and string literals from a source file.
+ *
+ * The feature gate matches evidence against this, so a capability cannot be
+ * "implemented" by a word in a comment or by a string in the code.
+ */
+export function stripStringsAndComments(src: string): string {
   let out = '';
   let i = 0;
   const n = src.length;

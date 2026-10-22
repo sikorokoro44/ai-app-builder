@@ -22,9 +22,10 @@
 import { execFileSync } from 'child_process';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { listRequests, closeRequest, recordDispatch, type RunRequest } from './live/runRequests.ts';
+import { listRequests, closeRequest, recordDispatch, readRequest } from './live/runRequests.ts';
 import { readState } from './live/stateStore.ts';
 import { decideNotification } from './live/emailNotify.ts';
+import { correlateRun, makeDispatchId, type TitledRun } from './live/runIdentity.ts';
 import {
   planWatchdog, configFromEnv, newestRunId,
   type CoordinatorRun, type WatchdogPlan, type StateSnapshot
@@ -119,13 +120,19 @@ interface RunStore {
   runId: string;
   idea: string;
   createdAt: string;
+  /** The request this run answers, when it was dispatched for one. */
+  requestId?: string;
+  /** The dispatch attempt this run is. */
+  dispatchId?: string;
 }
 
 /**
  * Run stores on disk that can actually be resumed, each with the idea it
  * belongs to. The manifest is authoritative for the idea: an interrupted run
  * may have written its store before the live state recorded the idea, so the
- * store is the one place that always names the work.
+ * store is the one place that always names the work. It is also authoritative
+ * for the request: only the manifest knows which request a run was answering,
+ * and the idea alone cannot tell two requests for the same idea apart.
  */
 function readRunStores(): RunStore[] {
   try {
@@ -134,12 +141,16 @@ function readRunStores(): RunStore[] {
       .map((entry) => {
         let idea = '';
         let createdAt = '';
+        let requestId: string | undefined;
+        let dispatchId: string | undefined;
         try {
           const manifest = JSON.parse(readFileSync(join(AGENT_DIR, entry.name, 'manifest.json'), 'utf-8'));
           if (typeof manifest?.idea === 'string') idea = manifest.idea.trim();
           if (typeof manifest?.createdAt === 'string') createdAt = manifest.createdAt;
+          if (typeof manifest?.requestId === 'string') requestId = manifest.requestId;
+          if (typeof manifest?.dispatchId === 'string') dispatchId = manifest.dispatchId;
         } catch { /* an unreadable manifest still counts as a store to resume */ }
-        return { runId: entry.name, idea, createdAt };
+        return { runId: entry.name, idea, createdAt, requestId, dispatchId };
       });
   } catch {
     return [];
@@ -186,24 +197,28 @@ function pushWithRebase(message: string, attempts = 4): { ok: boolean; detail: s
   return { ok: false, detail: 'not pushed after every attempt' };
 }
 
-/** Best-effort discovery of the run a just-sent dispatch created. */
-function discoverRunId(floor: number): string {
+/**
+ * The run that answered one dispatch, found by the title that names it.
+ *
+ * The title carries the request and this attempt, so the run is claimed by an
+ * exact match and never by being the newest one to appear.
+ */
+function correlateDispatchedRun(requestId: string, dispatchId: string): { runId?: string; note?: string } {
   for (let waited = 0; waited < 5; waited++) {
     sh('sleep', ['4'], 10_000);
     const res = sh('gh', [
-      'run', 'list', '--workflow', WORKFLOW, '--branch', BRANCH, '--limit', '10',
-      '--json', 'databaseId,createdAt'
+      'run', 'list', '--workflow', WORKFLOW, '--branch', BRANCH, '--limit', '40',
+      '--json', 'databaseId,createdAt,displayTitle,name,status'
     ]);
     if (!res.ok) continue;
     try {
-      const runs = JSON.parse(res.out || '[]') as { databaseId: number; createdAt: string }[];
-      const fresh = runs
-        .filter((r) => Date.parse(r.createdAt) >= floor)
-        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
-      if (fresh) return String(fresh.databaseId);
+      const runs = JSON.parse(res.out || '[]') as TitledRun[];
+      const correlation = correlateRun(runs, requestId, dispatchId);
+      if (correlation.runId) return { runId: correlation.runId };
+      if (correlation.reason) return { note: correlation.reason };
     } catch { /* try again */ }
   }
-  return '';
+  return { note: 'no run carrying this request and dispatch was seen' };
 }
 
 function redrive(request: WatchdogPlan['redrive'][number]): void {
@@ -211,7 +226,8 @@ function redrive(request: WatchdogPlan['redrive'][number]): void {
     '--experimental-strip-types', 'scripts/requestRun.ts',
     '--idea', request.idea,
     '--mode', request.mode,
-    '--redrive'
+    '--redrive',
+    '--request-id', request.requestId
   ], 120_000);
   if (res.ok) {
     let runId = '';
@@ -225,21 +241,20 @@ function redrive(request: WatchdogPlan['redrive'][number]): void {
 
 function resume(plan: WatchdogPlan['resume']): void {
   if (!plan) return;
-  const floor = Date.now() - 60_000;
-  // Try to find requestId for this idea
-  const requests = listRequests();
-  const matchingReq = requests
-    .filter((r: RunRequest) => r.state !== 'delivered' && r.idea.trim().toLowerCase() === plan.idea.trim().toLowerCase())
-    .pop();
+  // The resume names the request it is answering and the attempt it is: a
+  // resume that could be mistaken for another request's run would put the wrong
+  // work in the wrong ledger.
+  const dispatchId = makeDispatchId();
   const resumeArgs = [
     'workflow', 'run', WORKFLOW,
     '-f', `idea=${plan.idea}`,
     '-f', `runId=${plan.runId}`,
     '-f', `mode=${plan.mode}`,
-    '-f', `concurrency=${plan.concurrency}`
+    '-f', `concurrency=${plan.concurrency}`,
+    '-f', `dispatchId=${dispatchId}`
   ];
-  if (matchingReq) {
-    resumeArgs.push('-f', `requestId=${matchingReq.requestId}`);
+  if (plan.requestId) {
+    resumeArgs.push('-f', `requestId=${plan.requestId}`);
   }
   const res = sh('gh', resumeArgs, 60_000);
   if (!res.ok) {
@@ -248,22 +263,37 @@ function resume(plan: WatchdogPlan['resume']): void {
     return;
   }
 
-  const runId = discoverRunId(floor);
-  // Record the resume against the open request for this idea when one exists,
-  // so the request ledger shows the attempt that is answering it.
-  const resumeRequests = listRequests();
-  const matching = resumeRequests
-    .filter((r: RunRequest) => r.state !== 'delivered' && r.idea.trim().toLowerCase() === plan.idea.trim().toLowerCase())
-    .pop();
-  if (matching) {
-    recordDispatch(matching.requestId, {
-      at: new Date().toISOString(),
-      outcome: 'dispatched',
-      runId: runId || undefined,
-      note: `watchdog resumed run ${plan.runId}`
-    });
+  // The run that answered the resume is found by the title naming this request
+  // and this attempt. Without a request id — a run dispatched by hand — the
+  // title cannot be matched exactly, so no run is claimed.
+  let runId = '';
+  let note = 'no request id to match the run by';
+  if (plan.requestId) {
+    const correlation = correlateDispatchedRun(plan.requestId, dispatchId);
+    runId = correlation.runId || '';
+    note = correlation.note || '';
   }
-  actions.push({ action: 'resume', target: plan.runId, ok: true, detail: runId ? `new run ${runId}` : 'dispatch accepted, no run id observed yet' });
+
+  // Record the resume against the request it answers, so the request ledger
+  // shows the attempt that is answering it.
+  if (plan.requestId) {
+    const matching = readRequest(plan.requestId);
+    if (matching && matching.state !== 'delivered') {
+      recordDispatch(matching.requestId, {
+        at: new Date().toISOString(),
+        dispatchId,
+        outcome: 'dispatched',
+        runId: runId || undefined,
+        note: `watchdog resumed run ${plan.runId}`
+      });
+    }
+  }
+  actions.push({
+    action: 'resume',
+    target: plan.runId,
+    ok: true,
+    detail: runId ? `new run ${runId}` : `dispatch accepted, no run id observed yet${note ? ` (${note})` : ''}`
+  });
 }
 
 function cancel(runId: string, reason: string): void {
@@ -305,6 +335,12 @@ async function main(): Promise<void> {
   const decision = decideNotification(state);
   const runStores = readRunStores();
   const availableRunIds = runStores.map((s) => s.runId);
+  // Which request each run on disk belongs to. The manifest knows; the idea
+  // does not, because two requests can ask for the same idea.
+  const runRequestIds: Record<string, string> = {};
+  for (const store of runStores) {
+    if (store.requestId) runRequestIds[store.runId] = store.requestId;
+  }
   // Older runs, or a crash before the state recorded the idea, leave the live
   // state without a name; the run store that a resume would continue always has
   // one, so the watchdog can still resume and report honestly.
@@ -312,6 +348,7 @@ async function main(): Promise<void> {
   const snapshot: StateSnapshot = {
     projectState: state.projectState,
     idea: state.idea || storeIdea,
+    requestId: state.request?.requestId,
     lastUpdated: state.lastUpdated,
     missingStages: decision.missing,
     decisionKind: decision.kind
@@ -325,15 +362,16 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const plan = planWatchdog(requests, runs, snapshot, availableRunIds, cfg);
+  const plan = planWatchdog(requests, runs, snapshot, availableRunIds, cfg, runRequestIds);
 
   if (dryRun) {
     console.log(JSON.stringify({
       ok: true,
       dryRun: true,
       now: new Date(cfg.now).toISOString(),
-      state: { projectState: snapshot.projectState, idea: snapshot.idea, decisionKind: snapshot.decisionKind, missingStages: snapshot.missingStages },
+      state: { projectState: snapshot.projectState, idea: snapshot.idea, requestId: snapshot.requestId, decisionKind: snapshot.decisionKind, missingStages: snapshot.missingStages },
       availableRunIds,
+      runRequestIds,
       runs: runs.map((r) => ({ id: r.id, status: r.status, createdAt: r.createdAt })),
       plan
     }, null, 2));

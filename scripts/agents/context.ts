@@ -188,6 +188,21 @@ export class AgentContext implements AgentExecutionContext {
   }
 
   /**
+   * Records a fact in the append-only event log.
+   *
+   * The state file can be lost or truncated; the log is the recovery path. A
+   * fact that has to survive a restart — the test results of a build, the
+   * verdict of the feature gate — is written to both.
+   */
+  record(event: Record<string, unknown>): void {
+    try {
+      appendEvent({ ...event, agentId: this.agentId, ts: new Date().toISOString() });
+    } catch {
+      /* the state file holds the same fact; the mirror is best effort */
+    }
+  }
+
+  /**
    * Runs a proven repository script in its own process so it keeps its exact
    * proven behaviour: its own guards, its own evidence recording, its own exit
    * code. The agent's job is to decide when and how it runs, not to reimplement

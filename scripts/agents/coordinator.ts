@@ -55,6 +55,10 @@ export interface CoordinatorOptions {
   stopAfter?: string[];
   /** Run only these agents; everything else is reported as skipped. */
   only?: string[];
+  /** The request this run answers; recorded in the manifest and the live state. */
+  requestId?: string;
+  /** The dispatch attempt this run is; recorded alongside the request. */
+  dispatchId?: string;
 }
 
 export interface AgentRunReport {
@@ -72,6 +76,8 @@ export interface AgentRunReport {
 export interface CoordinatorReport {
   runId: string;
   idea: string;
+  /** The request this run answers, when it was dispatched for one. */
+  requestId?: string;
   status: 'completed' | 'failed';
   agents: AgentRunReport[];
   projectState: string;
@@ -154,9 +160,18 @@ export async function runCoordinator(opts: CoordinatorOptions = {}): Promise<Coo
 
   const waves = executionWaves();
   const runId = existing || newRunId(idea);
+  // The request and dispatch ids are the run's identity. They are read from the
+  // run that is being resumed, from the environment the workflow dispatched
+  // with, or from the caller, in that order: a resumed run must keep
+  // answering the request it was answering.
+  const previousManifest = existing ? readManifest(existing) : null;
+  const requestId = opts.requestId || previousManifest?.requestId || process.env.BUILDER_REQUEST_ID || undefined;
+  const dispatchId = opts.dispatchId || previousManifest?.dispatchId || process.env.BUILDER_DISPATCH_ID || undefined;
   startRun({
     runId,
     idea,
+    requestId,
+    dispatchId,
     createdAt: new Date().toISOString(),
     planner: 'scripts/agents/planner.ts',
     agents: agentIds(),
@@ -175,6 +190,15 @@ export async function runCoordinator(opts: CoordinatorOptions = {}): Promise<Coo
       // cannot say what it belongs to, so a later watchdog tick or notification
       // has no honest name for the run it is resuming or reporting on.
       s.idea = idea;
+      // It records the request too, so every later stage — the evidence chain,
+      // the release, the completion email — can name the request it belongs to
+      // instead of only the idea it happened to be working on.
+      s.request = {
+        ...(s.request || {}),
+        requestId,
+        dispatchId,
+        githubRunId: process.env.GITHUB_RUN_ID || s.request?.githubRunId
+      };
       s.agents = { ...(s.agents || {}) };
       for (const agent of AGENTS) {
         const existing = s.agents[agent.id];
@@ -515,6 +539,7 @@ export async function runCoordinator(opts: CoordinatorOptions = {}): Promise<Coo
   const report: CoordinatorReport = {
     runId,
     idea,
+    requestId,
     status: failures.length ? 'failed' : 'completed',
     agents,
     projectState: state.projectState,

@@ -13,6 +13,10 @@
 import { mkdirSync, rmSync, existsSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import { specForIdea, numericRoles, isCalculatorIdea, isCalculatorSpec, type EntitySpec, type EntityField } from '../domainModels.ts';
+import { escapeKotlin, escapeXml } from './escape.ts';
+import { financeActivitySource, financePlannedStrings, financeStoreSource, financeTestSource } from './financeTracker.ts';
+
+export { escapeKotlin, escapeXml } from './escape.ts';
 
 /**
  * The build configuration every generated app is pinned to. Exported so the
@@ -155,15 +159,13 @@ export function pluralOf(name: string): string {
   return name + 's';
 }
 
-export function escapeKotlin(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/\*\//g, '* /');
-}
-
-export function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/** True when the resolved model is the finance archetype: the expense tracker. */
+export function isFinanceSpec(spec: EntitySpec): boolean {
+  return spec.className === 'Expense';
 }
 
 export function storeSource(spec: EntitySpec, idea: string): string {
+  if (isFinanceSpec(spec)) return financeStoreSource(idea);
   if (isCalculatorSpec(spec)) return calculatorStoreSource(spec, idea);
   const cls = spec.className;
   const textFields = spec.fields.filter((f) => f.type === 'text');
@@ -1043,6 +1045,7 @@ function calculatorPlannedStrings(): string[] {
 }
 
 export function activitySource(spec: EntitySpec, idea: string): string {
+  if (isFinanceSpec(spec)) return financeActivitySource(idea);
   if (isCalculatorSpec(spec)) return calculatorActivitySource(idea);
   const cls = spec.className;
   const boolField = spec.fields.find((f) => f.type === 'bool');
@@ -1222,6 +1225,7 @@ ${secondaryButton}
 }
 
 export function testSource(spec: EntitySpec): string {
+  if (isFinanceSpec(spec)) return financeTestSource();
   if (isCalculatorSpec(spec)) return calculatorTestSource();
   const cls = spec.className;
   const boolField = spec.fields.find((f) => f.type === 'bool');
@@ -1499,10 +1503,15 @@ dependencies {
 
 export function emitManifest(layout: ProjectLayout): string {
   const file = `${layout.manifestDir}/AndroidManifest.xml`;
+  // The finance archetype works with no network at all, so it must not even
+  // ask for the internet permission. Every other archetype keeps it, because
+  // the planner lists it as a permission of those apps.
+  const permissions = isFinanceSpec(layout.spec)
+    ? ''
+    : '    <uses-permission android:name="android.permission.INTERNET" />\n';
   writeFileSync(file, `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.INTERNET" />
-    <application
+${permissions}    <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -1526,6 +1535,7 @@ export function emitManifest(layout: ProjectLayout): string {
 
 /** Every string the generated UI can reference, in emission order. */
 export function plannedStrings(spec: EntitySpec, appName: string): string[] {
+  if (isFinanceSpec(spec)) return financePlannedStrings(appName);
   if (isCalculatorSpec(spec)) return calculatorPlannedStrings();
   // The progress line renders the *progress* counter, so its label is the
   // progress field's label, not the first numeric field's. Session's targetMinutes

@@ -4,6 +4,7 @@
  *
  *   node --experimental-strip-types scripts/requestRun.ts --idea "Book tracker for reading"
  *   node --experimental-strip-types scripts/requestRun.ts --idea "Book tracker for reading" --redrive
+ *   node --experimental-strip-types scripts/requestRun.ts --redrive --request-id 2026-10-05T20-15-07-000Z-book-tracker-1a2b3c4d
  *   node --experimental-strip-types scripts/requestRun.ts --list
  *
  * The order matters. The request is committed and pushed before the dispatch is
@@ -12,6 +13,11 @@
  * the exact command to send it again. Nothing here claims a run happened: the
  * request only records the dispatch, and only the coordinator's evidence chain
  * can say the app was delivered.
+ *
+ * The run that answers the dispatch is found by its title, which names the
+ * request and this attempt, and by nothing else. "The newest run" is not a
+ * correlation: with two requests for one idea in flight, it is the wrong run
+ * as often as the right one.
  */
 
 import { execFileSync } from 'child_process';
@@ -19,13 +25,14 @@ import { existsSync } from 'fs';
 import {
   listRequests,
   makeRequestId,
-  findOpenRequest,
+  findOpenRequests,
   readRequest,
   recordDispatch,
   writeRequest,
   openRequests,
   type RunRequest
 } from './live/runRequests.ts';
+import { correlateRun, makeDispatchId, type TitledRun } from './live/runIdentity.ts';
 
 const WORKFLOW = process.env.BUILDER_COORDINATOR_WORKFLOW || '.github/workflows/builder-coordinator.yml';
 const BRANCH = process.env.BUILDER_BRANCH || 'main';
@@ -133,9 +140,32 @@ if (!flag('no-push')) {
 }
 
 let request: RunRequest | null = null;
-if (flag('redrive')) {
-  request = findOpenRequest(listRequests(), idea, mode);
-  if (!request) fail(`No open request for "${idea}" in ${mode} mode; run without --redrive to create one`);
+const namedRequestId = value('request-id');
+if (namedRequestId) {
+  // The request was named outright: that is the only unambiguous way to say
+  // which piece of work is being retried.
+  request = readRequest(namedRequestId);
+  if (!request) fail(`No request on record with the id ${namedRequestId}`);
+  if (request.state === 'delivered') {
+    fail(`Request ${namedRequestId} was already delivered; nothing to re-drive.`);
+  }
+  if (!flag('redrive')) {
+    fail(`--request-id names an existing request (${namedRequestId}); pass --redrive to dispatch it again`);
+  }
+  console.log(`Re-driving request ${request.requestId}`);
+} else if (flag('redrive')) {
+  const matches = findOpenRequests(listRequests(), idea, mode);
+  if (!matches.length) fail(`No open request for "${idea}" in ${mode} mode; run without --redrive to create one`);
+  if (matches.length > 1) {
+    // Two open requests for one idea are two pieces of work, and the idea does
+    // not say which one is being retried. Guessing here is how one request ends
+    // up carrying another one's evidence.
+    fail(
+      `${matches.length} open requests for "${idea}" in ${mode} mode; name the one to re-drive with --request-id:\n` +
+      matches.map((r) => `  ${r.requestId}  (${r.state}, requested ${r.requestedAt})`).join('\n')
+    );
+  }
+  request = matches[0];
   console.log(`Re-driving open request ${request.requestId}`);
 } else {
   request = {
@@ -151,7 +181,7 @@ if (flag('redrive')) {
 }
 
 const redriveCmd =
-  `node --experimental-strip-types scripts/requestRun.ts --idea "${request.idea}" --redrive` +
+  `node --experimental-strip-types scripts/requestRun.ts --idea "${request.idea}" --redrive --request-id ${request.requestId}` +
   (request.mode === 'pre-cloud' ? ' --mode pre-cloud' : '');
 
 // Durability first: the record has to be on the remote before the dispatch, or a
@@ -163,24 +193,44 @@ if (!flag('no-push')) {
     : `Request ${request.requestId} was already on ${BRANCH}`);
 }
 
+/** Every run of the coordinator workflow, with the title correlation needs. */
+function listCoordinatorRuns(): TitledRun[] {
+  try {
+    return JSON.parse(
+      gh(['run', 'list', '--workflow', WORKFLOW, '--branch', BRANCH, '--limit', '40', '--json', 'databaseId,status,createdAt,event,headSha,displayTitle,name'])
+    ) as TitledRun[];
+  } catch {
+    return [];
+  }
+}
+
 let runId = '';
+const dispatchId = makeDispatchId();
+let correlationNote = '';
 try {
-  gh(['workflow', 'run', WORKFLOW, '-f', `idea=${request.idea}`, '-f', `mode=${request.mode}`, '-f', `concurrency=${request.concurrency}`, '-f', `requestId=${request.requestId}`]);
-  const floor = Date.now() - 60_000;
+  gh([
+    'workflow', 'run', WORKFLOW,
+    '-f', `idea=${request.idea}`,
+    '-f', `mode=${request.mode}`,
+    '-f', `concurrency=${request.concurrency}`,
+    '-f', `requestId=${request.requestId}`,
+    '-f', `dispatchId=${dispatchId}`
+  ]);
+  // The run that answers this dispatch is the one whose title names this
+  // request and this attempt. Anything else is somebody else's work.
   for (let waited = 0; waited < 15; waited++) {
     execFileSync('sleep', ['6']);
-    const runs = JSON.parse(
-      gh(['run', 'list', '--workflow', WORKFLOW, '--branch', BRANCH, '--limit', '15', '--json', 'databaseId,status,createdAt,event,headSha,displayTitle,name'])
-    ) as { databaseId: number; status: string; createdAt: string; event: string; headSha: string; displayTitle?: string; name?: string }[];
-    const fresh = runs.filter((r) => Date.parse(r.createdAt) >= floor).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-    if (fresh) {
-      runId = String(fresh.databaseId);
+    const correlation = correlateRun(listCoordinatorRuns(), request.requestId, dispatchId);
+    if (correlation.runId) {
+      runId = correlation.runId;
       break;
     }
+    correlationNote = correlation.reason || '';
   }
 } catch (e) {
   recordDispatch(request.requestId, {
     at: new Date().toISOString(),
+    dispatchId,
     outcome: 'refused',
     note: String((e as { stderr?: string })?.stderr || e).slice(0, 300)
   });
@@ -190,15 +240,17 @@ try {
 if (!runId) {
   recordDispatch(request.requestId, {
     at: new Date().toISOString(),
+    dispatchId,
     outcome: 'dispatched',
-    note: 'GitHub accepted the dispatch but no run appeared; it may be waiting for a runner'
+    note: `GitHub accepted the dispatch but no run carrying this request and dispatch was seen${correlationNote ? ` (${correlationNote})` : ''}`
   });
   console.log(JSON.stringify({
     ok: true,
     requestId: request.requestId,
+    dispatchId,
     dispatched: true,
     runId: null,
-    note: 'no run appeared yet; the request stays open until a run proves it delivered',
+    note: 'no run carrying this request appeared yet; the request stays open until a run proves it delivered',
     redrive: redriveCmd
   }, null, 2));
   process.exit(0);
@@ -206,6 +258,7 @@ if (!runId) {
 
 const saved = recordDispatch(request.requestId, {
   at: new Date().toISOString(),
+  dispatchId,
   outcome: 'dispatched',
   runId
 })!;
@@ -218,11 +271,12 @@ if (!flag('no-push')) {
 console.log(JSON.stringify({
   ok: true,
   requestId: saved.requestId,
+  dispatchId,
   dispatched: true,
   runId,
   mode: saved.mode,
   idea: saved.idea,
   watch: `gh run watch ${runId} --exit-status`,
-  resume: `node --experimental-strip-types scripts/coordinator.ts --resume <runId>`,
+  resume: `node --experimental-strip-types scripts/coordinator.ts --resume <runId> --request-id ${saved.requestId}`,
   redrive: redriveCmd
 }, null, 2));

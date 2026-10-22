@@ -1,4 +1,5 @@
 import { assertTruthful } from './stateValidator.ts';
+import type { FeatureGateState } from '../../shared/state.ts';
 
 export const REQUIRED_EVIDENCE_CHAIN = [
   'IDEA',
@@ -33,6 +34,12 @@ export interface GateInput {
   cloudBuildStatus: string;
   cloudBuildState?: string;
   cloudBuildFinishedAt?: string;
+  /** The verdict of the feature gate for this request. */
+  featureGate?: FeatureGateState;
+  /** The APK this run is releasing. */
+  apkSha256?: string;
+  /** The request this run answers. */
+  requestId?: string;
 }
 
 /**
@@ -64,6 +71,32 @@ function iconProblem(status: string | undefined): string | null {
   return null;
 }
 
+/**
+ * The features the request asked for have to be proved against the APK that is
+ * being released.
+ *
+ * A gate verdict from an earlier run, from another request or for another APK
+ * says nothing about this one, so the verdict is checked against the identity
+ * of what is being released and not merely for having passed at some point.
+ */
+function featureGateProblem(g: Pick<GateInput, 'featureGate' | 'apkSha256' | 'requestId'>): string | null {
+  const gate = g.featureGate;
+  if (!gate) {
+    return 'the feature gate never ran for this request (no requested feature was proved against a build)';
+  }
+  if (gate.passed !== true) {
+    const first = gate.reasons[0] ?? (gate.failures.join(', ') || 'the gate refused the app');
+    return `the feature gate refused this app: ${first}`;
+  }
+  if (g.apkSha256 && gate.apkSha256 && gate.apkSha256 !== g.apkSha256) {
+    return 'the feature gate was run against a different APK than the one being released';
+  }
+  if (g.requestId && gate.requestId && gate.requestId !== g.requestId) {
+    return 'the feature gate was run for a different request than the one being completed';
+  }
+  return null;
+}
+
 export function assertCompleteLifecycle(g: GateInput) {
   const errors: string[] = [];
   if (g.projectState !== 'COMPLETED') errors.push(`projectState is ${g.projectState}, not COMPLETED`);
@@ -75,6 +108,8 @@ export function assertCompleteLifecycle(g: GateInput) {
   if (g.apkVerification !== 'passed') errors.push(`apkVerification is ${g.apkVerification}, not passed`);
   const icon = iconProblem(g.iconVerification);
   if (icon) errors.push(icon);
+  const gate = featureGateProblem(g);
+  if (gate) errors.push(gate);
   if (g.releaseStatus !== 'created') errors.push(`releaseStatus is ${g.releaseStatus}, not created`);
   const url = g.finalDownloadUrl || g.releaseAssetUrl;
   if (!url) {
@@ -96,6 +131,8 @@ export function assertDownloadReadyGate(g: GateInput) {
   if (g.apkVerification !== 'passed') errors.push('APK verification not passed');
   const icon = iconProblem(g.iconVerification);
   if (icon) errors.push(icon);
+  const gate = featureGateProblem(g);
+  if (gate) errors.push(gate);
   if (g.releaseStatus !== 'created') errors.push('release not created');
   const url = g.finalDownloadUrl || g.releaseAssetUrl;
   if (!url) errors.push('no public URL');
@@ -119,6 +156,9 @@ export function assertStateTruthfulAndComplete(s: any) {
     finalDownloadUrl: s.finalDownloadUrl,
     cloudBuildStatus: s.cloudBuild?.status,
     cloudBuildState: s.cloudBuild?.state,
-    cloudBuildFinishedAt: s.cloudBuild?.finishedAt
+    cloudBuildFinishedAt: s.cloudBuild?.finishedAt,
+    featureGate: s.featureGate,
+    apkSha256: s.apkSha256,
+    requestId: s.request?.requestId
   });
 }

@@ -3,7 +3,11 @@ name: Builder - Coordinator
 # Runs the twenty agents for one idea. The run store (.builder/agents) is cached
 # and uploaded, so a stopped run is continued with `--resume <runId>` instead of
 # being started again.
-run-name: "Builder - ${{ inputs.requestId || inputs.runId || inputs.idea }}"
+# The run's name is its identity. It names the request this run answers and the
+# dispatch attempt that asked for it, so the run that produced a piece of work
+# can be found exactly — not by being the newest run, which is the wrong run
+# whenever two requests for the same idea are in flight at once.
+run-name: "Builder - ${{ inputs.requestId || inputs.runId || inputs.idea }} # ${{ inputs.dispatchId || 'manual' }}"
 
 on:
   workflow_dispatch:
@@ -18,6 +22,10 @@ on:
         type: string
       requestId:
         description: 'Request ID that produced this dispatch'
+        required: false
+        type: string
+      dispatchId:
+        description: 'ID of this dispatch attempt; makes the run name unique per attempt'
         required: false
         type: string
       concurrency:
@@ -104,6 +112,7 @@ jobs:
           BUILDER_IDEA: ${{ inputs.idea }}
           BUILDER_RUN_ID: ${{ inputs.runId }}
           BUILDER_REQUEST_ID: ${{ inputs.requestId }}
+          BUILDER_DISPATCH_ID: ${{ inputs.dispatchId }}
           BUILDER_MODE: ${{ inputs.mode }}
           BUILDER_CONCURRENCY: ${{ inputs.concurrency || '4' }}
           BUILDER_CONFIG_PATH: config/builder.json
@@ -128,6 +137,9 @@ jobs:
           fi
           if [ -n "$BUILDER_REQUEST_ID" ]; then
             args+=(--request-id "$BUILDER_REQUEST_ID")
+          fi
+          if [ -n "$BUILDER_DISPATCH_ID" ]; then
+            args+=(--dispatch-id "$BUILDER_DISPATCH_ID")
           fi
           if [ -n "$BUILDER_RUN_ID" ]; then
             node --experimental-strip-types scripts/coordinator.ts --resume "$BUILDER_RUN_ID" "${args[@]}"
