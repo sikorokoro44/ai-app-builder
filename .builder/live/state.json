@@ -1,9 +1,9 @@
 {
-  "version": 140,
-  "projectState": "COMPLETED",
-  "overallProgressPct": 100,
+  "version": 100,
+  "projectState": "BUILDING",
+  "overallProgressPct": 0,
   "elapsedMs": 0,
-  "latestActivity": "integration-supervisor: completed: integration-supervisor finished",
+  "latestActivity": "Pushing generated sources to GitHub",
   "completedFeatures": 0,
   "totalFeatures": 0,
   "completedTasks": 0,
@@ -17,27 +17,27 @@
       "index": 1,
       "name": "Idea Intake Analyst",
       "state": "COMPLETED",
-      "activity": "completed: expenses from 173 words, 12 keywords",
-      "updatedAt": "2026-10-23T03:58:28.228Z",
-      "startedAt": "2026-10-23T03:58:28.206Z"
+      "activity": "completed: calculators from 200 words, 12 keywords",
+      "updatedAt": "2026-10-23T05:51:13.474Z",
+      "startedAt": "2026-10-23T05:51:13.454Z"
     },
     "requirements-analyst": {
       "id": "requirements-analyst",
       "index": 2,
       "name": "Requirements Analyst",
       "state": "COMPLETED",
-      "activity": "completed: 12 requirements with acceptance criteria",
-      "updatedAt": "2026-10-23T03:58:28.270Z",
-      "startedAt": "2026-10-23T03:58:28.232Z"
+      "activity": "completed: 11 requirements with acceptance criteria",
+      "updatedAt": "2026-10-23T05:51:13.519Z",
+      "startedAt": "2026-10-23T05:51:13.480Z"
     },
     "domain-modeler": {
       "id": "domain-modeler",
       "index": 3,
       "name": "Domain Modeler",
       "state": "COMPLETED",
-      "activity": "completed: Expense: 3 fields, actions [none]",
-      "updatedAt": "2026-10-23T03:58:28.261Z",
-      "startedAt": "2026-10-23T03:58:28.234Z"
+      "activity": "completed: Calculator: 2 fields, actions [none]",
+      "updatedAt": "2026-10-23T05:51:13.509Z",
+      "startedAt": "2026-10-23T05:51:13.483Z"
     },
     "architect": {
       "id": "architect",
@@ -45,44 +45,44 @@
       "name": "Software Architect",
       "state": "COMPLETED",
       "activity": "completed: Kotlin + Jetpack Compose (Material3), 9 files",
-      "updatedAt": "2026-10-23T03:58:28.313Z",
-      "startedAt": "2026-10-23T03:58:28.274Z"
+      "updatedAt": "2026-10-23T05:51:13.564Z",
+      "startedAt": "2026-10-23T05:51:13.523Z"
     },
     "ui-designer": {
       "id": "ui-designer",
       "index": 5,
       "name": "UI/UX Designer",
       "state": "COMPLETED",
-      "activity": "completed: designed 4 screen(s): Expenses (20 copy keys), Reports (8 copy keys), Budgets (9 copy keys), Settings (13 copy keys)",
-      "updatedAt": "2026-10-23T03:58:28.304Z",
-      "startedAt": "2026-10-23T03:58:28.276Z"
+      "activity": "completed: designed 1 screen(s): Workspace (15 copy keys)",
+      "updatedAt": "2026-10-23T05:51:13.554Z",
+      "startedAt": "2026-10-23T05:51:13.528Z"
     },
     "security-analyst": {
       "id": "security-analyst",
       "index": 6,
       "name": "Security Analyst",
       "state": "COMPLETED",
-      "activity": "completed: declared 0 permission(s), data a local file in the private storage of the app, written atomically, 4 secret rule(s)",
-      "updatedAt": "2026-10-23T03:58:28.330Z",
-      "startedAt": "2026-10-23T03:58:28.318Z"
+      "activity": "completed: declared 1 permission(s), data process memory only; nothing is written to disk by the app, 3 secret rule(s)",
+      "updatedAt": "2026-10-23T05:51:13.586Z",
+      "startedAt": "2026-10-23T05:51:13.569Z"
     },
     "feature-planner": {
       "id": "feature-planner",
       "index": 7,
       "name": "Feature Planner",
       "state": "COMPLETED",
-      "activity": "completed: planned 20 features and 20 tasks for com.sikorokoro44.expensetracker in 14 waves",
-      "updatedAt": "2026-10-23T03:58:28.360Z",
-      "startedAt": "2026-10-23T03:58:28.335Z"
+      "activity": "completed: planned 20 features and 20 tasks for com.sikorokoro44.smartcalculator in 14 waves",
+      "updatedAt": "2026-10-23T05:51:13.615Z",
+      "startedAt": "2026-10-23T05:51:13.592Z"
     },
     "project-scaffolder": {
       "id": "project-scaffolder",
       "index": 8,
       "name": "Project Scaffolder",
       "state": "COMPLETED",
-      "activity": "completed: scaffolded the Gradle project for com.sikorokoro44.expensetracker with 7 files",
-      "updatedAt": "2026-10-23T03:58:28.392Z",
-      "startedAt": "2026-10-23T03:58:28.366Z"
+      "activity": "completed: scaffolded the Gradle project for com.sikorokoro44.smartcalculator with 7 files",
+      "updatedAt": "2026-10-23T05:51:13.661Z",
+      "startedAt": "2026-10-23T05:51:13.621Z"
     },
     "manifest-engineer": {
       "id": "manifest-engineer",
@@ -90,107 +90,104 @@
       "name": "Manifest Engineer",
       "state": "COMPLETED",
       "activity": "completed: app/src/main/AndroidManifest.xml",
-      "updatedAt": "2026-10-23T03:58:28.412Z",
-      "startedAt": "2026-10-23T03:58:28.399Z"
+      "updatedAt": "2026-10-23T05:51:13.684Z",
+      "startedAt": "2026-10-23T05:51:13.667Z"
     },
     "data-engineer": {
       "id": "data-engineer",
       "index": 10,
       "name": "Data Engineer",
       "state": "COMPLETED",
-      "activity": "completed: app/src/main/java/com/sikorokoro44/expensetracker/ExpenseStore.kt",
-      "updatedAt": "2026-10-23T03:58:28.863Z",
-      "startedAt": "2026-10-23T03:58:28.417Z"
+      "activity": "completed: app/src/main/java/com/sikorokoro44/smartcalculator/CalculatorStore.kt",
+      "updatedAt": "2026-10-23T05:51:14.277Z",
+      "startedAt": "2026-10-23T05:51:13.690Z"
     },
     "ui-engineer": {
       "id": "ui-engineer",
       "index": 11,
       "name": "UI Engineer",
       "state": "COMPLETED",
-      "activity": "completed: app/src/main/java/com/sikorokoro44/expensetracker/MainActivity.kt",
-      "updatedAt": "2026-10-23T03:58:28.840Z",
-      "startedAt": "2026-10-23T03:58:28.417Z"
+      "activity": "completed: app/src/main/java/com/sikorokoro44/smartcalculator/MainActivity.kt",
+      "updatedAt": "2026-10-23T05:51:14.246Z",
+      "startedAt": "2026-10-23T05:51:13.690Z"
     },
     "resource-engineer": {
       "id": "resource-engineer",
       "index": 12,
       "name": "Resource Engineer",
       "state": "COMPLETED",
-      "activity": "completed: emitted 3 resource files defining 51 keys",
-      "updatedAt": "2026-10-23T03:58:28.843Z",
-      "startedAt": "2026-10-23T03:58:28.417Z"
+      "activity": "completed: emitted 3 resource files defining 15 keys",
+      "updatedAt": "2026-10-23T05:51:14.248Z",
+      "startedAt": "2026-10-23T05:51:13.690Z"
     },
     "brand-engineer": {
       "id": "brand-engineer",
       "index": 13,
       "name": "Brand and Icon Engineer",
       "state": "COMPLETED",
-      "activity": "completed: finance icon for tracking money, emitted at 18 densities",
-      "updatedAt": "2026-10-23T03:58:28.845Z",
-      "startedAt": "2026-10-23T03:58:28.420Z"
+      "activity": "completed: calculator icon for doing sums and reviewing past calculations, emitted at 18 densities",
+      "updatedAt": "2026-10-23T05:51:14.251Z",
+      "startedAt": "2026-10-23T05:51:13.693Z"
     },
     "test-engineer": {
       "id": "test-engineer",
       "index": 14,
       "name": "Test Engineer",
       "state": "COMPLETED",
-      "activity": "completed: wrote 21 unit tests in ExpenseStoreTest covering every planned action",
-      "updatedAt": "2026-10-23T03:58:28.891Z",
-      "startedAt": "2026-10-23T03:58:28.869Z"
+      "activity": "completed: wrote 17 unit tests in CalculatorStoreTest covering every planned action",
+      "updatedAt": "2026-10-23T05:51:14.306Z",
+      "startedAt": "2026-10-23T05:51:14.282Z"
     },
     "quality-auditor": {
       "id": "quality-auditor",
       "index": 15,
       "name": "Quality Auditor",
       "state": "COMPLETED",
-      "activity": "completed: validated com.sikorokoro44.expensetracker: 21 tests, icon valid, 51 resource keys, no credential findings",
-      "updatedAt": "2026-10-23T03:58:28.987Z",
-      "startedAt": "2026-10-23T03:58:28.896Z"
+      "activity": "completed: validated com.sikorokoro44.smartcalculator: 17 tests, icon valid, 15 resource keys, no credential findings",
+      "updatedAt": "2026-10-23T05:51:14.435Z",
+      "startedAt": "2026-10-23T05:51:14.312Z"
     },
     "repo-publisher": {
       "id": "repo-publisher",
       "index": 16,
       "name": "Repository Publisher",
-      "state": "COMPLETED",
-      "activity": "completed: e15e07c8582afce022f08634d599eca36d4d236e",
-      "updatedAt": "2026-10-23T03:58:30.573Z",
-      "startedAt": "2026-10-23T03:58:28.992Z"
+      "state": "WORKING",
+      "activity": "started",
+      "updatedAt": "2026-10-23T05:51:14.442Z",
+      "startedAt": "2026-10-23T05:51:14.440Z"
     },
     "build-verifier": {
       "id": "build-verifier",
       "index": 17,
       "name": "Build Verifier",
-      "state": "COMPLETED",
-      "activity": "completed: e15e07c8582afce022f08634d599eca36d4d236e",
-      "updatedAt": "2026-10-23T04:00:08.671Z",
-      "startedAt": "2026-10-23T03:58:30.582Z"
+      "state": "IDLE",
+      "activity": "waiting for dependencies",
+      "updatedAt": "2026-10-23T05:51:13.450Z"
     },
     "release-publisher": {
       "id": "release-publisher",
       "index": 18,
       "name": "Release Publisher",
-      "state": "COMPLETED",
-      "activity": "completed: build-39897833524",
-      "updatedAt": "2026-10-23T04:00:13.053Z",
-      "startedAt": "2026-10-23T04:00:08.675Z"
+      "state": "IDLE",
+      "activity": "waiting for dependencies",
+      "updatedAt": "2026-10-23T05:51:13.450Z"
     },
     "failure-diagnostician": {
       "id": "failure-diagnostician",
       "index": 19,
       "name": "Failure Diagnostician",
-      "state": "COMPLETED",
-      "activity": "completed: 4/4 health checks passed, 0 observed failure(s)",
-      "updatedAt": "2026-10-23T03:58:30.575Z",
-      "startedAt": "2026-10-23T03:58:28.995Z"
+      "state": "WORKING",
+      "activity": "waiting for dependencies",
+      "updatedAt": "2026-10-23T05:51:14.442Z",
+      "startedAt": "2026-10-23T05:51:14.442Z"
     },
     "integration-supervisor": {
       "id": "integration-supervisor",
       "index": 20,
       "name": "Integration Supervisor",
-      "state": "COMPLETED",
-      "activity": "completed: integration-supervisor finished",
-      "updatedAt": "2026-10-23T04:00:13.219Z",
-      "startedAt": "2026-10-23T04:00:13.061Z"
+      "state": "IDLE",
+      "activity": "waiting for dependencies",
+      "updatedAt": "2026-10-23T05:51:13.450Z"
     }
   },
   "tasks": {},
@@ -204,54 +201,17 @@
   "repairs": [],
   "githubStatus": "unknown",
   "cloudBuild": {
-    "state": "succeeded",
-    "stage": "COMPILING",
-    "status": "passed",
-    "output": [],
-    "headSha": "e15e07c8582afce022f08634d599eca36d4d236e",
-    "attempt": 1,
-    "workflowFile": ".github/workflows/builder-android-build.yml",
-    "dispatchedAt": "2026-10-23T03:58:31.558Z",
-    "runId": "39897833524",
-    "logsFetched": false,
-    "conclusion": "success",
-    "finishedAt": "2026-10-23T04:00:06.977Z",
-    "buildLogs": []
+    "state": "idle",
+    "stage": "QUEUED",
+    "status": "idle",
+    "output": []
   },
-  "apkVerification": "passed",
+  "apkVerification": "idle",
   "icon": {
-    "status": "passed",
-    "category": "finance",
-    "fingerprint": "72d3ee4835e93f407a4a9a34718383cbf0e1c9349234cf677d31bac3470213a8",
-    "manifestIcon": "@mipmap/ic_launcher",
-    "manifestRoundIcon": "@mipmap/ic_launcher_round",
-    "manifestIconResourceId": "0x7f080000",
-    "manifestIconType": "mipmap",
-    "matchedDensities": [
-      "mdpi",
-      "hdpi",
-      "xhdpi",
-      "xxhdpi",
-      "xxxhdpi"
-    ],
-    "matchedPath": "res/mipmap-mdpi-v4/ic_launcher.png",
-    "similarity": 0,
-    "byteIdentical": true,
-    "iconSignatureSha256": "0b1878a29d7c7c543ca0855487cf52c574ec211e5823fcd30a29989b27908872",
-    "runId": "39897833524",
-    "apkSha256": "095a39dcc6bf66e7906dbcfac4a306306429cc2f24324c5477bec9c2710b3b93",
-    "verifiedAt": "2026-10-23T04:00:08.050Z"
+    "status": "idle"
   },
   "release": {
-    "status": "created",
-    "repo": "sikorokoro44/ai-app-builder",
-    "tag": "build-39897833524",
-    "assetName": "app-debug.apk",
-    "assetUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/download/build-39897833524/app-debug.apk",
-    "assetSha256": "095a39dcc6bf66e7906dbcfac4a306306429cc2f24324c5477bec9c2710b3b93",
-    "runId": "39897833524",
-    "releaseUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/tag/build-39897833524",
-    "verifiedAt": "2026-10-23T04:00:12.467Z"
+    "status": "idle"
   },
   "failureRepair": {
     "state": "idle"
@@ -261,497 +221,46 @@
     "stages": [
       {
         "stage": "IDEA",
-        "evidence": "idea \"Build a complete native Android application called Smart Exp\" normalised for expenses",
-        "at": "2026-10-23T03:58:28.220Z"
+        "evidence": "idea \"Build a complete native Android application named Smart Calc\" normalised for calculators",
+        "at": "2026-10-23T05:51:13.468Z"
       },
       {
         "stage": "ANALYZE",
-        "evidence": "derived 12 requirements with acceptance criteria",
-        "at": "2026-10-23T03:58:28.255Z"
+        "evidence": "derived 11 requirements with acceptance criteria",
+        "at": "2026-10-23T05:51:13.504Z"
       },
       {
         "stage": "DESIGN",
         "evidence": "Kotlin + Jetpack Compose (Material3), min 24/target 34, 9 files",
-        "at": "2026-10-23T03:58:28.296Z"
+        "at": "2026-10-23T05:51:13.548Z"
       },
       {
         "stage": "PLAN",
         "evidence": "planned 20 features, 20 tasks, 14 waves",
-        "at": "2026-10-23T03:58:28.353Z"
+        "at": "2026-10-23T05:51:13.609Z"
       },
       {
         "stage": "SCAFFOLD",
-        "evidence": "gradle project scaffolded for com.sikorokoro44.expensetracker",
-        "at": "2026-10-23T03:58:28.385Z"
-      },
-      {
-        "stage": "IMPLEMENT",
-        "evidence": "pushed commit e15e07c",
-        "at": "2026-10-23T03:58:30.486Z"
+        "evidence": "gradle project scaffolded for com.sikorokoro44.smartcalculator",
+        "at": "2026-10-23T05:51:13.653Z"
       },
       {
         "stage": "TESTGEN",
-        "evidence": "registered 21 generated tests in ExpenseStoreTest",
-        "at": "2026-10-23T03:58:28.884Z"
+        "evidence": "registered 17 generated tests in CalculatorStoreTest",
+        "at": "2026-10-23T05:51:14.297Z"
       },
       {
         "stage": "VALIDATE",
-        "evidence": "project validated, packageId=com.sikorokoro44.expensetracker",
-        "at": "2026-10-23T03:58:30.819Z"
-      },
-      {
-        "stage": "CLOUD_BUILD",
-        "evidence": "run 39897833524 completed successfully",
-        "at": "2026-10-23T04:00:06.977Z",
-        "runId": "39897833524"
-      },
-      {
-        "stage": "BUILD_SUCCESS",
-        "evidence": "run 39897833524 conclusion=success",
-        "at": "2026-10-23T04:00:06.977Z",
-        "runId": "39897833524"
-      },
-      {
-        "stage": "REAL_APK",
-        "evidence": "apk=/tmp/builder-apk-39897833524-TNuzbd/app-debug.apk bytes=8777713",
-        "at": "2026-10-23T04:00:08.050Z",
-        "runId": "39897833524"
-      },
-      {
-        "stage": "APK_VERIFY",
-        "evidence": "sha256=095a39dcc6bf66e7906dbcfac4a306306429cc2f24324c5477bec9c2710b3b93 package=com.sikorokoro44.expensetracker",
-        "at": "2026-10-23T04:00:08.050Z",
-        "runId": "39897833524"
-      },
-      {
-        "stage": "REAL_ICON_VERIFY",
-        "evidence": "icon=@mipmap/ic_launcher category=finance fingerprint=72d3ee4835e93f407a4a9a34718383cbf0e1c9349234cf677d31bac3470213a8 compiled=res/mipmap-mdpi-v4/ic_launcher.png densities=mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi similarity=0 resource=0x7f080000",
-        "at": "2026-10-23T04:00:08.050Z",
-        "runId": "39897833524"
-      },
-      {
-        "stage": "RELEASE",
-        "evidence": "tag=build-39897833524",
-        "at": "2026-10-23T04:00:12.467Z",
-        "runId": "39897833524"
-      },
-      {
-        "stage": "RELEASE_ASSET",
-        "evidence": "app-debug.apk sha256=095a39dcc6bf66e7906dbcfac4a306306429cc2f24324c5477bec9c2710b3b93",
-        "at": "2026-10-23T04:00:12.468Z",
-        "runId": "39897833524"
-      },
-      {
-        "stage": "PUBLIC_HTTPS_URL",
-        "evidence": "https url https://github.com/sikorokoro44/ai-app-builder/releases/download/build-39897833524/app-debug.apk",
-        "at": "2026-10-23T04:00:12.880Z",
-        "runId": "39897833524"
-      },
-      {
-        "stage": "PUBLIC_DOWNLOAD",
-        "evidence": "HTTP 200 via https://release-assets.githubusercontent.com/github-production-release-asset/1403710635/250f551f-a394-4791-8185-bb3b12c7d80f?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-10-23T04%3A57%3A04Z&rscd=attachment%3B+filename%3Dapp-debug.apk&rsct=application%2Fvnd.android.package-archive&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-10-23T03%3A56%3A32Z&ske=2026-10-23T04%3A57%3A04Z&sks=b&skv=2018-11-09&sig=9C%2Bv2X5NJI349Cucxbg1lD%2BOHIcuRTDYwBC%2FYt3C9zc%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc5MjcyODMxMiwibmJmIjoxNzkyNzI4MDEyLCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.bUfZdM0aKAYBiuxkb736W5iTQGT2OYaCs4-A77zdtw8&response-content-disposition=attachment%3B%20filename%3Dapp-debug.apk&response-content-type=application%2Fvnd.android.package-archive, 8777713 bytes, sha256 095a39dcc6bf66e7906dbcfac4a306306429cc2f24324c5477bec9c2710b3b93 matches the verified APK",
-        "at": "2026-10-23T04:00:12.880Z",
-        "runId": "39897833524"
-      },
-      {
-        "stage": "FINAL_VERIFY",
-        "evidence": "download_ready url=https://github.com/sikorokoro44/ai-app-builder/releases/download/build-39897833524/app-debug.apk",
-        "at": "2026-10-23T04:00:13.012Z",
-        "runId": "39897833524"
-      }
-    ],
-    "publicDownloadVerified": true,
-    "publicDownloadUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/download/build-39897833524/app-debug.apk",
-    "finalVerifyAt": "2026-10-23T04:00:12.880Z"
-  },
-  "lastUpdated": "2026-10-23T04:00:14.462Z",
-  "idea": "Build a complete native Android application called Smart Expense Tracker. Package name: com.sikorokoro44.expensetracker. Create a polished, production-quality personal finance tracker that works completely offline. Features: record income and expenses; create, edit and delete transactions; categorize transactions; save data persistently in a local database; show daily weekly and monthly summaries; display income, expenses and remaining balance; support search filtering and sorting; allow users to set monthly budgets by category; show spending charts and budget warnings; export transactions to CSV; support decimal amounts and multiple currencies including SZL, ZAR and USD; include PIN-based app locking; provide a responsive interface with light and dark themes; validate all inputs and handle errors safely; never lose saved transactions when the app restarts; require no account, subscription or internet access for core functionality. Use the AI App Builder 20-agent system with dynamic task allocation and dependency management. Build the APK using GitHub Actions in the cloud. Verify the APK, package name, integrity and public download URL. Publish a release only after all required verification checks pass.",
-  "request": {
-    "requestId": "2026-10-23T03-58-06-655Z-build-a-complete-native-android-application-call-3975b8d4",
-    "dispatchId": "c44a608b3f93",
-    "githubRunId": "39897816439"
-  },
-  "apkPath": "/tmp/builder-apk-39897833524-TNuzbd/app-debug.apk",
-  "apkSha256": "095a39dcc6bf66e7906dbcfac4a306306429cc2f24324c5477bec9c2710b3b93",
-  "apkPackageId": "com.sikorokoro44.expensetracker",
-  "testResults": [
-    {
-      "runId": "39897833524",
-      "headSha": "e15e07c8582afce022f08634d599eca36d4d236e",
-      "apkSha256": "095a39dcc6bf66e7906dbcfac4a306306429cc2f24324c5477bec9c2710b3b93",
-      "packageId": "com.sikorokoro44.expensetracker",
-      "requestId": "2026-10-23T03-58-06-655Z-build-a-complete-native-android-application-call-3975b8d4",
-      "totals": {
-        "tests": 21,
-        "passed": 21,
-        "failures": 0,
-        "errors": 0,
-        "skipped": 0
-      },
-      "cases": [
-        {
-          "name": "warnsWhenBudgetIsExceeded",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "summarisesDailyWeeklyAndMonthlyTotals",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "searchesFiltersAndSortsTransactions",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "clearRemovesEveryTransaction",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "navigatesBetweenAppSections",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "createsEditsAndDeletesTransactions",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "keepsTransactionsAfterRestart",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "computesBalanceFromIncomeAndExpenses",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "exportsTransactionsAsCsv",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "rejectsInvalidInput",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "tracksMonthlyBudgetsByCategory",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "addsIncomeAndExpenseTransactions",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "adaptsLayoutToScreenWidth",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "convertsCurrenciesAndParsesDecimalAmounts",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "locksTheAppWithAPin",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "categorisesTransactions",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "addsExpenseThroughTheSimpleApi",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "switchesBetweenLightAndDarkThemes",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "runsOfflineWithoutNetworkOrAccount",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "removesTransactionById",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        },
-        {
-          "name": "showsChartDataForSpendingByCategory",
-          "classname": "com.sikorokoro44.expensetracker.ExpenseStoreTest",
-          "status": "passed"
-        }
-      ]
-    }
-  ],
-  "featureGate": {
-    "passed": true,
-    "failures": [],
-    "reasons": [],
-    "capabilities": [
-      {
-        "id": "income-and-expense",
-        "title": "Record income and expenses",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^addsIncomeAndExpenseTransactions$",
-            "testName": "addsIncomeAndExpenseTransactions",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "create-edit-delete",
-        "title": "Create, edit and delete transactions",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^createsEditsAndDeletesTransactions$",
-            "testName": "createsEditsAndDeletesTransactions",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "categories",
-        "title": "Categorise transactions",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^categorisesTransactions$",
-            "testName": "categorisesTransactions",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "persistence",
-        "title": "Save data persistently in a local database",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^keepsTransactionsAfterRestart$",
-            "testName": "keepsTransactionsAfterRestart",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "summaries",
-        "title": "Show daily, weekly and monthly summaries",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^summarisesDailyWeeklyAndMonthlyTotals$",
-            "testName": "summarisesDailyWeeklyAndMonthlyTotals",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "balance",
-        "title": "Display income, expenses and the remaining balance",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^computesBalanceFromIncomeAndExpenses$",
-            "testName": "computesBalanceFromIncomeAndExpenses",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "search-filter-sort",
-        "title": "Search, filter and sort the transactions",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^searchesFiltersAndSortsTransactions$",
-            "testName": "searchesFiltersAndSortsTransactions",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "budgets",
-        "title": "Set monthly budgets by category",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^tracksMonthlyBudgetsByCategory$",
-            "testName": "tracksMonthlyBudgetsByCategory",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "charts-and-warnings",
-        "title": "Show spending charts and budget warnings",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^warnsWhenBudgetIsExceeded$",
-            "testName": "warnsWhenBudgetIsExceeded",
-            "status": "passed"
-          },
-          {
-            "pattern": "^showsChartDataForSpendingByCategory$",
-            "testName": "showsChartDataForSpendingByCategory",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "csv-export",
-        "title": "Export the transactions to CSV",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^exportsTransactionsAsCsv$",
-            "testName": "exportsTransactionsAsCsv",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "currencies-and-decimals",
-        "title": "Support decimal amounts and the SZL, ZAR and USD currencies",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^convertsCurrenciesAndParsesDecimalAmounts$",
-            "testName": "convertsCurrenciesAndParsesDecimalAmounts",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "pin-lock",
-        "title": "Lock the app with a PIN",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^locksTheAppWithAPin$",
-            "testName": "locksTheAppWithAPin",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "themes-and-responsive",
-        "title": "Provide a responsive interface with light and dark themes",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^switchesBetweenLightAndDarkThemes$",
-            "testName": "switchesBetweenLightAndDarkThemes",
-            "status": "passed"
-          },
-          {
-            "pattern": "^adaptsLayoutToScreenWidth$",
-            "testName": "adaptsLayoutToScreenWidth",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "input-validation",
-        "title": "Validate the input and handle errors safely",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^rejectsInvalidInput$",
-            "testName": "rejectsInvalidInput",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "navigation",
-        "title": "Navigate between the sections of the app",
-        "requested": false,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^navigatesBetweenAppSections$",
-            "testName": "navigatesBetweenAppSections",
-            "status": "passed"
-          }
-        ]
-      },
-      {
-        "id": "offline-no-account",
-        "title": "Work with no account, no subscription and no internet access",
-        "requested": true,
-        "passed": true,
-        "implemented": true,
-        "tests": [
-          {
-            "pattern": "^runsOfflineWithoutNetworkOrAccount$",
-            "testName": "runsOfflineWithoutNetworkOrAccount",
-            "status": "passed"
-          }
-        ]
-      }
-    ],
-    "checkedAt": "2026-10-23T04:00:08.658Z",
-    "requestId": "2026-10-23T03-58-06-655Z-build-a-complete-native-android-application-call-3975b8d4",
-    "runId": "39897833524",
-    "apkSha256": "095a39dcc6bf66e7906dbcfac4a306306429cc2f24324c5477bec9c2710b3b93"
-  },
-  "finalDownloadUrl": "https://github.com/sikorokoro44/ai-app-builder/releases/download/build-39897833524/app-debug.apk",
-  "email": {
-    "sent": [
-      {
-        "kind": "COMPLETE",
-        "fingerprint": "19c344cd2f82975bbe53e0b27165380649c238c39c3ae9d3e037857c65beed23",
-        "at": "2026-10-23T04:00:14.462Z",
-        "toMasked": "s***@gmail.com",
-        "subject": "APK ready and verified: Build a complete native Android application called Smart Expense Tracker. Package name: com.sikorokoro44.expensetracker. Create a polished, production-quality personal finance tracker that works completely offline. Features: record income and expenses; create, edit and delete transactions; categorize transactions; save data persistently in a local database; show daily weekly and monthly summaries; display income, expenses and remaining balance; support search filtering and sorting; allow users to set monthly budgets by category; show spending charts and budget warnings; export transactions to CSV; support decimal amounts and multiple currencies including SZL, ZAR and USD; include PIN-based app locking; provide a responsive interface with light and dark themes; validate all inputs and handle errors safely; never lose saved transactions when the app restarts; require no account, subscription or internet access for core functionality. Use the AI App Builder 20-agent system with dynamic task allocation and dependency management. Build the APK using GitHub Actions in the cloud. Verify the APK, package name, integrity and public download URL. Publish a release only after all required verification checks pass."
+        "evidence": "project validated, packageId=com.sikorokoro44.smartcalculator, 17 tests, 0 credential findings",
+        "at": "2026-10-23T05:51:14.430Z"
       }
     ]
+  },
+  "lastUpdated": "2026-10-23T05:51:14.615Z",
+  "idea": "Build a complete native Android application named Smart Calculator. Package name: com.sikorokoro44.smartcalculator. Requirements: basic operations addition subtraction multiplication division; decimal numbers and negative numbers; correct operator precedence and parentheses; percentage calculations; Clear (AC) delete (⌫) plus/minus (+/−); correct handling of division by zero and invalid expressions; calculation history with ability to reuse previous results; clean modern responsive calculator interface; support portrait and landscape layouts; accurate decimal calculations without avoidable floating-point errors; fully functional offline with no account or internet connection required; preserve calculation history across app restarts. Implement a genuine calculator not a mockup. Write automated unit tests for arithmetic precedence decimals percentages negative numbers parentheses and error handling. Verify every button and calculation. Use the existing AI App Builder pipeline and its 20-agent coordination. Run tests and build the Android APK using GitHub Actions. Verify package name app name launcher icon and APK integrity. Publish the APK to a GitHub release. Independently verify the public download and SHA-256 checksum. Mark the request COMPLETE and send the completion email only after all mandatory verification gates pass. Preserve exact request and dispatch IDs across every workflow stage. Do not report success if any required test or verification fails.",
+  "request": {
+    "requestId": "2026-10-23T05-50-48-599Z-build-a-complete-native-android-application-name-09f5c1f5",
+    "dispatchId": "dbbe490f8ad8",
+    "githubRunId": "39908043743"
   }
 }
