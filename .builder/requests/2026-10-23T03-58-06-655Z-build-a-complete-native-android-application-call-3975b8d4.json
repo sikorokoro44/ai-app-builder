@@ -4,7 +4,7 @@
   "mode": "full",
   "concurrency": 4,
   "requestedAt": "2026-10-23T03:58:06.687Z",
-  "state": "dispatched",
+  "state": "delivered",
   "dispatches": [
     {
       "at": "2026-10-23T03:58:29.104Z",
@@ -12,5 +12,6 @@
       "outcome": "dispatched",
       "runId": "39897816439"
     }
-  ]
+  ],
+  "note": "the coordinator delivered and verified this app; closed by the watchdog"
 }
