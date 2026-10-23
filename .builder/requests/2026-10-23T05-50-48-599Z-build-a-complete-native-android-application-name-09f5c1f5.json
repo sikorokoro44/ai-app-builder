@@ -1,0 +1,9 @@
+{
+  "requestId": "2026-10-23T05-50-48-599Z-build-a-complete-native-android-application-name-09f5c1f5",
+  "idea": "Build a complete native Android application named Smart Calculator. Package name: com.sikorokoro44.smartcalculator. Requirements: basic operations addition subtraction multiplication division; decimal numbers and negative numbers; correct operator precedence and parentheses; percentage calculations; Clear (AC) delete (⌫) plus/minus (+/−); correct handling of division by zero and invalid expressions; calculation history with ability to reuse previous results; clean modern responsive calculator interface; support portrait and landscape layouts; accurate decimal calculations without avoidable floating-point errors; fully functional offline with no account or internet connection required; preserve calculation history across app restarts. Implement a genuine calculator not a mockup. Write automated unit tests for arithmetic precedence decimals percentages negative numbers parentheses and error handling. Verify every button and calculation. Use the existing AI App Builder pipeline and its 20-agent coordination. Run tests and build the Android APK using GitHub Actions. Verify package name app name launcher icon and APK integrity. Publish the APK to a GitHub release. Independently verify the public download and SHA-256 checksum. Mark the request COMPLETE and send the completion email only after all mandatory verification gates pass. Preserve exact request and dispatch IDs across every workflow stage. Do not report success if any required test or verification fails.",
+  "mode": "full",
+  "concurrency": 4,
+  "requestedAt": "2026-10-23T05:50:48.635Z",
+  "state": "requested",
+  "dispatches": []
+}
