@@ -55,9 +55,32 @@ function pushCommit(cwd: string, branch: string, attempts = 4): { ok: boolean; r
   return { ok: false, reason: 'attempts exhausted', replays };
 }
 
+function cleanup(root: string): void {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      rmSync(root, { recursive: true, force: true });
+      return;
+    } catch (e: any) {
+      if (e.code !== 'ENOTEMPTY' && e.code !== 'EBUSY' && e.code !== 'ENOENT') throw e;
+      // Git may still be finalising background files (e.g. gc) when the test
+      // finishes. Retrying makes directory removal robust against that race,
+      // which is what made this suite flaky in CI rather than a push failure.
+      const wait = Date.now() + 50 * (attempt + 1);
+      while (Date.now() < wait) {
+        try {
+          execFileSync('sleep', ['0.05']);
+        } catch {
+          break;
+        }
+      }
+    }
+  }
+  rmSync(root, { recursive: true, force: true });
+}
+
 function fixture(t: any) {
   const root = mkdtempSync(join(tmpdir(), 'builder-push-race-'));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => cleanup(root));
   const remote = join(root, 'origin.git');
   const work = join(root, 'work');
   const other = join(root, 'other');
