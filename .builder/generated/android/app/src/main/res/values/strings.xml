@@ -1,18 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Calculator</string>
-    <string name="empty_list">Nothing here yet. Enter a calculation and press =.</string>
+    <string name="app_name">a book tracker for reading with title, a</string>
+    <string name="field_title">Title</string>
+    <string name="field_author">Author</string>
+    <string name="field_notes">Notes</string>
+    <string name="add_button">Add book</string>
     <string name="delete">Remove</string>
-    <string name="history_heading">History</string>
-    <string name="display_hint">Result appears here</string>
-    <string name="key_open_paren">(</string>
-    <string name="key_close_paren">)</string>
-    <string name="key_percent">%</string>
-    <string name="key_clear">C</string>
-    <string name="key_divide">÷</string>
-    <string name="key_multiply">×</string>
-    <string name="key_minus">−</string>
-    <string name="key_plus">+</string>
-    <string name="key_equals">=</string>
-    <string name="key_decimal">.</string>
+    <string name="increment">Log one page</string>
+    <string name="mark_done">Mark finished</string>
+    <string name="empty_list">No books yet. Add your first one.</string>
+    <string name="progress_format">Pages read: %1$d</string>
 </resources>

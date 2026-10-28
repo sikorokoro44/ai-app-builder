@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.sikorokoro44.smartcalculator"
+    namespace = "com.builder.booktracker"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.sikorokoro44.smartcalculator"
+        applicationId = "com.builder.booktracker"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
